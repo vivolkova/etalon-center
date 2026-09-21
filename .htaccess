@@ -1,0 +1,21 @@
+Options -Indexes
+RewriteEngine On
+
+# ── Передаём Authorization заголовок в PHP (REG.RU fix) ──────
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization},L]
+
+# ── CORS preflight ────────────────────────────────────────────
+RewriteCond %{REQUEST_METHOD} OPTIONS
+RewriteRule .* - [R=204,L]
+
+# ── Безопасность ──────────────────────────────────────────────
+<FilesMatch "\.(sql|log|env)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# ── Кэш для статики ───────────────────────────────────────────
+<FilesMatch "\.(css|js|png|jpg|ico|webp)$">
+    Header set Cache-Control "max-age=604800, public"
+</FilesMatch>
