@@ -16,6 +16,8 @@ RewriteRule .* - [R=204,L]
 </FilesMatch>
 
 # ── Кэш для статики ───────────────────────────────────────────
+<IfModule mod_headers.c>
 <FilesMatch "\.(css|js|png|jpg|ico|webp)$">
     Header set Cache-Control "max-age=604800, public"
 </FilesMatch>
+</IfModule>

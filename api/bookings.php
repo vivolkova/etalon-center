@@ -1,5 +1,5 @@
 <?php
-// api/bookings.php — Записи на тренировки
+// api/bookings.php — Записи на тренировки (с выбором станка/места)
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
 
@@ -12,10 +12,11 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.category,
-               t.name AS trainer_name
+               t.name AS trainer_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         LEFT JOIN trainers t ON s.trainer_id = t.id
+        LEFT JOIN stations st ON b.station_id = st.id
         WHERE b.user_id = ?
         ORDER BY s.slot_date DESC, s.start_time DESC
     ');
@@ -32,11 +33,12 @@ if ($method === 'GET' && $action === 'all') {
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                    s.name AS slot_name, s.slot_date, s.start_time, s.category,
-                   t.name AS trainer_name
+                   t.name AS trainer_name, st.label AS station_label
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
             LEFT JOIN trainers t ON s.trainer_id = t.id
+            LEFT JOIN stations st ON b.station_id = st.id
             WHERE 1=1';
     $params = [];
 
@@ -53,48 +55,67 @@ if ($method === 'GET' && $action === 'all') {
     ok($stmt->fetchAll());
 }
 
-// POST — создать запись
+// POST — создать запись (на конкретный станок)
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();
     $d    = input();
-    require_fields($d, ['slot_id']);
+    require_fields($d, ['slot_id', 'station_id']);
 
-    $slotId = (int)$d['slot_id'];
-    $db     = getDB();
+    $slotId    = (int)$d['slot_id'];
+    $stationId = (int)$d['station_id'];
+    $db        = getDB();
 
-    // Проверяем слот
+    // Слот существует и активен
     $stmt = $db->prepare('SELECT * FROM slots WHERE id=? AND active=1');
     $stmt->execute([$slotId]);
     $slot = $stmt->fetch();
     if (!$slot) err('Слот не найден');
-    if ($slot['taken'] >= $slot['max_people']) err('Мест нет');
 
-    // Проверяем дубль
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status != "cancelled"');
+    // Станок активен и принадлежит филиалу слота
+    $stmt = $db->prepare('SELECT * FROM stations WHERE id=? AND active=1 AND location_id=?');
+    $stmt->execute([$stationId, (int)$slot['location_id']]);
+    $station = $stmt->fetch();
+    if (!$station) err('Станок недоступен');
+
+    // Станок не заблокирован на это занятие (персоналка/ремонт)
+    $stmt = $db->prepare('SELECT id FROM slot_station_blocks WHERE slot_id=? AND station_id=?');
+    $stmt->execute([$slotId, $stationId]);
+    if ($stmt->fetch()) err('Станок недоступен на это занятие');
+
+    // Быстрая дружелюбная проверка «место свободно».
+    // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
+    $stmt->execute([$slotId, $stationId]);
+    if ($stmt->fetch()) err('Это место уже занято');
+
+    // Пользователь ещё не записан на этот слот
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
     $stmt->execute([$user['id'], $slotId]);
     if ($stmt->fetch()) err('Вы уже записаны на это занятие');
 
-    // Создаём запись
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, price, status) VALUES (?,?,?,?)');
-        $stmt->execute([$user['id'], $slotId, $slot['price'], 'pending']);
+        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status) VALUES (?,?,?,?,?)');
+        $stmt->execute([$user['id'], $slotId, $stationId, $slot['price'], 'pending']);
         $bookingId = $db->lastInsertId();
 
-        $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id=?')->execute([$slotId]);
-
-        // Статус клиента → active
+        // Статус клиента → active при первой записи
         $db->prepare('UPDATE users SET status="active" WHERE id=? AND status="new"')->execute([$user['id']]);
 
         // Уведомление администратору
         $stmt = $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)');
-        $stmt->execute(['booking', 'Новая запись', $user['name'] . ' — ' . $slot['name'] . ' ' . $slot['slot_date']]);
+        $stmt->execute([
+            'booking',
+            'Новая запись',
+            $user['name'] . ' — ' . $slot['name'] . ' (' . $station['label'] . ') ' . $slot['slot_date'],
+        ]);
 
         $db->commit();
         ok(['id' => $bookingId], 'Запись создана');
-    } catch (Exception $e) {
+    } catch (PDOException $e) {
         $db->rollBack();
-        err('Ошибка при создании записи');
+        // Гонка: место заняли между проверкой и вставкой — сработал UNIQUE-индекс
+        err('Это место только что заняли, выберите другое');
     }
 }
 
@@ -123,13 +144,6 @@ if ($method === 'PUT' && $action === 'status') {
     try {
         $db->prepare('UPDATE bookings SET status=? WHERE id=?')->execute([$status, $id]);
 
-        // При отмене — освобождаем место
-        if ($status === 'cancelled' && $booking['status'] !== 'cancelled') {
-            $db->prepare('UPDATE slots SET taken = GREATEST(taken-1, 0) WHERE id=?')
-               ->execute([$booking['slot_id']]);
-        }
-
-        // Уведомление
         $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
            ->execute([
                $status === 'confirmed' ? 'booking' : 'cancel',
@@ -145,9 +159,8 @@ if ($method === 'PUT' && $action === 'status') {
     }
 }
 
-// PUT — обновить статус оплаты
+// PUT — обновить статус оплаты (только admin)
 if ($method === 'PUT' && $action === 'payment') {
-    // Только администратор: иначе клиент может пометить свою запись оплаченной
     authAdmin();
     $d  = input();
     $id = (int)($d['id'] ?? 0);

@@ -1,0 +1,53 @@
+# Локальная разработка «Эталон».
+# Запуск:   docker compose up -d
+# Сайт:     http://localhost:8080
+# phpMyAdmin: http://localhost:8081  (сервер: db, пользователь: etalon, пароль: etalon)
+# Остановить: docker compose down   (данные БД сохраняются в томе dbdata)
+
+services:
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      # Эти переменные перекрывают значения в config/db.php (env-first),
+      # поэтому локально сайт ходит в контейнер db, а не в боевую базу.
+      DB_HOST: db
+      DB_NAME: etalon
+      DB_USER: etalon
+      DB_PASS: etalon
+      SITE_URL: "http://localhost:8080"
+      JWT_SECRET: "dev-local-secret-change-me"
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: etalon
+      MYSQL_USER: etalon
+      MYSQL_PASSWORD: etalon
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3307:3306"          # локальный порт 3307 -> MySQL в контейнере
+    volumes:
+      - dbdata:/var/lib/mysql
+      # Локальная база собирается из МИГРАЦИЙ (V001, V002, ... по порядку), затем сид.
+      # Добавил новую таблицу -> новый файл в db/migrations, и всё (down -v && up).
+      - ./db/migrations:/docker-entrypoint-initdb.d
+      - ./db/seed_dev.sql:/docker-entrypoint-initdb.d/zzz_seed_dev.sql
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+    depends_on:
+      - db
+
+volumes:
+  dbdata:

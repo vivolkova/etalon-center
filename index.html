@@ -976,6 +976,19 @@ body {
 }
 .adm-time-cell.drag-over::after { display: none; }
 
+
+/* Схема зала — выбор станка */
+.hall-scheme{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:8px 0;padding:14px;background:#f6f6f4;border-radius:12px;justify-content:center}
+.station{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;flex:0 0 auto;padding:10px 6px;border:2px solid transparent;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;color:#111;transition:.15s;font-family:inherit}
+.station .station-ico{line-height:0}
+.station .station-ico svg{width:34px;height:34px;display:block}
+.station.free{border-color:#00BAB3;color:#0a7d78}
+.station.free:hover{background:#e6fbfa}
+.station.taken{background:#eee;color:#999;cursor:not-allowed;border-color:#ddd}
+.station.blocked{background:#fdecec;color:#c0392b;cursor:not-allowed;border-color:#f3c2c2}
+.station.selected{background:#00BAB3;color:#fff;border-color:#00BAB3;box-shadow:0 4px 12px rgba(0,186,179,.35)}
+.station-hint{font-size:13px;color:#666;text-align:center;margin-top:2px}
+#booking-modal .modal{max-width:600px}
 </style>
 </head>
 <body>
@@ -1623,6 +1636,11 @@ body {
       <button class="modal-close" onclick="closeBookingModal()">×</button>
     </div>
     <div class="modal-detail-row" id="bm-details"></div>
+    <div class="form-field">
+      <label class="form-label">Выберите место</label>
+      <div id="bm-hall" class="hall-scheme"></div>
+      <div id="bm-station-hint" class="station-hint"></div>
+    </div>
     <div class="form-row">
       <div class="form-field">
         <label class="form-label">Имя</label>
@@ -1848,14 +1866,21 @@ const BookingsAPI = {
     if (search) url += `&search=${encodeURIComponent(search)}`;
     return apiRequest(url);
   },
-  async create(slotId) {
-    return apiRequest('/bookings.php?action=create', 'POST', { slot_id: slotId });
+  async create(slotId, stationId) {
+    return apiRequest('/bookings.php?action=create', 'POST', { slot_id: slotId, station_id: stationId });
   },
   async setStatus(id, status) {
     return apiRequest('/bookings.php?action=status', 'PUT', { id, status });
   },
   async setPayment(id, paymentStatus, paymentId) {
     return apiRequest('/bookings.php?action=payment', 'PUT', { id, payment_status: paymentStatus, payment_id: paymentId });
+  },
+};
+
+// ── STATIONS ───────────────────────────────────────────────
+const StationsAPI = {
+  async availability(slotId) {
+    return apiRequest(`/stations.php?action=availability&slot_id=${slotId}`);
   },
 };
 
@@ -2064,6 +2089,7 @@ let currentPage = 'home';
 let currentCat = 'all';
 let selectedDayIdx = todayIdx;
 let selectedSlot = null;
+let selectedStation = null;
 let currentUser = null;
 let bookings = JSON.parse(localStorage.getItem('velo_bookings') || '[]');
 let authMode = 'login';
@@ -2548,13 +2574,40 @@ function openBookingModal(slotId) {
   document.getElementById('bm-sub').textContent = `${s.date.getDate()} ${MONTHS_FULL[s.date.getMonth()]} · ${s.time} · ${s.trainer}`;
   document.getElementById('bm-details').innerHTML = `
     <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="detail-val">${s.dur} мин</div><div class="detail-label">Продолжительность</div></div>
-    <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div class="detail-val">${s.max - s.taken} мест</div><div class="detail-label">Свободно</div></div>
+    <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div class="detail-val"><span id="bm-free">—</span> мест</div><div class="detail-label">Свободно</div></div>
     <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg></div><div class="detail-val">${s.price.toLocaleString('ru')} ₽</div><div class="detail-label">Стоимость</div></div>`;
   document.getElementById('f-name').value = currentUser?.name || '';
   document.getElementById('f-phone').value = currentUser?.phone || '';
   document.getElementById('f-email').value = currentUser?.email || '';
   document.getElementById('f-comment').value = '';
   document.getElementById('booking-modal').classList.add('show');
+  selectedStation = null;
+  renderHall(slotId);
+}
+
+async function renderHall(slotId){
+  const hall = document.getElementById('bm-hall');
+  const hint = document.getElementById('bm-station-hint');
+  hall.innerHTML = ''; hint.textContent = 'Загрузка схемы зала…';
+  let stations;
+  try { stations = await StationsAPI.availability(slotId); }
+  catch(e){ hint.textContent = 'Не удалось загрузить схему зала'; return; }
+  const free = stations.filter(x=>x.state==='free').length;
+  const fe = document.getElementById('bm-free'); if (fe) fe.textContent = free;
+  hall.innerHTML = stations.map(st=>{
+    const sel = (st.id===selectedStation) ? ' selected' : '';
+    const ico = st.icon || '';
+    const on  = st.state==='free' ? `onclick="selectStation(${st.id})"` : 'disabled';
+    return `<button type="button" class="station ${st.state}${sel}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
+  }).join('');
+  hint.textContent = free>0 ? ('Свободно: '+free+'. Кликните место.') : 'Свободных мест нет';
+}
+function selectStation(id){
+  selectedStation = id;
+  document.querySelectorAll('#bm-hall .station').forEach(b=>b.classList.remove('selected'));
+  const el = [...document.querySelectorAll('#bm-hall .station')].find(b=>(b.getAttribute('onclick')||'')==='selectStation('+id+')');
+  if(el) el.classList.add('selected');
+  document.getElementById('bm-station-hint').textContent = 'Место выбрано ✓';
 }
 
 function closeBookingModal() {
@@ -2566,6 +2619,7 @@ async function confirmBooking() {
   const name  = document.getElementById('f-name').value.trim();
   const email = document.getElementById('f-email').value.trim();
   if (!name || !email) { showToast('Заполните имя и email','error'); return; }
+  if (!selectedStation) { showToast('Выберите место на схеме зала','error'); return; }
   const s = selectedSlot;
 
   const btn = document.querySelector('.modal-actions .btn-primary');
@@ -2573,7 +2627,7 @@ async function confirmBooking() {
 
   try {
     // API-запрос
-    const res = await BookingsAPI.create(s.id);
+    const res = await BookingsAPI.create(s.id, selectedStation);
     // Обновляем локальный массив слотов
     s.taken++;
     // Подгружаем актуальные записи
