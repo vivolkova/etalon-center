@@ -12,9 +12,11 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.category,
-               t.name AS trainer_name, st.label AS station_label
+               t.name AS trainer_name, st.label AS station_label,
+               bs.code AS status, bs.name AS status_name
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
+        JOIN booking_statuses bs ON b.status_id = bs.id
         LEFT JOIN trainers t ON s.trainer_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
         WHERE b.user_id = ?
@@ -33,16 +35,18 @@ if ($method === 'GET' && $action === 'all') {
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                    s.name AS slot_name, s.slot_date, s.start_time, s.category,
-                   t.name AS trainer_name, st.label AS station_label
+                   t.name AS trainer_name, st.label AS station_label,
+                   bs.code AS status, bs.name AS status_name
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
+            JOIN booking_statuses bs ON b.status_id = bs.id
             LEFT JOIN trainers t ON s.trainer_id = t.id
             LEFT JOIN stations st ON b.station_id = st.id
             WHERE 1=1';
     $params = [];
 
-    if ($status) { $sql .= ' AND b.status=?'; $params[] = $status; }
+    if ($status) { $sql .= ' AND bs.code=?'; $params[] = $status; }
     if ($search) {
         $sql .= ' AND (u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ?)';
         $like = "%$search%";
@@ -84,19 +88,19 @@ if ($method === 'POST' && $action === 'create') {
 
     // Быстрая дружелюбная проверка «место свободно».
     // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status_id <> 2');
     $stmt->execute([$slotId, $stationId]);
     if ($stmt->fetch()) err('Это место уже занято');
 
     // Пользователь ещё не записан на этот слот
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status_id <> 2');
     $stmt->execute([$user['id'], $slotId]);
     if ($stmt->fetch()) err('Вы уже записаны на это занятие');
 
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status) VALUES (?,?,?,?,?)');
-        $stmt->execute([$user['id'], $slotId, $stationId, $slot['price'], 'pending']);
+        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status_id) VALUES (?,?,?,?,1)');
+        $stmt->execute([$user['id'], $slotId, $stationId, $slot['price']]);
         $bookingId = $db->lastInsertId();
 
         // Статус клиента → active при первой записи
@@ -140,14 +144,20 @@ if ($method === 'PUT' && $action === 'status') {
         if ($status !== 'cancelled') err('Нет доступа', 403);
     }
 
+    // код статуса -> id справочника booking_statuses
+    $sid = $db->prepare('SELECT id FROM booking_statuses WHERE code=?');
+    $sid->execute([$status]);
+    $statusId = $sid->fetchColumn();
+    if (!$statusId) err('Неизвестный статус');
+
     $db->beginTransaction();
     try {
-        $db->prepare('UPDATE bookings SET status=? WHERE id=?')->execute([$status, $id]);
+        $db->prepare('UPDATE bookings SET status_id=? WHERE id=?')->execute([$statusId, $id]);
 
         $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
            ->execute([
-               $status === 'confirmed' ? 'booking' : 'cancel',
-               $status === 'confirmed' ? 'Запись подтверждена' : 'Запись отменена',
+               $status === 'cancelled' ? 'cancel' : 'booking',
+               $status === 'cancelled' ? 'Запись отменена' : 'Запись обновлена',
                $booking['slot_name'] . ' (запись #' . $id . ')',
            ]);
 

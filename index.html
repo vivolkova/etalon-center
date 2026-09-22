@@ -92,6 +92,13 @@ body {
 }
 .btn-primary:hover { background: var(--green-dark); }
 .btn-primary:active { transform: scale(.97); }
+.btn-primary:disabled, .btn-primary[disabled]{
+  background:#d1d5db; color:#6b7280; cursor:not-allowed; box-shadow:none; transform:none;
+}
+.btn-primary:disabled:hover, .btn-primary[disabled]:hover{ background:#d1d5db; }
+.btn-primary.is-booked-ok, .btn-primary.is-booked-ok:hover{
+  background:var(--green); color:#fff; cursor:default; box-shadow:none; transform:none;
+}
 
 /* ─── HERO ─── */
 .hero {
@@ -1151,7 +1158,7 @@ body {
         <div class="cp-section-title">Мои записи</div>
         <div class="filter-chips" style="margin-bottom:16px" id="cp-booking-filters">
           <button class="chip active" onclick="cpBookingFilter('all',this)">Все</button>
-          <button class="chip" onclick="cpBookingFilter('confirmed',this)">Подтверждённые</button>
+          <button class="chip" onclick="cpBookingFilter('booked',this)">Записанные</button>
           <button class="chip" onclick="cpBookingFilter('cancelled',this)">Отменённые</button>
         </div>
         <div class="bookings-list" id="cp-bookings-list"></div>
@@ -1430,9 +1437,8 @@ body {
             <input class="form-input" id="bookings-search" placeholder="Поиск клиента..." style="width:220px;height:36px;font-size:13px" oninput="filterBookingsSearch(this.value)">
             <select class="form-input" id="bookings-status-filter" style="width:160px;height:36px;font-size:13px" onchange="filterBookingsSearch(document.getElementById('bookings-search').value)">
               <option value="all">Все статусы</option>
-              <option value="pending">Ожидают</option>
-              <option value="confirmed">Подтверждены</option>
-              <option value="cancelled">Отменены</option>
+              <option value="booked">Записан</option>
+                            <option value="cancelled">Отменены</option>
             </select>
           </div>
         </div>
@@ -2583,6 +2589,18 @@ function openBookingModal(slotId) {
   document.getElementById('f-comment').value = '';
   document.getElementById('booking-modal').classList.add('show');
   selectedStation = null;
+
+  // Состояние кнопки отправки: если уже записан на этот слот — «Записаться» неактивна
+  const submitBtn = document.querySelector('#booking-modal .modal-actions .btn-primary');
+  if (submitBtn) {
+    const already = bookings.some(b => b.slotId === slotId && b.status !== 'cancelled');
+    submitBtn.disabled = already;
+    submitBtn.textContent = 'Записаться →';
+    submitBtn.style.opacity = '';
+    submitBtn.style.cursor  = '';
+    submitBtn.title = already ? 'Вы уже записаны на это занятие' : '';
+  }
+
   renderHall(slotId);
 }
 
@@ -2661,7 +2679,7 @@ async function confirmBooking() {
       phone: document.getElementById('f-phone').value,
       service: s.name, cat: s.cat, date: s.date.toISOString(),
       time: s.time, trainer: s.trainer, price: s.price,
-      status: 'confirmed', paymentStatus: 'unpaid', clientId: currentUser?.email,
+      status: 'booked', paymentStatus: 'unpaid', clientId: currentUser?.email,
     };
     bookings.push(booking);
     localStorage.setItem('velo_bookings', JSON.stringify(bookings));
@@ -2673,7 +2691,7 @@ async function confirmBooking() {
     renderWeekCal();
     showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
   } finally {
-    if (btn) { btn.textContent = 'Подтвердить запись'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Записаться →'; btn.disabled = false; }
   }
 }
 
@@ -2706,8 +2724,8 @@ function renderBookings() {
   }
   list.innerHTML = myBookings.reverse().map(b => {
     const date = new Date(b.date);
-    const statusMap = {confirmed:'status-confirmed',pending:'status-pending',cancelled:'status-cancelled'};
-    const statusLabel = {confirmed:'Подтверждена',pending:'Ожидает',cancelled:'Отменена'};
+    const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
+    const statusLabel = {booked:'Записан',cancelled:'Отменена'};
     return `<div class="booking-row">
       <div class="booking-date-block">
         <div class="booking-date-day">${date.getDate()}</div>
@@ -2970,7 +2988,7 @@ function openClientProfile(email) {
       const sMap = {confirmed:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',pending:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M6 3v4l6 5-6 5v4M18 3v4l-6 5 6 5v4"/></svg>',cancelled:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>'};
       const catCol = {training:'#00BAB3',bikefit:'#c07a10',workshop:'#4e42b5'}[b.cat] || '#888';
       return `<div class="cp-history-row">
-        <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status]||'•'}</div>
+        <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status]||sMap.confirmed||'•'}</div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:13px">${b.service}</div>
           <div style="font-size:11px;color:var(--ink-60)">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.trainer}</div>
@@ -2997,7 +3015,7 @@ function openClientProfile(email) {
 
 function renderAdmin() {
   const total = bookings.length;
-  const confirmed = bookings.filter(b=>b.status==='confirmed').length;
+  const confirmed = bookings.filter(b=>b.status==='booked').length;
   const pending = bookings.filter(b=>b.status==='pending').length;
   const revenue = bookings.filter(b=>b.paymentStatus==='paid').reduce((s,b)=>s+b.price,0);
   const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -3024,8 +3042,8 @@ function renderAdminBookings() {
   }
   tbody.innerHTML = [...bookings].reverse().map(b => {
     const date = new Date(b.date);
-    const statusMap = {confirmed:'status-confirmed',pending:'status-pending',cancelled:'status-cancelled'};
-    const statusLabel = {confirmed:'Подтверждена',pending:'Ожидает',cancelled:'Отменена'};
+    const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
+    const statusLabel = {booked:'Записан',cancelled:'Отменена'};
     return `<tr>
       <td><strong>${b.name}</strong><br><span style="color:var(--ink-60);font-size:11px">${b.email}</span></td>
       <td>${b.service}</td>
@@ -3033,7 +3051,7 @@ function renderAdminBookings() {
       <td style="font-weight:600">${b.price.toLocaleString('ru')} ₽</td>
       <td><span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span></td>
       <td style="display:flex;gap:4px;flex-wrap:wrap">
-        ${b.status==='pending'?`<button class="action-btn confirm" onclick="adminConfirm(${b.id})">✓</button>`:''}
+        
         ${b.status!=='cancelled'?`<button class="action-btn cancel" onclick="adminCancel(${b.id})">×</button>`:''}
         <button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" onclick="openChatWith('${b.email||''}','${b.name||''}')">Чат</button>
       </td>
@@ -3041,26 +3059,15 @@ function renderAdminBookings() {
   }).join('');
 }
 
-function adminConfirm(id) {
-  const b = bookings.find(x=>x.id===id);
-  if (b) {
-    b.status='confirmed';
-    localStorage.setItem('velo_bookings',JSON.stringify(bookings));
-    notifications.unshift({id:Date.now(),type:'booking',icon:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',title:'Запись подтверждена',text:`${b.name} — ${b.service} · ${b.time}`,time:'только что',read:false});
-    renderAdmin();
-    showToast('Запись подтверждена','success');
-  }
-}
-function adminCancel(id) {
-  const b = bookings.find(x=>x.id===id);
-  if (b) {
-    b.status='cancelled';
-    const s = SLOTS.find(x=>x.id===b.slotId);
-    if (s) s.taken = Math.max(0,s.taken-1);
-    localStorage.setItem('velo_bookings',JSON.stringify(bookings));
-    notifications.unshift({id:Date.now(),type:'cancel',icon:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`,title:'Запись отменена',text:`${b.name} — ${b.service} · ${b.time}`,time:'только что',read:false});
-    renderAdmin();
+async function adminCancel(id) {
+  if (!confirm('Отменить запись?')) return;
+  try {
+    await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
+    await loadAdminBookings();                        // перечитываем из API
+    renderAdminBookings();                            // перерисовываем список
     showToast('Запись отменена');
+  } catch(e) {
+    showToast('Не удалось отменить запись', 'error');
   }
 }
 
@@ -3890,8 +3897,8 @@ function renderCpBookings() {
     </div>`;
     return;
   }
-  const statusMap = {confirmed:'status-confirmed',pending:'status-pending',cancelled:'status-cancelled'};
-  const statusLabel = {confirmed:'Подтверждена',pending:'Ожидает',cancelled:'Отменена'};
+  const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
+  const statusLabel = {booked:'Записан',cancelled:'Отменена'};
   list.innerHTML = [...mine].reverse().map(b=>{
     const d = new Date(b.date);
     return `<div class="booking-row">
@@ -3905,10 +3912,10 @@ function renderCpBookings() {
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span>
-        ${b.paymentStatus==='paid' ? `<span class="pay-badge paid"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Оплачено</span>` : b.status==='confirmed' ? `<span class="pay-badge unpaid">Не оплачено</span>` : ''}
+        ${b.paymentStatus==='paid' ? `<span class="pay-badge paid"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Оплачено</span>` : b.status==='booked' ? `<span class="pay-badge unpaid">Не оплачено</span>` : ''}
       </div>
       <div style="display:flex;gap:6px;flex-shrink:0">
-        ${b.status==='confirmed' && b.paymentStatus!=='paid' ? `<button class="btn-pay" onclick="openPaymentModal(${b.id})">Оплатить</button>` : ''}
+        ${b.status==='booked' && b.paymentStatus!=='paid' ? `<button class="btn-pay" onclick="openPaymentModal(${b.id})">Оплатить</button>` : ''}
         ${b.status!=='cancelled'?`<button class="btn-cancel" onclick="cpCancelBooking(${b.id})">Отменить</button>`:''}
       </div>
     </div>`;
@@ -4075,17 +4082,15 @@ function cpPayBooking(id) {
   notifications.unshift({id:Date.now(), type:'booking', icon:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>`, title:'Оплата получена', text:(currentUser?.name||'')+' — '+b.service+' · '+b.price.toLocaleString('ru')+' ₽', time:'только что', read:false});
 }
 
-function cpCancelBooking(id) {
+async function cpCancelBooking(id) {
   if (!confirm('Отменить запись?')) return;
-  const b = bookings.find(x=>x.id===id);
-  if (b) {
-    b.status='cancelled';
-    const s = SLOTS.find(x=>x.id===b.slotId);
-    if (s) s.taken=Math.max(0,s.taken-1);
-    localStorage.setItem('velo_bookings',JSON.stringify(bookings));
-    notifications.unshift({id:Date.now(),type:'cancel',icon:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`,title:'Отмена записи',text:currentUser.name+' — '+b.service+' · '+b.time,time:'только что',read:false});
-    renderCpBookings();
+  try {
+    await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
+    await loadMyBookings();                            // перечитываем свои записи
+    renderCpBookings();                               // перерисовываем кабинет
     showToast('Запись отменена');
+  } catch(e) {
+    showToast('Не удалось отменить запись', 'error');
   }
 }
 
@@ -4240,9 +4245,9 @@ function openSlotDetail(slotId) {
   const btn = document.getElementById('sdm-book-btn');
   const full = left <= 0;
   const isBooked = bookings.some(b=>b.slotId===s.id&&b.status!=='cancelled');
-  if (isBooked) { btn.textContent='Вы записаны ✓'; btn.disabled=true; btn.style.opacity='.6'; }
-  else if (full) { btn.textContent='Мест нет'; btn.disabled=true; btn.style.opacity='.6'; }
-  else { btn.textContent='Записаться →'; btn.disabled=false; btn.style.opacity=''; btn.onclick=()=>{ document.getElementById('slot-detail-modal').classList.remove('show'); openBookingModal(slotId); }; }
+  if (isBooked) { btn.textContent='Вы записаны ✓'; btn.disabled=false; btn.classList.add('is-booked-ok'); btn.onclick=null; btn.style.opacity=''; btn.title='Вы уже записаны на это занятие'; }
+  else if (full) { btn.textContent='Мест нет'; btn.classList.remove('is-booked-ok'); btn.disabled=true; btn.onclick=null; btn.style.opacity=''; btn.title='Свободных мест нет'; }
+  else { btn.textContent='Записаться →'; btn.classList.remove('is-booked-ok'); btn.disabled=false; btn.style.opacity=''; btn.title=''; btn.onclick=()=>{ document.getElementById('slot-detail-modal').classList.remove('show'); openBookingModal(slotId); }; }
 
   document.getElementById('slot-detail-modal').classList.add('show');
 }
@@ -4649,7 +4654,7 @@ function renderDashboard() {
     dateEl.textContent = d.toLocaleDateString('ru-RU', {weekday:'long',day:'numeric',month:'long',year:'numeric'});
   }
   const total = bookings.length;
-  const confirmed = bookings.filter(b=>b.status==='confirmed').length;
+  const confirmed = bookings.filter(b=>b.status==='booked').length;
   const revenue = bookings.filter(b=>b.paymentStatus==='paid').reduce((s,b)=>s+b.price,0);
   const todayB = bookings.filter(b=>{
     const d=new Date(b.date); return d.toDateString()===today.toDateString();
@@ -4657,7 +4662,7 @@ function renderDashboard() {
   const kpiEl = document.getElementById('adm-kpi-grid');
   if (kpiEl) kpiEl.innerHTML = [
     {val:total,            label:'Всего записей',   delta:'+12%', up:true,  color:'var(--green)'},
-    {val:confirmed,        label:'Подтверждено',    delta:'+8%',  up:true,  color:'#4e42b5'},
+    {val:confirmed,        label:'Записей',        delta:'+8%',  up:true,  color:'#4e42b5'},
     {val:CLIENTS.length,   label:'Клиентов',        delta:'+3',   up:true,  color:'#c07a10'},
     {val:revenue.toLocaleString('ru')+' ₽', label:'Выручка', delta:'+15%', up:true, color:'var(--green)'},
   ].map(k=>'<div class="adm-kpi"><div class="adm-kpi-val" style="color:'+k.color+'">'+k.val+'</div><div class="adm-kpi-label">'+k.label+'</div><div class="adm-kpi-delta '+(k.up?'up':'down')+'">'+k.delta+' к прошлой неделе</div></div>').join('');
@@ -4704,7 +4709,7 @@ function renderAnalytics() {
   if (!kpi) return;
   const revenue = bookings.filter(b=>b.paymentStatus==='paid').reduce((s,b)=>s+b.price,0);
   const avgCheck = bookings.length ? Math.round(revenue/bookings.length) : 0;
-  const convRate = bookings.length ? Math.round(bookings.filter(b=>b.status==='confirmed').length/bookings.length*100) : 0;
+  const convRate = bookings.length ? Math.round(bookings.filter(b=>b.status==='booked').length/bookings.length*100) : 0;
   kpi.innerHTML = [
     {val:bookings.length,              label:'Всего записей',     color:'var(--green)'},
     {val:revenue.toLocaleString('ru')+' ₽', label:'Выручка',    color:'#4e42b5'},
@@ -5136,7 +5141,7 @@ function renderAdminBookings() {
     kpi.innerHTML = [
       {val:bookings.length,                                    label:'Всего',        color:'var(--ink)'},
       {val:bookings.filter(b=>b.status==='pending').length,    label:'Ожидают',      color:'#c07a10'},
-      {val:bookings.filter(b=>b.status==='confirmed').length,  label:'Подтверждены', color:'var(--green)'},
+      {val:bookings.filter(b=>b.status==='booked').length,  label:'Записаны', color:'var(--green)'},
       {val:bookings.filter(b=>b.status==='cancelled').length,  label:'Отменены',     color:'#ef4444'},
     ].map(k=>'<div class="adm-kpi" style="padding:12px"><div class="adm-kpi-val" style="color:'+k.color+';font-size:20px">'+k.val+'</div><div class="adm-kpi-label">'+k.label+'</div></div>').join('');
   }
@@ -5146,8 +5151,8 @@ function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
   if (!list.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--ink-60)">Записей нет</td></tr>'; return; }
-  const statusMap={confirmed:'status-confirmed',pending:'status-pending',cancelled:'status-cancelled'};
-  const statusLabel={confirmed:'Подтверждена',pending:'Ожидает',cancelled:'Отменена'};
+  const statusMap={booked:'status-confirmed',cancelled:'status-cancelled'};
+  const statusLabel={booked:'Записан',cancelled:'Отменена'};
   tbody.innerHTML = [...list].reverse().map(b=>{
     const date=new Date(b.date);
     return '<tr>'+
@@ -5157,7 +5162,7 @@ function renderAdminBookingsFiltered(list) {
       '<td style="font-weight:600">'+b.price.toLocaleString('ru')+' ₽</td>'+
       '<td><span class="status-badge '+statusMap[b.status]+'">'+statusLabel[b.status]+'</span></td>'+
       '<td style="display:flex;gap:4px;flex-wrap:wrap">'+
-        (b.status==='pending'?'<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="adminConfirm('+b.id+')">✓</button>':'')+
+        
         (b.status!=='cancelled'?'<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="adminCancel('+b.id+')">✕</button>':'')+
         '<button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" data-chat-email="'+(b.email||'')+'" data-chat-name="'+(b.name||'')+'" onclick="this.dispatchEvent(new CustomEvent(\'admchat\',{bubbles:true}))">Чат</button>'+
       '</td></tr>';

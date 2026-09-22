@@ -19,7 +19,7 @@ if ($method === 'GET' && $action === 'list') {
                    COALESCE(SUM(CASE WHEN b.payment_status="paid" THEN b.price ELSE 0 END), 0) AS total_spent,
                    MAX(s.slot_date) AS last_visit
             FROM users u
-            LEFT JOIN bookings b ON u.id = b.user_id AND b.status != "cancelled"
+            LEFT JOIN bookings b ON u.id = b.user_id AND b.status_id <> 2
             LEFT JOIN slots s ON b.slot_id = s.id
             WHERE u.role = "client"';
     $params = [];

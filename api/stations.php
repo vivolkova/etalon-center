@@ -50,7 +50,7 @@ if ($method === 'GET' && $action === 'availability') {
         FROM stations s
         JOIN station_types t ON s.type_id = t.id
         LEFT JOIN slot_station_blocks blk ON blk.station_id = s.id AND blk.slot_id = ?
-        LEFT JOIN bookings bk ON bk.station_id = s.id AND bk.slot_id = ? AND bk.status <> "cancelled"
+        LEFT JOIN bookings bk ON bk.station_id = s.id AND bk.slot_id = ? AND bk.status_id <> 2
         WHERE s.location_id = ? AND s.active = 1
         ORDER BY s.sort_order, s.id
     ');
