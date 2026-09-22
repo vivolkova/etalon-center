@@ -55,7 +55,18 @@ if ($method === 'GET' && $action === 'availability') {
         ORDER BY s.sort_order, s.id
     ');
     $stmt->execute([$slotId, $slotId, (int)$slot['location_id']]);
-    ok($stmt->fetchAll());
+    $stations = $stmt->fetchAll();
+
+    // Размер сетки зала (колонки × ряды) берём из филиала
+    $lc = $db->prepare('SELECT hall_cols, hall_rows FROM locations WHERE id = ?');
+    $lc->execute([(int)$slot['location_id']]);
+    $loc = $lc->fetch();
+
+    ok([
+        'cols'     => (int)($loc['hall_cols'] ?? 6),
+        'rows'     => (int)($loc['hall_rows'] ?? 2),
+        'stations' => $stations,
+    ]);
 }
 
 // POST ?action=create — создать станок (admin)

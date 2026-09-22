@@ -978,7 +978,8 @@ body {
 
 
 /* Схема зала — выбор станка */
-.hall-scheme{display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:8px 0;padding:14px;background:#f6f6f4;border-radius:12px;justify-content:center}
+.hall-scheme{display:grid;gap:8px;margin:8px 0;padding:14px;background:#f6f6f4;border-radius:12px;justify-items:center}
+.cell-empty{width:68px;min-height:66px;border:2px dashed #dcdcd7;border-radius:10px;background:transparent}
 .station{display:flex;flex-direction:column;align-items:center;gap:4px;width:68px;flex:0 0 auto;padding:10px 6px;border:2px solid transparent;border-radius:10px;background:#fff;cursor:pointer;font-size:12px;color:#111;transition:.15s;font-family:inherit}
 .station .station-ico{line-height:0}
 .station .station-ico svg{width:34px;height:34px;display:block}
@@ -2589,17 +2590,31 @@ async function renderHall(slotId){
   const hall = document.getElementById('bm-hall');
   const hint = document.getElementById('bm-station-hint');
   hall.innerHTML = ''; hint.textContent = 'Загрузка схемы зала…';
-  let stations;
-  try { stations = await StationsAPI.availability(slotId); }
+  let data;
+  try { data = await StationsAPI.availability(slotId); }
   catch(e){ hint.textContent = 'Не удалось загрузить схему зала'; return; }
+  const cols = data.cols || 6, rows = data.rows || 2;
+  const stations = data.stations || [];
   const free = stations.filter(x=>x.state==='free').length;
   const fe = document.getElementById('bm-free'); if (fe) fe.textContent = free;
-  hall.innerHTML = stations.map(st=>{
-    const sel = (st.id===selectedStation) ? ' selected' : '';
-    const ico = st.icon || '';
-    const on  = st.state==='free' ? `onclick="selectStation(${st.id})"` : 'disabled';
-    return `<button type="button" class="station ${st.state}${sel}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
-  }).join('');
+
+  // Станки по координатам сетки: ключ "x,y" (pos_x = колонка, pos_y = ряд)
+  const byPos = {};
+  stations.forEach(st => { byPos[st.pos_x + ',' + st.pos_y] = st; });
+
+  hall.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+  let html = '';
+  for (let y = 0; y < rows; y++){
+    for (let x = 0; x < cols; x++){
+      const st = byPos[x + ',' + y];
+      if (!st){ html += '<div class="cell-empty"></div>'; continue; }
+      const sel = (st.id===selectedStation) ? ' selected' : '';
+      const ico = st.icon || '';
+      const on  = st.state==='free' ? `onclick="selectStation(${st.id})"` : 'disabled';
+      html += `<button type="button" class="station ${st.state}${sel}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
+    }
+  }
+  hall.innerHTML = html;
   hint.textContent = free>0 ? ('Свободно: '+free+'. Кликните место.') : 'Свободных мест нет';
 }
 function selectStation(id){
