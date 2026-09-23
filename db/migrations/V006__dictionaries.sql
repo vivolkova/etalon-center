@@ -34,9 +34,9 @@ INSERT INTO dictionaries (id, group_code, code, name, sort_order) VALUES
     (2,  'user_role',      'admin',         'Администратор',     2),
     (3,  'library_type',   'training',      'Тренировка',        1),
     (4,  'library_type',   'service',       'Услуга',            2),
-    (5,  'slot_category',  'training',      'Тренировка',        1),
-    (6,  'slot_category',  'bikefit',       'Байкфит',           2),
-    (7,  'slot_category',  'workshop',      'Мастерская',        3),
+    (5,  'activity_category',  'training',      'Тренировка',        1),
+    (6,  'activity_category',  'bikefit',       'Байкфит',           2),
+    (7,  'activity_category',  'workshop',      'Мастерская',        3),
     (10, 'station_type',   'exercise_bike', 'Велотренажёр',      1),
     (11, 'station_type',   'trainer_stand', 'Велостанок',        2),
     (12, 'station_type',   'rollers',       'Роллерный станок',  3),
@@ -69,7 +69,7 @@ ALTER TABLE slots ADD CONSTRAINT fk_slots_type FOREIGN KEY (type_id) REFERENCES 
 -- slots.category -> slots.category_id
 ALTER TABLE slots ADD COLUMN category_id INT NULL AFTER category;
 UPDATE slots s
-    JOIN dictionaries d ON d.group_code = 'slot_category' AND d.code = s.category
+    JOIN dictionaries d ON d.group_code = 'activity_category' AND d.code = s.category
     SET s.category_id = d.id;
 ALTER TABLE slots MODIFY category_id INT NOT NULL;
 ALTER TABLE slots DROP COLUMN category;
@@ -92,6 +92,15 @@ UPDATE library l
 ALTER TABLE library MODIFY type_id INT NOT NULL;
 ALTER TABLE library DROP COLUMN type;
 ALTER TABLE library ADD CONSTRAINT fk_library_type FOREIGN KEY (type_id) REFERENCES dictionaries(id);
+
+-- library.category -> library.category_id (общая с слотами группа activity_category)
+ALTER TABLE library ADD COLUMN category_id INT NULL AFTER category;
+UPDATE library l
+    JOIN dictionaries d ON d.group_code = 'activity_category' AND d.code = l.category
+    SET l.category_id = d.id;
+ALTER TABLE library MODIFY category_id INT NOT NULL;
+ALTER TABLE library DROP COLUMN category;
+ALTER TABLE library ADD CONSTRAINT fk_library_category FOREIGN KEY (category_id) REFERENCES dictionaries(id);
 
 -- bookings.status_id -> dictionaries; перенос старых значений ПО КОДУ (без чисел)
 ALTER TABLE bookings DROP FOREIGN KEY fk_bookings_status;

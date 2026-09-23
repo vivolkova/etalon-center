@@ -64,7 +64,7 @@ if ($method === 'POST' && $action === 'create') {
     require_fields($d, ['name', 'slot_date', 'start_time', 'price']);
 
     $db = getDB();
-    $categoryId = dictId($db, 'slot_category', $d['category'] ?? 'training');
+    $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
     $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
 
     $stmt = $db->prepare('INSERT INTO slots (library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price,max_people)
@@ -92,7 +92,7 @@ if ($method === 'PUT' && $action === 'update') {
     if (!$id) err('Не указан id');
 
     $db = getDB();
-    $categoryId = dictId($db, 'slot_category', $d['category'] ?? 'training');
+    $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
 
     $stmt = $db->prepare('UPDATE slots SET name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
     $stmt->execute([
