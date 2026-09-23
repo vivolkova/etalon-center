@@ -14,7 +14,7 @@ if ($method === 'GET' && $action === 'list') {
         SELECT s.id, s.location_id, s.label, s.pos_x, s.pos_y, s.sort_order, s.active,
                s.type_id, t.name AS type_name, t.icon AS icon
         FROM stations s
-        JOIN station_types t ON s.type_id = t.id
+        JOIN dictionaries t ON s.type_id = t.id AND t.group_code = "station_type"
         WHERE s.location_id = ? AND s.active = 1
         ORDER BY s.sort_order, s.id
     ');
@@ -25,7 +25,7 @@ if ($method === 'GET' && $action === 'list') {
 // GET ?action=types — справочник типов станков (для админки)
 if ($method === 'GET' && $action === 'types') {
     $db = getDB();
-    ok($db->query('SELECT id, name, code, icon, sort_order, active FROM station_types ORDER BY sort_order, id')->fetchAll());
+    ok($db->query('SELECT id, name, code, icon, sort_order, active FROM dictionaries WHERE group_code = "station_type" ORDER BY sort_order, id')->fetchAll());
 }
 
 // GET ?action=availability&slot_id=X — станки со статусом на слот (free/taken/blocked)
@@ -48,9 +48,9 @@ if ($method === 'GET' && $action === 'availability') {
                    ELSE "free"
                END AS state
         FROM stations s
-        JOIN station_types t ON s.type_id = t.id
+        JOIN dictionaries t ON s.type_id = t.id AND t.group_code = "station_type"
         LEFT JOIN slot_station_blocks blk ON blk.station_id = s.id AND blk.slot_id = ?
-        LEFT JOIN bookings bk ON bk.station_id = s.id AND bk.slot_id = ? AND bk.status_id <> 2
+        LEFT JOIN bookings bk ON bk.station_id = s.id AND bk.slot_id = ? AND bk.status <> "cancelled"
         WHERE s.location_id = ? AND s.active = 1
         ORDER BY s.sort_order, s.id
     ');
@@ -78,7 +78,7 @@ if ($method === 'POST' && $action === 'create') {
 
     $db = getDB();
     // Тип должен существовать в справочнике
-    $stmt = $db->prepare('SELECT id FROM station_types WHERE id = ?');
+    $stmt = $db->prepare('SELECT id FROM dictionaries WHERE id = ? AND group_code = "station_type"');
     $stmt->execute([$typeId]);
     if (!$stmt->fetch()) err('Неизвестный тип станка');
 

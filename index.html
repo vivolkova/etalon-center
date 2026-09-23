@@ -1158,7 +1158,7 @@ body {
         <div class="cp-section-title">Мои записи</div>
         <div class="filter-chips" style="margin-bottom:16px" id="cp-booking-filters">
           <button class="chip active" onclick="cpBookingFilter('all',this)">Все</button>
-          <button class="chip" onclick="cpBookingFilter('booked',this)">Записанные</button>
+          <button class="chip" onclick="cpBookingFilter('booked',this)">Активные</button>
           <button class="chip" onclick="cpBookingFilter('cancelled',this)">Отменённые</button>
         </div>
         <div class="bookings-list" id="cp-bookings-list"></div>
@@ -1437,7 +1437,7 @@ body {
             <input class="form-input" id="bookings-search" placeholder="Поиск клиента..." style="width:220px;height:36px;font-size:13px" oninput="filterBookingsSearch(this.value)">
             <select class="form-input" id="bookings-status-filter" style="width:160px;height:36px;font-size:13px" onchange="filterBookingsSearch(document.getElementById('bookings-search').value)">
               <option value="all">Все статусы</option>
-              <option value="booked">Записан</option>
+              <option value="booked">Активна</option>
                             <option value="cancelled">Отменены</option>
             </select>
           </div>
@@ -2725,7 +2725,7 @@ function renderBookings() {
   list.innerHTML = myBookings.reverse().map(b => {
     const date = new Date(b.date);
     const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
-    const statusLabel = {booked:'Записан',cancelled:'Отменена'};
+    const statusLabel = {booked:'Активна',cancelled:'Отменена'};
     return `<div class="booking-row">
       <div class="booking-date-block">
         <div class="booking-date-day">${date.getDate()}</div>
@@ -3043,7 +3043,7 @@ function renderAdminBookings() {
   tbody.innerHTML = [...bookings].reverse().map(b => {
     const date = new Date(b.date);
     const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
-    const statusLabel = {booked:'Записан',cancelled:'Отменена'};
+    const statusLabel = {booked:'Активна',cancelled:'Отменена'};
     return `<tr>
       <td><strong>${b.name}</strong><br><span style="color:var(--ink-60);font-size:11px">${b.email}</span></td>
       <td>${b.service}</td>
@@ -3898,7 +3898,7 @@ function renderCpBookings() {
     return;
   }
   const statusMap = {booked:'status-confirmed',cancelled:'status-cancelled'};
-  const statusLabel = {booked:'Записан',cancelled:'Отменена'};
+  const statusLabel = {booked:'Активна',cancelled:'Отменена'};
   list.innerHTML = [...mine].reverse().map(b=>{
     const d = new Date(b.date);
     return `<div class="booking-row">
@@ -5141,7 +5141,7 @@ function renderAdminBookings() {
     kpi.innerHTML = [
       {val:bookings.length,                                    label:'Всего',        color:'var(--ink)'},
       {val:bookings.filter(b=>b.status==='pending').length,    label:'Ожидают',      color:'#c07a10'},
-      {val:bookings.filter(b=>b.status==='booked').length,  label:'Записаны', color:'var(--green)'},
+      {val:bookings.filter(b=>b.status==='booked').length,  label:'Активные', color:'var(--green)'},
       {val:bookings.filter(b=>b.status==='cancelled').length,  label:'Отменены',     color:'#ef4444'},
     ].map(k=>'<div class="adm-kpi" style="padding:12px"><div class="adm-kpi-val" style="color:'+k.color+';font-size:20px">'+k.val+'</div><div class="adm-kpi-label">'+k.label+'</div></div>').join('');
   }
@@ -5152,7 +5152,7 @@ function renderAdminBookingsFiltered(list) {
   if (!tbody) return;
   if (!list.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--ink-60)">Записей нет</td></tr>'; return; }
   const statusMap={booked:'status-confirmed',cancelled:'status-cancelled'};
-  const statusLabel={booked:'Записан',cancelled:'Отменена'};
+  const statusLabel={booked:'Активна',cancelled:'Отменена'};
   tbody.innerHTML = [...list].reverse().map(b=>{
     const date=new Date(b.date);
     return '<tr>'+

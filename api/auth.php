@@ -24,8 +24,8 @@ if ($method === 'POST' && $action === 'register') {
     if ($stmt->fetch()) err('Email уже зарегистрирован');
 
     $hash = password_hash($d['password'], PASSWORD_BCRYPT);
-    $stmt = $db->prepare('INSERT INTO users (email, password, name, phone, role, status) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$email, $hash, $name, $phone, 'client', 'new']);
+    $stmt = $db->prepare('INSERT INTO users (email, password, name, phone, role_id, status) VALUES (?,?,?,?,?,?)');
+    $stmt->execute([$email, $hash, $name, $phone, 1, 'new']);
 
     $userId = (int)$db->lastInsertId();
     $token  = jwtEncode(['id' => $userId, 'email' => $email, 'name' => $name, 'role' => 'client']);
@@ -42,7 +42,7 @@ if ($method === 'POST' && $action === 'login') {
 
     $email = strtolower(trim($d['email']));
     $db    = getDB();
-    $stmt  = $db->prepare('SELECT * FROM users WHERE email = ?');
+    $stmt  = $db->prepare('SELECT u.*, d.code AS role FROM users u JOIN dictionaries d ON u.role_id = d.id AND d.group_code = "user_role" WHERE u.email = ?');
     $stmt->execute([$email]);
     $user  = $stmt->fetch();
 
@@ -65,7 +65,7 @@ if ($method === 'POST' && $action === 'login') {
 if ($method === 'GET' && $action === 'me') {
     $payload = authUser();
     $db      = getDB();
-    $stmt    = $db->prepare('SELECT id,email,name,phone,role,status,bike,birth_date,notes,created_at FROM users WHERE id = ?');
+    $stmt    = $db->prepare('SELECT u.id,u.email,u.name,u.phone,d.code AS role,u.status,u.bike,u.birth_date,u.notes,u.created_at FROM users u JOIN dictionaries d ON u.role_id = d.id AND d.group_code = "user_role" WHERE u.id = ?');
     $stmt->execute([$payload['id']]);
     $user = $stmt->fetch();
     if (!$user) err('Пользователь не найден', 404);

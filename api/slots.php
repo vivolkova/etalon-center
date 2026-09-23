@@ -1,10 +1,19 @@
 <?php
-// api/slots.php — Расписание (слоты)
+// api/slots.php — Расписание (слоты). Категория и тип берутся из справочника dictionaries.
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
+
+// код значения справочника -> id (ошибка, если кода нет)
+function dictId($db, $group, $code) {
+    $st = $db->prepare('SELECT id FROM dictionaries WHERE group_code = ? AND code = ?');
+    $st->execute([$group, $code]);
+    $id = $st->fetchColumn();
+    if ($id === false) err('Неизвестное значение справочника ' . $group . ': ' . $code);
+    return (int)$id;
+}
 
 // GET — список слотов
 if ($method === 'GET' && $action === 'list') {
@@ -13,12 +22,16 @@ if ($method === 'GET' && $action === 'list') {
     $to    = $_GET['to']   ?? date('Y-m-d', strtotime('+14 days'));
     $cat   = $_GET['cat']  ?? null;
 
-    $sql = 'SELECT s.*, t.name AS trainer_name, t.full_name AS trainer_full
+    $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
+                   dt.code AS type, dt.name AS type_name,
+                   t.name AS trainer_name, t.full_name AS trainer_full
             FROM slots s
             LEFT JOIN trainers t ON s.trainer_id = t.id
+            JOIN dictionaries dc ON s.category_id = dc.id
+            JOIN dictionaries dt ON s.type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
     $params = [$from, $to];
-    if ($cat) { $sql .= ' AND s.category = ?'; $params[] = $cat; }
+    if ($cat) { $sql .= ' AND dc.code = ?'; $params[] = $cat; }
     $sql .= ' ORDER BY s.slot_date, s.start_time';
 
     $stmt = $db->prepare($sql);
@@ -31,7 +44,13 @@ if ($method === 'GET' && $action === 'get') {
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db   = getDB();
-    $stmt = $db->prepare('SELECT s.*, t.name AS trainer_name FROM slots s LEFT JOIN trainers t ON s.trainer_id=t.id WHERE s.id=?');
+    $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
+                                 dt.code AS type, dt.name AS type_name, t.name AS trainer_name
+                          FROM slots s
+                          LEFT JOIN trainers t ON s.trainer_id = t.id
+                          JOIN dictionaries dc ON s.category_id = dc.id
+                          JOIN dictionaries dt ON s.type_id = dt.id
+                          WHERE s.id = ?');
     $stmt->execute([$id]);
     $slot = $stmt->fetch();
     if (!$slot) err('Слот не найден', 404);
@@ -44,13 +63,17 @@ if ($method === 'POST' && $action === 'create') {
     $d = input();
     require_fields($d, ['name', 'slot_date', 'start_time', 'price']);
 
-    $db   = getDB();
-    $stmt = $db->prepare('INSERT INTO slots (library_id,name,category,slot_date,start_time,duration,trainer_id,price,max_people)
-                          VALUES (?,?,?,?,?,?,?,?,?)');
+    $db = getDB();
+    $categoryId = dictId($db, 'slot_category', $d['category'] ?? 'training');
+    $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
+
+    $stmt = $db->prepare('INSERT INTO slots (library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price,max_people)
+                          VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $d['library_id']  ?? null,
         $d['name'],
-        $d['category']    ?? 'training',
+        $categoryId,
+        $typeId,
         $d['slot_date'],
         $d['start_time'],
         $d['duration']    ?? 60,
@@ -68,10 +91,12 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
 
-    $db   = getDB();
-    $stmt = $db->prepare('UPDATE slots SET name=?,category=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
+    $db = getDB();
+    $categoryId = dictId($db, 'slot_category', $d['category'] ?? 'training');
+
+    $stmt = $db->prepare('UPDATE slots SET name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
     $stmt->execute([
-        $d['name'],    $d['category'], $d['slot_date'],
+        $d['name'], $categoryId, $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
         $d['trainer_id'] ?? null, $d['price'],
         $d['max_people'] ?? 12, $id,

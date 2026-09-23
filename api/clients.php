@@ -13,15 +13,15 @@ if ($method === 'GET' && $action === 'list') {
     $status = $_GET['status'] ?? null;
     $search = $_GET['search'] ?? null;
 
-    $sql = 'SELECT u.id, u.email, u.name, u.phone, u.role, u.status, u.bike,
+    $sql = 'SELECT u.id, u.email, u.name, u.phone, (SELECT code FROM dictionaries WHERE id = u.role_id) AS role, u.status, u.bike,
                    u.birth_date, u.notes, u.created_at,
                    COUNT(b.id) AS total_bookings,
                    COALESCE(SUM(CASE WHEN b.payment_status="paid" THEN b.price ELSE 0 END), 0) AS total_spent,
                    MAX(s.slot_date) AS last_visit
             FROM users u
-            LEFT JOIN bookings b ON u.id = b.user_id AND b.status_id <> 2
+            LEFT JOIN bookings b ON u.id = b.user_id AND b.status <> "cancelled"
             LEFT JOIN slots s ON b.slot_id = s.id
-            WHERE u.role = "client"';
+            WHERE u.role_id = (SELECT id FROM dictionaries WHERE group_code = "user_role" AND code = "client")';
     $params = [];
 
     if ($status) { $sql .= ' AND u.status=?'; $params[] = $status; }
@@ -50,10 +50,11 @@ if ($method === 'GET' && $action === 'get') {
     if (!$user) err('Клиент не найден', 404);
 
     $stmt = $db->prepare('
-        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.category,
+        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, dc.code AS category,
                t.name AS trainer_name
         FROM bookings b
         JOIN slots s ON b.slot_id=s.id
+        JOIN dictionaries dc ON s.category_id=dc.id
         LEFT JOIN trainers t ON s.trainer_id=t.id
         WHERE b.user_id=?
         ORDER BY s.slot_date DESC
@@ -77,8 +78,8 @@ if ($method === 'POST' && $action === 'create') {
     if ($stmt->fetch()) err('Email уже зарегистрирован');
 
     $hash = password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT);
-    $stmt = $db->prepare('INSERT INTO users (email,password,name,phone,status,bike,birth_date,notes,role)
-                          VALUES (?,?,?,?,?,?,?,?,"client")');
+    $stmt = $db->prepare('INSERT INTO users (email,password,name,phone,status,bike,birth_date,notes,role_id)
+                          VALUES (?,?,?,?,?,?,?,?,1)');
     $stmt->execute([
         $email, $hash, $d['name'], $d['phone'] ?? '',
         $d['status'] ?? 'new', $d['bike'] ?? '',
@@ -107,7 +108,7 @@ if ($method === 'DELETE' && $action === 'delete') {
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
-    $db->prepare('DELETE FROM users WHERE id=? AND role="client"')->execute([$id]);
+    $db->prepare('DELETE FROM users WHERE id=? AND role_id = (SELECT id FROM dictionaries WHERE group_code = "user_role" AND code = "client")')->execute([$id]);
     ok(null, 'Клиент удалён');
 }
 

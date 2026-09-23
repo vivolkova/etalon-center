@@ -24,7 +24,7 @@ if ($method === 'GET' && $action === 'messages') {
     if (!$otherId) err('Не указан user_id');
 
     $stmt = $db->prepare('
-        SELECT m.*, u.name AS from_name, u.role AS from_role
+        SELECT m.*, u.name AS from_name, (SELECT code FROM dictionaries WHERE id = u.role_id) AS from_role
         FROM chat_messages m
         JOIN users u ON m.from_user = u.id
         WHERE (m.from_user=? AND m.to_user=?)
@@ -53,7 +53,7 @@ if ($method === 'GET' && $action === 'dialogs') {
                 ORDER BY created_at DESC LIMIT 1) AS last_message
         FROM users u
         JOIN chat_messages m ON (m.from_user=u.id OR m.to_user=u.id)
-        WHERE u.role = "client"
+        WHERE u.role_id = (SELECT id FROM dictionaries WHERE group_code = "user_role" AND code = "client")
         GROUP BY u.id
         ORDER BY last_message_at DESC
     ');

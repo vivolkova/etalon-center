@@ -11,12 +11,11 @@ if ($method === 'GET' && $action === 'my') {
     $user = authUser();
     $db   = getDB();
     $stmt = $db->prepare('
-        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.category,
-               t.name AS trainer_name, st.label AS station_label,
-               bs.code AS status, bs.name AS status_name
+        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, dc.code AS category,
+               t.name AS trainer_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
-        JOIN booking_statuses bs ON b.status_id = bs.id
+        JOIN dictionaries dc ON s.category_id = dc.id
         LEFT JOIN trainers t ON s.trainer_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
         WHERE b.user_id = ?
@@ -32,21 +31,23 @@ if ($method === 'GET' && $action === 'all') {
     $db     = getDB();
     $status = $_GET['status'] ?? null;
     $search = $_GET['search'] ?? null;
+    // По умолчанию — окно вокруг сегодня (не «все за всё время»). from/to можно передать для истории.
+    $from   = $_GET['from'] ?? date('Y-m-d', strtotime('-7 days'));
+    $to     = $_GET['to']   ?? date('Y-m-d', strtotime('+30 days'));
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
-                   s.name AS slot_name, s.slot_date, s.start_time, s.category,
-                   t.name AS trainer_name, st.label AS station_label,
-                   bs.code AS status, bs.name AS status_name
+                   s.name AS slot_name, s.slot_date, s.start_time, dc.code AS category,
+                   t.name AS trainer_name, st.label AS station_label
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
-            JOIN booking_statuses bs ON b.status_id = bs.id
+            JOIN dictionaries dc ON s.category_id = dc.id
             LEFT JOIN trainers t ON s.trainer_id = t.id
             LEFT JOIN stations st ON b.station_id = st.id
-            WHERE 1=1';
-    $params = [];
+            WHERE s.slot_date BETWEEN ? AND ?';
+    $params = [$from, $to];
 
-    if ($status) { $sql .= ' AND bs.code=?'; $params[] = $status; }
+    if ($status) { $sql .= ' AND b.status=?'; $params[] = $status; }
     if ($search) {
         $sql .= ' AND (u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ?)';
         $like = "%$search%";
@@ -88,18 +89,18 @@ if ($method === 'POST' && $action === 'create') {
 
     // Быстрая дружелюбная проверка «место свободно».
     // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status_id <> 2');
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
     $stmt->execute([$slotId, $stationId]);
     if ($stmt->fetch()) err('Это место уже занято');
 
     // Пользователь ещё не записан на этот слот
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status_id <> 2');
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
     $stmt->execute([$user['id'], $slotId]);
     if ($stmt->fetch()) err('Вы уже записаны на это занятие');
 
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status_id) VALUES (?,?,?,?,1)');
+        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status) VALUES (?,?,?,?,\'booked\')');
         $stmt->execute([$user['id'], $slotId, $stationId, $slot['price']]);
         $bookingId = $db->lastInsertId();
 
@@ -144,15 +145,12 @@ if ($method === 'PUT' && $action === 'status') {
         if ($status !== 'cancelled') err('Нет доступа', 403);
     }
 
-    // код статуса -> id справочника booking_statuses
-    $sid = $db->prepare('SELECT id FROM booking_statuses WHERE code=?');
-    $sid->execute([$status]);
-    $statusId = $sid->fetchColumn();
-    if (!$statusId) err('Неизвестный статус');
+    // допустимые статусы брони
+    if (!in_array($status, ['booked', 'cancelled'], true)) err('Неизвестный статус');
 
     $db->beginTransaction();
     try {
-        $db->prepare('UPDATE bookings SET status_id=? WHERE id=?')->execute([$statusId, $id]);
+        $db->prepare('UPDATE bookings SET status=? WHERE id=?')->execute([$status, $id]);
 
         $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
            ->execute([
