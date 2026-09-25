@@ -35,10 +35,10 @@ services:
       - "3307:3306"          # локальный порт 3307 -> MySQL в контейнере
     volumes:
       - dbdata:/var/lib/mysql
-      # Локальная база собирается из МИГРАЦИЙ (V001, V002, ... по порядку), затем сид.
-      # Добавил новую таблицу -> новый файл в db/migrations, и всё (down -v && up).
-      - ./db/migrations:/docker-entrypoint-initdb.d
-      - ./db/seed_dev.sql:/docker-entrypoint-initdb.d/zzz_seed_dev.sql
+      # Локальная база собирается из ДВУХ файлов по порядку имён:
+      # сначала структура (schema.sql), затем данные (seed.sql). down -v && up — пересборка.
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
 
   phpmyadmin:
     image: phpmyadmin:latest

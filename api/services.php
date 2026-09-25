@@ -10,13 +10,10 @@ $action = $_GET['action'] ?? 'list';
 function svcRow($r) {
     return [
         'id'    => (int)$r['id'],
-        'cat'   => $r['theme'],
         'icon'  => $r['icon'] ?? '',
         'name'  => $r['name'],
         'desc'  => $r['description'] ?? '',
         'price' => $r['price'] ?? '',
-        'cta'   => $r['cta'] ?? 'Подробнее',
-        'page'  => $r['page'] ?? 'schedule',
     ];
 }
 
@@ -45,16 +42,13 @@ if ($method === 'POST' && $action === 'create') {
     $d = input();
     require_fields($d, ['name']);
     $db = getDB();
-    $stmt = $db->prepare('INSERT INTO services (location_id, theme, icon, name, description, price, cta, page, sort_order)
-                          VALUES (1,?,?,?,?,?,?,?,?)');
+    $stmt = $db->prepare('INSERT INTO services (location_id, icon, name, description, price, sort_order)
+                          VALUES (1,?,?,?,?,?)');
     $stmt->execute([
-        $d['cat']   ?? 'green',
         $d['icon']  ?? null,
         $d['name'],
         $d['desc']  ?? null,
         $d['price'] ?? null,
-        $d['cta']   ?? 'Подробнее',
-        $d['page']  ?? 'schedule',
         $d['sort_order'] ?? 0,
     ]);
     ok(['id' => $db->lastInsertId()], 'Услуга добавлена');
@@ -67,15 +61,12 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
-    $stmt = $db->prepare('UPDATE services SET theme=?, icon=?, name=?, description=?, price=?, cta=?, page=? WHERE id=?');
+    $stmt = $db->prepare('UPDATE services SET icon=?, name=?, description=?, price=? WHERE id=?');
     $stmt->execute([
-        $d['cat']   ?? 'green',
         $d['icon']  ?? null,
         $d['name'],
         $d['desc']  ?? null,
         $d['price'] ?? null,
-        $d['cta']   ?? 'Подробнее',
-        $d['page']  ?? 'schedule',
         $id,
     ]);
     ok(null, 'Услуга обновлена');
