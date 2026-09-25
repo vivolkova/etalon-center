@@ -163,7 +163,6 @@ CREATE TABLE bookings (
     active_key     TINYINT GENERATED ALWAYS AS (IF(status = 'cancelled', NULL, 1)) STORED,
     payment_status ENUM('unpaid','paid','refunded') DEFAULT 'unpaid',
     payment_id     VARCHAR(128),
-    price          INT NOT NULL DEFAULT 0,
     notes          TEXT,
     created_at     DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -231,6 +230,7 @@ CREATE TABLE services (
     name        VARCHAR(255) NOT NULL,
     description TEXT,
     price       VARCHAR(64),                             -- маркетинговый текст
+    features    JSON,
     sort_order  INT DEFAULT 0,
     active      TINYINT(1)   DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,

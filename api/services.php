@@ -14,6 +14,7 @@ function svcRow($r) {
         'name'  => $r['name'],
         'desc'  => $r['description'] ?? '',
         'price' => $r['price'] ?? '',
+        'features' => $r['features'] ? json_decode($r['features'], true) : [],
     ];
 }
 
@@ -42,13 +43,16 @@ if ($method === 'POST' && $action === 'create') {
     $d = input();
     require_fields($d, ['name']);
     $db = getDB();
-    $stmt = $db->prepare('INSERT INTO services (location_id, icon, name, description, price, sort_order)
-                          VALUES (1,?,?,?,?,?)');
+    $features = isset($d['features']) && is_array($d['features'])
+        ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE) : null;
+    $stmt = $db->prepare('INSERT INTO services (location_id, icon, name, description, price, features, sort_order)
+                          VALUES (1,?,?,?,?,?,?)');
     $stmt->execute([
         $d['icon']  ?? null,
         $d['name'],
         $d['desc']  ?? null,
         $d['price'] ?? null,
+        $features,
         $d['sort_order'] ?? 0,
     ]);
     ok(['id' => $db->lastInsertId()], 'Услуга добавлена');
@@ -61,12 +65,15 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
-    $stmt = $db->prepare('UPDATE services SET icon=?, name=?, description=?, price=? WHERE id=?');
+    $features = isset($d['features']) && is_array($d['features'])
+        ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE) : null;
+    $stmt = $db->prepare('UPDATE services SET icon=?, name=?, description=?, price=?, features=? WHERE id=?');
     $stmt->execute([
         $d['icon']  ?? null,
         $d['name'],
         $d['desc']  ?? null,
         $d['price'] ?? null,
+        $features,
         $id,
     ]);
     ok(null, 'Услуга обновлена');

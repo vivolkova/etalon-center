@@ -11,7 +11,7 @@ if ($method === 'GET' && $action === 'my') {
     $user = authUser();
     $db   = getDB();
     $stmt = $db->prepare('
-        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, dc.code AS category,
+        SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
                t.name AS trainer_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
@@ -36,7 +36,7 @@ if ($method === 'GET' && $action === 'all') {
     $to     = $_GET['to']   ?? date('Y-m-d', strtotime('+30 days'));
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
-                   s.name AS slot_name, s.slot_date, s.start_time, dc.code AS category,
+                   s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, dc.code AS category,
                    t.name AS trainer_name, st.label AS station_label
             FROM bookings b
             JOIN users u ON b.user_id = u.id
@@ -68,6 +68,8 @@ if ($method === 'POST' && $action === 'create') {
 
     $slotId    = (int)$d['slot_id'];
     $stationId = (int)$d['station_id'];
+    $notes     = trim($d['notes'] ?? '');
+    if ($notes === '') $notes = null;
     $db        = getDB();
 
     // Слот существует и активен
@@ -100,8 +102,8 @@ if ($method === 'POST' && $action === 'create') {
 
     $db->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, price, status) VALUES (?,?,?,?,\'booked\')');
-        $stmt->execute([$user['id'], $slotId, $stationId, $slot['price']]);
+        $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,\'booked\')');
+        $stmt->execute([$user['id'], $slotId, $stationId, $notes]);
         $bookingId = $db->lastInsertId();
 
         // Статус клиента → active при первой записи
