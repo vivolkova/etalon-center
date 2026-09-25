@@ -24,9 +24,11 @@ if ($method === 'GET' && $action === 'list') {
 
     $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
                    dt.code AS type, dt.name AS type_name,
-                   t.name AS trainer_name, t.full_name AS trainer_full
+                   t.name AS trainer_name, t.full_name AS trainer_full,
+                   l.description AS description, l.features AS features
             FROM slots s
-            LEFT JOIN trainers t ON s.trainer_id = t.id
+            LEFT JOIN trainers t   ON s.trainer_id = t.id
+            LEFT JOIN library  l   ON s.library_id = l.id
             JOIN dictionaries dc ON s.category_id = dc.id
             JOIN dictionaries dt ON s.type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
@@ -45,9 +47,11 @@ if ($method === 'GET' && $action === 'get') {
     if (!$id) err('Не указан id');
     $db   = getDB();
     $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
-                                 dt.code AS type, dt.name AS type_name, t.name AS trainer_name
+                                 dt.code AS type, dt.name AS type_name, t.name AS trainer_name,
+                                 l.description AS description, l.features AS features
                           FROM slots s
-                          LEFT JOIN trainers t ON s.trainer_id = t.id
+                          LEFT JOIN trainers t   ON s.trainer_id = t.id
+                          LEFT JOIN library  l   ON s.library_id = l.id
                           JOIN dictionaries dc ON s.category_id = dc.id
                           JOIN dictionaries dt ON s.type_id = dt.id
                           WHERE s.id = ?');
@@ -62,6 +66,10 @@ if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
     require_fields($d, ['name', 'slot_date', 'start_time', 'price']);
+
+    // Время занятия — в пределах сетки расписания (08:00–22:00)
+    $st = substr($d['start_time'], 0, 5);
+    if ($st < '08:00' || $st >= '22:00') err('Время занятия должно быть в диапазоне 08:00–22:00');
 
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
@@ -91,11 +99,17 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
 
+    if (isset($d['start_time'])) {
+        $st = substr($d['start_time'], 0, 5);
+        if ($st < '08:00' || $st >= '22:00') err('Время занятия должно быть в диапазоне 08:00–22:00');
+    }
+
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
 
-    $stmt = $db->prepare('UPDATE slots SET name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
+    $stmt = $db->prepare('UPDATE slots SET library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
     $stmt->execute([
+        $d['library_id'] ?? null,
         $d['name'], $categoryId, $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
         $d['trainer_id'] ?? null, $d['price'],

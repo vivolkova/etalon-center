@@ -1,14 +1,14 @@
 # Локальная разработка «Эталон».
 # Запуск:   docker compose up -d
-# Сайт:     http://localhost:8080
-# phpMyAdmin: http://localhost:8081  (сервер: db, пользователь: etalon, пароль: etalon)
+# Сайт:     http://localhost:8085
+# phpMyAdmin: http://localhost:8083  (сервер: db, пользователь: etalon, пароль: etalon)
 # Остановить: docker compose down   (данные БД сохраняются в томе dbdata)
 
 services:
   web:
     build: .
     ports:
-      - "8080:80"
+      - "8085:80"
     volumes:
       - ./:/var/www/html
     environment:
@@ -18,7 +18,7 @@ services:
       DB_NAME: etalon
       DB_USER: etalon
       DB_PASS: etalon
-      SITE_URL: "http://localhost:8080"
+      SITE_URL: "http://localhost:8085"
       JWT_SECRET: "dev-local-secret-change-me"
     depends_on:
       - db
@@ -43,7 +43,7 @@ services:
   phpmyadmin:
     image: phpmyadmin:latest
     ports:
-      - "8081:80"
+      - "8083:80"
     environment:
       PMA_HOST: db
     depends_on:

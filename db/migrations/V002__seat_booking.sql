@@ -57,10 +57,10 @@ CREATE TABLE stations (
 
 -- Координаты pos_x/pos_y — черновые, поправишь под реальную планировку зала.
 INSERT INTO stations (location_id, type, label, pos_x, pos_y, sort_order) VALUES
-(1, 'trainer', 'Тренажёр 1', 0, 0, 1),
-(1, 'trainer', 'Тренажёр 2', 1, 0, 2),
-(1, 'trainer', 'Тренажёр 3', 2, 0, 3),
-(1, 'trainer', 'Тренажёр 4', 3, 0, 4),
+(1, 'trainer', 'Smart Bike 1', 0, 0, 1),
+(1, 'trainer', 'Smart Bike 2', 1, 0, 2),
+(1, 'trainer', 'Smart Bike 3', 2, 0, 3),
+(1, 'trainer', 'Smart Bike 4', 3, 0, 4),
 (1, 'roller',  'Станок 1',   0, 1, 5),
 (1, 'roller',  'Станок 2',   1, 1, 6);
 

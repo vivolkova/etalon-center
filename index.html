@@ -388,6 +388,13 @@ body {
 .modal-actions { display: flex; gap: 10px; margin-top: 1.5rem; }
 .modal-actions .btn-ghost { flex: 1; text-align: center; }
 .modal-actions .btn-primary { flex: 2; padding: 12px; font-size: 15px; border-radius: 10px; }
+/* Всплывающее описание тренировки при наведении на слот расписания */
+.wc-tip { position:fixed; z-index:2000; max-width:280px; background:#111; color:#fff;
+  padding:10px 12px; border-radius:8px; font-size:12px; line-height:1.45; text-align:left;
+  box-shadow:0 8px 28px rgba(0,0,0,.28); pointer-events:none; opacity:0; transition:opacity .12s; }
+.wc-tip.show { opacity:1; }
+.wc-tip .wc-tip-title { font-weight:700; margin-bottom:4px; }
+.wc-tip .wc-tip-body  { font-weight:400; }
 
 /* ─── AUTH MODAL ─── */
 .auth-tabs { display: flex; background: var(--surface); border-radius: 10px; padding: 4px; margin-bottom: 1.5rem; }
@@ -1862,6 +1869,28 @@ const SlotsAPI = {
   },
 };
 
+// ── LIBRARY (библиотека тренировок/услуг — источник описаний слотов) ──
+const LibraryAPI = {
+  async list(type) {
+    let url = '/library.php?action=list';
+    if (type) url += `&type=${type}`;
+    return apiRequest(url);
+  },
+  async get(id)     { return apiRequest(`/library.php?action=get&id=${id}`); },
+  async create(data){ return apiRequest('/library.php?action=create', 'POST', data); },
+  async update(data){ return apiRequest('/library.php?action=update', 'PUT', data); },
+  async delete(id)  { return apiRequest(`/library.php?action=delete&id=${id}`, 'DELETE'); },
+};
+
+// ── SERVICES (карточки услуг на главной) ──
+const ServicesAPI = {
+  async list()       { return apiRequest('/services.php?action=list'); },
+  async get(id)      { return apiRequest(`/services.php?action=get&id=${id}`); },
+  async create(data) { return apiRequest('/services.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/services.php?action=update', 'PUT', data); },
+  async delete(id)   { return apiRequest(`/services.php?action=delete&id=${id}`, 'DELETE'); },
+};
+
 // ── BOOKINGS ───────────────────────────────────────────────
 const BookingsAPI = {
   async my() {
@@ -2034,11 +2063,15 @@ const SERVICES = [
 ];
 
 
-// Восстанавливаем услуги из localStorage (API для них нет)
-(function() {
-  const saved = localStorage.getItem('ec_services');
-  if (saved) { try { const d = JSON.parse(saved); SERVICES.length = 0; d.forEach(function(s){SERVICES.push(s);}); } catch(e){} }
-})();
+// Услуги грузятся из БД (api/services.php). При недоступности сервера — встроенный список выше.
+async function loadServices() {
+  try {
+    const data = await ServicesAPI.list();
+    if (Array.isArray(data)) { SERVICES.length = 0; data.forEach(function(s){ SERVICES.push(s); }); }
+  } catch(e) {
+    // Сервер недоступен — остаётся встроенный список услуг (без localStorage-кэша)
+  }
+}
 
 // ═══ LIBRARY ════════════════════════════════════════════════════════
 let LIBRARY = {
@@ -2084,11 +2117,22 @@ let LIBRARY = {
   ]
 };
 
-// Восстанавливаем библиотеку из localStorage (API для неё нет)
-(function() {
-  const saved = localStorage.getItem('ec_library');
-  if (saved) { try { LIBRARY = JSON.parse(saved); } catch(e){} }
-})();
+// Уровень сложности: код в БД -> русская подпись на фронте
+const DIFFICULTY_LABEL = { any:'Любой', beginner:'Начинающий', intermediate:'Средний', advanced:'Продвинутый' };
+
+// Библиотека грузится из БД (api/library.php). localStorage — только офлайн-кэш.
+async function loadLibrary() {
+  try {
+    const items = await LibraryAPI.list();
+    const grouped = { trainings: [], services: [] };
+    items.forEach(function(it) {
+      (it.type === 'service' ? grouped.services : grouped.trainings).push(it);
+    });
+    LIBRARY = grouped;
+  } catch(e) {
+    // Сервер недоступен — остаются данные по умолчанию (без localStorage-кэша)
+  }
+}
 
 // ═══ STATE ══════════════════════════════════════════════════════
 
@@ -2098,7 +2142,7 @@ let selectedDayIdx = todayIdx;
 let selectedSlot = null;
 let selectedStation = null;
 let currentUser = null;
-let bookings = JSON.parse(localStorage.getItem('velo_bookings') || '[]');
+let bookings = [];
 let authMode = 'login';
 
 // Fake user db
@@ -2254,10 +2298,8 @@ async function loadMyBookings() {
         clientId:      currentUser.email,
       };
     });
-    localStorage.setItem('velo_bookings', JSON.stringify(bookings));
   } catch(e) {
-    // Fallback: используем localStorage
-    bookings = JSON.parse(localStorage.getItem('velo_bookings') || '[]');
+    // Сервер недоступен — без локального кэша; записи появятся после восстановления связи
   }
 }
 
@@ -2283,7 +2325,7 @@ async function loadAllBookings() {
       };
     });
   } catch(e) {
-    bookings = JSON.parse(localStorage.getItem('velo_bookings') || '[]');
+    // Сервер недоступен — без локального кэша
   }
 }
 
@@ -2326,6 +2368,9 @@ async function loadSlots(fromDate, toDate) {
         price:     Number(s.price),
         max:       parseInt(s.max_people),
         taken:     parseInt(s.taken),
+        description: s.description || '',
+        features:    s.features || null,
+        library_id:  s.library_id || null,
       });
     });
   } catch(e) {
@@ -2357,7 +2402,6 @@ async function restoreSession() {
 function logout() {
   if (typeof AuthAPI !== 'undefined') AuthAPI.logout();
   localStorage.removeItem('ec_user');
-  localStorage.removeItem('velo_bookings');
   currentUser = null;
   bookings = [];
   document.getElementById('btn-login').style.display = '';
@@ -2489,7 +2533,8 @@ function renderWeekCal() {
           ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
           : 'event.stopPropagation()';
 
-        cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px" onclick="openSlotDetail(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' · ' + spotsText + '">';
+        var tipAttr = s.description ? (' data-desc="' + escAttr(s.description) + '" data-name="' + escAttr(s.name) + '"') : '';
+        cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail('+s.id+')' : 'openBookingModal('+s.id+')') + '">';
         if (heightPx >= 28) {
           cellHtml += '<div class="wc-slot-time">' + s.time + '</div>';
         }
@@ -2511,6 +2556,50 @@ function renderWeekCal() {
   }
 
   grid.innerHTML = h;
+  wcBindTip(grid);
+}
+
+// ── Всплывающее описание тренировки над слотом расписания ──
+function escAttr(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function wcEnsureTip() {
+  let t = document.getElementById('wc-tip');
+  if (!t) { t = document.createElement('div'); t.id = 'wc-tip'; t.className = 'wc-tip'; document.body.appendChild(t); }
+  return t;
+}
+function wcPositionTip(t, e) {
+  const pad = 14, w = t.offsetWidth, h = t.offsetHeight;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if (x + w > window.innerWidth  - 8) x = e.clientX - w - pad;
+  if (y + h > window.innerHeight - 8) y = e.clientY - h - pad;
+  if (x < 8) x = 8;
+  if (y < 8) y = 8;
+  t.style.left = x + 'px'; t.style.top = y + 'px';
+}
+function wcBindTip(grid) {
+  if (grid._tipBound) return;   // делегирование навешиваем один раз
+  grid._tipBound = true;
+  const t = wcEnsureTip();
+  grid.addEventListener('mouseover', function(e) {
+    const slot = e.target.closest('.wc-slot');
+    if (!slot || !grid.contains(slot)) return;
+    const desc = slot.getAttribute('data-desc');
+    if (!desc) { t.classList.remove('show'); return; }
+    t.innerHTML = '<div class="wc-tip-title">' + escAttr(slot.getAttribute('data-name') || '') + '</div>' +
+                  '<div class="wc-tip-body">' + escAttr(desc) + '</div>';
+    t.classList.add('show');
+    wcPositionTip(t, e);
+  });
+  grid.addEventListener('mousemove', function(e) {
+    if (t.classList.contains('show')) wcPositionTip(t, e);
+  });
+  grid.addEventListener('mouseout', function(e) {
+    const slot = e.target.closest('.wc-slot');
+    if (!slot) return;
+    if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
+    t.classList.remove('show');
+  });
 }
 
 function filterCat(cat, btn) {
@@ -2670,26 +2759,7 @@ async function confirmBooking() {
     renderHeroCalendar();
     showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
   } catch(e) {
-    // Сервер отклонил запись (нет мест, уже записан) — не выдаём это за успешную запись
-    if (!e.offline) return;
-    // Fallback — сохраняем локально
-    s.taken++;
-    const booking = {
-      id: Date.now(), slotId: s.id, name, email,
-      phone: document.getElementById('f-phone').value,
-      service: s.name, cat: s.cat, date: s.date.toISOString(),
-      time: s.time, trainer: s.trainer, price: s.price,
-      status: 'booked', paymentStatus: 'unpaid', clientId: currentUser?.email,
-    };
-    bookings.push(booking);
-    localStorage.setItem('velo_bookings', JSON.stringify(bookings));
-    const existingClient = CLIENTS.find(c=>c.email===currentUser?.email);
-    if (!existingClient && currentUser) {
-      CLIENTS.push({email:currentUser.email, name:currentUser.name, phone:currentUser.phone||'', status:'active', bike:'', birth:'', notes:'', regDate:new Date().toISOString().slice(0,10)});
-    }
-    closeBookingModal();
-    renderWeekCal();
-    showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
+    // Ошибка/недоступность сервера уже показана в apiRequest; локально запись не подделываем
   } finally {
     if (btn) { btn.textContent = 'Записаться →'; btn.disabled = false; }
   }
@@ -2749,9 +2819,7 @@ async function cancelBooking(id) {
     renderBookings();
     showToast('Запись отменена');
   } catch(e) {
-    if (!e.offline) return;  // сервер отклонил отмену — статус не меняем
-    const b = bookings.find(x=>x.id===id);
-    if (b) { b.status = 'cancelled'; localStorage.setItem('velo_bookings', JSON.stringify(bookings)); renderBookings(); showToast('Запись отменена'); }
+    // Ошибка уже показана в apiRequest; локально отмену не подделываем
   }
 }
 
@@ -3266,6 +3334,8 @@ function openSlotModalAtTime(dayIdx, hour) {
   }, 30);
 }
 
+let smSelectedLibId = null;   // id выбранной строки библиотеки для slots.library_id
+
 function smFillLibSelect() {
   const sel = document.getElementById('sm-lib-select');
   if (!sel) return;
@@ -3287,6 +3357,7 @@ function smApplyLibItem(val) {
   const type = parts[1];
   const item = (LIBRARY[type] || []).find(x => x.id === id);
   if (!item) return;
+  smSelectedLibId = item.id;   // связываем слот с записью библиотеки
 
   // Заполняем поля формы
   document.getElementById('sm-name').value = item.name;
@@ -3307,6 +3378,7 @@ function smApplyLibItem(val) {
 }
 
 function smClearLib() {
+  smSelectedLibId = null;
   const sel = document.getElementById('sm-lib-select');
   if (sel) sel.value = '';
   const prev = document.getElementById('sm-lib-preview');
@@ -3330,6 +3402,7 @@ function openSlotModal(slotId) {
     document.getElementById('sm-max').value = s.max;
     document.getElementById('sm-trainer').value = s.trainer;
     document.getElementById('sm-price').value = s.price;
+    smSelectedLibId = s.library_id || null;
   } else {
     document.getElementById('slot-modal-title').textContent = 'Добавить слот';
     document.getElementById('sm-id').value = '';
@@ -3352,6 +3425,7 @@ async function saveSlot() {
   const sid = document.getElementById('sm-id').value;
   const dayOfWeek = parseInt(document.getElementById('sm-day').value);
   const time      = document.getElementById('sm-time').value;
+  if (time < '08:00' || time >= '22:00') { showToast('Время занятия — с 08:00 до 22:00','error'); return; }
 
   // Вычисляем дату слота
   const slotDate = new Date(admWeekStart);
@@ -3365,6 +3439,7 @@ async function saveSlot() {
 
   const apiData = {
     name,
+    library_id: smSelectedLibId,
     category:   document.getElementById('sm-cat').value,
     slot_date:  fmtLocalDate(slotDate),
     start_time: time,
@@ -3373,6 +3448,13 @@ async function saveSlot() {
     trainer_id: trainerObj ? trainerObj.id : null,
     price:      parseInt(document.getElementById('sm-price').value),
   };
+
+  // описание для мгновенного показа во всплывашке (до перезагрузки слотов)
+  let libDesc = '';
+  if (smSelectedLibId) {
+    const li = [...(LIBRARY.trainings||[]), ...(LIBRARY.services||[])].find(x => x.id === smSelectedLibId);
+    if (li) libDesc = li.desc || '';
+  }
 
   const localData = {
     name,
@@ -3384,6 +3466,8 @@ async function saveSlot() {
     trainer:    trainerName,
     trainer_id: apiData.trainer_id,
     price:      apiData.price,
+    library_id: smSelectedLibId,
+    description: libDesc,
   };
 
   try {
@@ -3468,7 +3552,7 @@ function openServiceModal(idx) {
 }
 function closeServiceModal() { document.getElementById('service-modal').classList.remove('show'); }
 
-function saveService() {
+async function saveService() {
   const name = document.getElementById('svcm-name').value.trim();
   if (!name) { showToast('Введите название услуги','error'); return; }
   const data = {
@@ -3480,19 +3564,34 @@ function saveService() {
     cta: document.getElementById('svcm-cta').value.trim() || 'Подробнее',
     page: 'schedule',
   };
-  const idx = document.getElementById('svcm-idx').value;
-  if (idx !== '') { SERVICES[parseInt(idx)] = data; showToast('Услуга обновлена','success'); }
-  else { SERVICES.push(data); showToast('Услуга добавлена','success'); }
-  localStorage.setItem('ec_services', JSON.stringify(SERVICES));
+  const idxVal = document.getElementById('svcm-idx').value;
+  try {
+    if (idxVal !== '') {
+      const id = SERVICES[parseInt(idxVal)].id;
+      await ServicesAPI.update({ id, ...data });
+      showToast('Услуга обновлена','success');
+    } else {
+      await ServicesAPI.create(data);
+      showToast('Услуга добавлена','success');
+    }
+    await loadServices();
+  } catch(e) {
+    return;   // ошибка показана в apiRequest; модалку оставляем открытой
+  }
   closeServiceModal();
   renderAdminServices();
   renderServices();
 }
 
-function deleteService(idx) {
+async function deleteService(idx) {
   if (!confirm('Удалить эту услугу?')) return;
-  SERVICES.splice(idx,1);
-  localStorage.setItem('ec_services', JSON.stringify(SERVICES));
+  const id = SERVICES[idx] && SERVICES[idx].id;
+  try {
+    if (id) await ServicesAPI.delete(id);
+    await loadServices();
+  } catch(e) {
+    return;   // ошибка показана в apiRequest
+  }
   renderAdminServices();
   renderServices();
   showToast('Услуга удалена');
@@ -4020,7 +4119,6 @@ async function initiateYookassaPayment() {
       const confirmUrl = payment.confirmation?.confirmation_url;
       if (!confirmUrl) throw new Error('Не получена ссылка на оплату');
       b.yukassaPaymentId = payment.id;
-      localStorage.setItem('velo_bookings', JSON.stringify(bookings));
       showPaymentLink(payment.id, confirmUrl, b);
     }
   } catch (err) {
@@ -4040,7 +4138,6 @@ function showPaymentLink(paymentId, url, booking) {
   // При клике на ссылку — помечаем как "ожидает подтверждения"
   link.onclick = () => {
     booking.paymentStatus = 'pending_payment';
-    localStorage.setItem('velo_bookings', JSON.stringify(bookings));
   };
 }
 
@@ -4052,7 +4149,6 @@ function checkPaymentReturn() {
     const b = bookings.find(x => x.id === bId);
     if (b) {
       b.paymentStatus = 'paid';
-      localStorage.setItem('velo_bookings', JSON.stringify(bookings));
       // Убираем параметры из URL
       history.replaceState({}, '', window.location.pathname);
       showToast('Оплата прошла успешно', 'success');
@@ -4075,7 +4171,6 @@ function cpPayBooking(id) {
   if (!b || b.paymentStatus==='paid') return;
   // Имитация оплаты
   b.paymentStatus = 'paid';
-  localStorage.setItem('velo_bookings', JSON.stringify(bookings));
   renderCpBookings();
   showToast('Оплата прошла успешно', 'success');
   // Уведомление в панель администратора
@@ -4220,7 +4315,12 @@ const SERVICE_DETAILS = {
 function openSlotDetail(slotId) {
   const s = SLOTS.find(x=>x.id===slotId);
   if (!s) return;
-  const extra = SLOT_DESCRIPTIONS[s.cat] || SLOT_DESCRIPTIONS.training;
+  const fallback = SLOT_DESCRIPTIONS[s.cat] || SLOT_DESCRIPTIONS.training;
+  const descText = s.description || fallback.desc;
+  let featureList = fallback.features;
+  if (s.features) {
+    try { featureList = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch(e) {}
+  }
   const catLabel = {training:'Тренировка',bikefit:'Байкфит',workshop:'Мастерская'}[s.cat];
   const tagEl = document.getElementById('sdm-tag');
   tagEl.textContent = catLabel; tagEl.className = 'dm-tag '+s.cat;
@@ -4237,8 +4337,8 @@ function openSlotDetail(slotId) {
     <div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${usersSvg}</div><div class="dm-stat-val">${left}</div><div class="dm-stat-label">мест свободно</div></div>
     <div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${starSvg}</div><div class="dm-stat-val">${s.max}</div><div class="dm-stat-label">мест всего</div></div>`;
 
-  document.getElementById('sdm-desc').textContent = extra.desc;
-  document.getElementById('sdm-features').innerHTML = extra.features
+  document.getElementById('sdm-desc').textContent = descText;
+  document.getElementById('sdm-features').innerHTML = (featureList || [])
     .map(f=>`<div class="dm-feature"><div class="dm-feature-dot"></div><div>${f}</div></div>`).join('');
   document.getElementById('sdm-price').textContent = s.price.toLocaleString('ru')+' ₽';
 
@@ -4307,7 +4407,7 @@ function renderLibrary() {
     const col = catCol[item.cat] || '#888';
     const features = (item.features || []).slice(0, 3);
     const isTraining = libCurrentType === 'trainings';
-    let difficultyHtml = (isTraining && item.difficulty) ? '<div class="lib-difficulty">' + item.difficulty + '</div>' : '';
+    let difficultyHtml = (isTraining && item.difficulty) ? '<div class="lib-difficulty">' + (DIFFICULTY_LABEL[item.difficulty] || item.difficulty) + '</div>' : '';
     let featuresHtml = '';
     if (features.length) {
       featuresHtml = '<div class="lib-card-features">' +
@@ -4434,6 +4534,7 @@ async function confirmAddToSchedule() {
 
       const apiData = {
         name:       item.name,
+        library_id: item.id,
         category:   item.cat,
         slot_date:  slotDate.getFullYear()+'-'+String(slotDate.getMonth()+1).padStart(2,'0')+'-'+String(slotDate.getDate()).padStart(2,'0'),
         start_time: time,
@@ -4447,12 +4548,14 @@ async function confirmAddToSchedule() {
         SlotsAPI.create(apiData).then(function(res) {
           SLOTS.push({ id: res && res.id ? res.id : Date.now() + added, date: slotDate,
             dayOfWeek: dow, time, dur: item.dur, name: item.name, cat: item.cat,
-            trainer: trainerName, price: item.price, max: item.max || 10, taken: 0 });
+            trainer: trainerName, price: item.price, max: item.max || 10, taken: 0,
+            library_id: item.id, description: item.desc || '' });
           added++;
         }).catch(function() {
           SLOTS.push({ id: Date.now() + added, date: slotDate, dayOfWeek: dow,
             time, dur: item.dur, name: item.name, cat: item.cat,
-            trainer: trainerName, price: item.price, max: item.max || 10, taken: 0 });
+            trainer: trainerName, price: item.price, max: item.max || 10, taken: 0,
+            library_id: item.id, description: item.desc || '' });
           added++;
         })
       );
@@ -4486,7 +4589,7 @@ function openLibItemModal(id) {
     document.getElementById('lm-cat').value = item.cat;
     document.getElementById('lm-dur').value = item.dur;
     document.getElementById('lm-price').value = item.price;
-    document.getElementById('lm-difficulty').value = item.difficulty || 'Любой';
+    document.getElementById('lm-difficulty').value = item.difficulty || 'any';
     document.getElementById('lm-desc').value = item.desc || '';
     document.getElementById('lm-features').value = (item.features || []).join('\n');
   } else {
@@ -4496,7 +4599,7 @@ function openLibItemModal(id) {
     document.getElementById('lm-cat').value = isTraining ? 'training' : 'bikefit';
     document.getElementById('lm-dur').value = 60;
     document.getElementById('lm-price').value = isTraining ? 1200 : 3000;
-    document.getElementById('lm-difficulty').value = 'Любой';
+    document.getElementById('lm-difficulty').value = 'any';
     document.getElementById('lm-desc').value = '';
     document.getElementById('lm-features').value = '';
   }
@@ -4507,43 +4610,52 @@ function closeLibModal() {
   document.getElementById('lib-modal').classList.remove('show');
 }
 
-function saveLibItem() {
+async function saveLibItem() {
   const name = document.getElementById('lm-name').value.trim();
   if (!name) { showToast('Введите название', 'error'); return; }
-  const type = document.getElementById('lm-type').value;
+  const type = document.getElementById('lm-type').value;          // trainings | services
   const idVal = document.getElementById('lm-id').value;
   const features = document.getElementById('lm-features').value.split('\n').map(function(s){return s.trim();}).filter(Boolean);
 
   const data = {
+    type: type === 'services' ? 'service' : 'training',           // library_type для БД
     name,
     cat: document.getElementById('lm-cat').value,
     dur: parseInt(document.getElementById('lm-dur').value),
     price: parseInt(document.getElementById('lm-price').value),
-    difficulty: document.getElementById('lm-difficulty').value,
+    difficulty: document.getElementById('lm-difficulty').value,   // код
     desc: document.getElementById('lm-desc').value.trim(),
     features,
-    max: type === 'trainings' ? 12 : 1,
+    max: type === 'trainings' ? 12 : null,
   };
 
-  if (idVal) {
-    const idx = LIBRARY[type].findIndex(x => x.id === parseInt(idVal));
-    if (idx >= 0) { LIBRARY[type][idx] = { ...LIBRARY[type][idx], ...data }; }
-    showToast('Обновлено', 'success');
-  } else {
-    data.id = Date.now();
-    LIBRARY[type].push(data);
-    showToast('Добавлено в библиотеку', 'success');
+  try {
+    if (idVal) {
+      await LibraryAPI.update({ id: parseInt(idVal), ...data });
+      showToast('Обновлено', 'success');
+    } else {
+      await LibraryAPI.create(data);
+      showToast('Добавлено в библиотеку', 'success');
+    }
+    await loadLibrary();
+  } catch(e) {
+    return;   // ошибка показана в apiRequest; модалку оставляем открытой для повторной попытки
   }
-  localStorage.setItem('ec_library', JSON.stringify(LIBRARY));
   closeLibModal();
   renderLibrary();
 }
 
-function deleteLibItem(id) {
+async function deleteLibItem(id) {
   if (!confirm('Удалить из библиотеки?')) return;
   const type = libCurrentType;
-  const idx = LIBRARY[type].findIndex(x => x.id === id);
-  if (idx >= 0) { LIBRARY[type].splice(idx, 1); localStorage.setItem('ec_library', JSON.stringify(LIBRARY)); renderLibrary(); showToast('Удалено'); }
+  try {
+    await LibraryAPI.delete(id);
+    await loadLibrary();
+  } catch(e) {
+    return;   // ошибка показана в apiRequest
+  }
+  renderLibrary();
+  showToast('Удалено');
 }
 
 
@@ -5324,7 +5436,7 @@ async function loadAdminBookings() {
                clientId:b.user_email };
     });
   } catch(e) {
-    bookings = JSON.parse(localStorage.getItem('velo_bookings')||'[]');
+    // Сервер недоступен — без локального кэша
   }
 }
 
@@ -5341,7 +5453,10 @@ renderSchedule();
     loadSlots(),
     loadTrainers(),
     loadSubPlans(),
+    loadLibrary(),
+    loadServices(),
   ]);
+  renderServices();   // перерисовываем карточки услуг данными из БД
 
   // 2. Восстанавливаем сессию
   await restoreSession();
@@ -5416,7 +5531,7 @@ renderSchedule();
       </div>
       <div class="form-field">
         <label class="form-label">Время начала</label>
-        <input class="form-input" id="sm-time" type="time" value="10:00">
+        <input class="form-input" id="sm-time" type="time" min="08:00" max="22:00" value="10:00">
       </div>
     </div>
     <div class="form-row">
@@ -5643,10 +5758,10 @@ renderSchedule();
     <div class="form-field" id="lm-difficulty-wrap">
       <label class="form-label">Уровень сложности</label>
       <select class="form-input" id="lm-difficulty">
-        <option value="Начинающий">Начинающий</option>
-        <option value="Средний">Средний</option>
-        <option value="Продвинутый">Продвинутый</option>
-        <option value="Любой">Любой уровень</option>
+        <option value="beginner">Начинающий</option>
+        <option value="intermediate">Средний</option>
+        <option value="advanced">Продвинутый</option>
+        <option value="any">Любой уровень</option>
       </select>
     </div>
     <div class="form-field">
