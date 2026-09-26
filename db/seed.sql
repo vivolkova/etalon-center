@@ -12,8 +12,6 @@ SET NAMES utf8mb4;
 INSERT INTO dictionaries (group_code, code, name) VALUES
 ('user_role', 'client', 'Клиент'),
 ('user_role', 'admin', 'Администратор'),
-('library_type', 'training', 'Тренировка'),
-('library_type', 'service', 'Услуга'),
 ('activity_category', 'training', 'Тренировка'),
 ('activity_category', 'bikefit', 'Байкфит'),
 ('activity_category', 'workshop', 'Мастерская'),
@@ -22,6 +20,14 @@ INSERT INTO dictionaries (group_code, code, name) VALUES
 ('specialist_type', 'trainer', 'Тренер'),
 ('specialist_type', 'bikefitter', 'Байкфиттер'),
 ('specialist_type', 'mechanic', 'Мастер');
+
+-- Связь категория активности -> тип специалиста (dictionaries.ref_id).
+-- Новая категория (например, massage -> masseur) — добавить пару сюда.
+UPDATE dictionaries c
+JOIN dictionaries s ON s.group_code = 'specialist_type'
+ AND (c.code, s.code) IN (('training', 'trainer'), ('bikefit', 'bikefitter'), ('workshop', 'mechanic'))
+SET c.ref_id = s.id
+WHERE c.group_code = 'activity_category';
 
 -- Типы станков (вынесены из dictionaries).
 INSERT INTO station_type (code, name, icon) VALUES
@@ -63,54 +69,54 @@ INSERT INTO users (email, password, name, phone, role_id, type) VALUES
  (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='admin'), 'new');
 
 -- Библиотека тренировок и услуг (единый источник описаний; коды сложности, подписи — на фронте)
-INSERT INTO library (location_id, type_id, name, category_id, duration, price, difficulty, summary, details) VALUES
--- Тренировки (library_type = training)
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Утренний сайкл',
+INSERT INTO library (location_id, name, category_id, duration, price, difficulty, summary, details) VALUES
+-- Тренировки (activity_category = training)
+(1,'Утренний сайкл',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,'beginner',
  'Лёгкая утренняя тренировка для разгона метаболизма. Аэробная зона, комфортный темп.',
  JSON_ARRAY('Аэробная зона ЧСС 60-70%','Темп: 85-95 RPM','Zwift - равнинные трассы','Подходит после перерыва')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Endurance Ride',
+(1,'Endurance Ride',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),90,1500,'intermediate',
  'Длинная тренировка на выносливость. Стабильная мощность, развивает аэробную базу.',
  JSON_ARRAY('Зона 2-3 по мощности','Темп: 80-90 RPM','Без спринтов и ускорений','Подготовка к гранфондо')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Интервальный сайкл',
+(1,'Интервальный сайкл',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,'advanced',
  'Высокоинтенсивные интервалы для роста МПК и скоростной выносливости.',
  JSON_ARRAY('Интервалы 30/30, 1/1, 4 мин','Пиковая мощность 120-150% FTP','Zwift - гонки','VO2max развитие')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Персональная тренировка',
+(1,'Персональная тренировка',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,2500,'any',
  'Индивидуальное занятие с тренером. Программа полностью под ваш уровень и цели.',
  JSON_ARRAY('Тест FTP при первом занятии','Индивидуальный план','Анализ педалирования','Обратная связь в реальном времени')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Восстановительная',
+(1,'Восстановительная',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),45,900,'beginner',
  'Лёгкое восстановительное занятие после интенсивных тренировок или соревнований.',
  JSON_ARRAY('Зона 1 по мощности','Высокий каденс 95-105 RPM','Без нагрузки','Растяжка в конце')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Свободная тренировка',
+(1,'Свободная тренировка',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,800,'any',
  'Самостоятельная тренировка на смарт-тренере в удобном темпе. Зал, оборудование и Zwift в вашем распоряжении - без программы и тренера.',
  JSON_ARRAY('Свободный график нагрузки','Доступ к Zwift и ERG-режиму','Подходит для любого уровня','Оплата за одно посещение')),
--- Услуги (library_type = service)
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Байкфит стандарт',
+-- Услуги (activity_category <> training)
+(1,'Байкфит стандарт',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),120,9500,'any',
  'Полная настройка посадки с видеозахватом в трёх плоскостях.',
  JSON_ARRAY('Замеры углов в ключевых точках','Настройка седла, руля, шипов','Видеоразбор со специалистом','PDF-отчёт с параметрами')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Байкфит PRO',
+(1,'Байкфит PRO',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),180,12000,'any',
  'Максимальный формат: байкфит, индивидуальные стельки и 3D-анализ.',
  JSON_ARRAY('Всё из стандартного байкфита','3D-сканирование позиции','Индивидуальные ортопедические стельки','Расширенный цифровой отчёт')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Настройка шипов',
+(1,'Настройка шипов',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),60,3500,'any',
  'Точная установка шипов по биомеханике стопы для эффективного педалирования.',
  JSON_ARRAY('Анализ положения стопы','Установка угла и смещения шипов','Проверка на станке','Рекомендации по обуви')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'ТО среднее',
+(1,'ТО среднее',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),60,3400,'any',
  'Плановое обслуживание для поддержания велосипеда в рабочем состоянии.',
  JSON_ARRAY('Настройка переключателей и тормозов','Смазка и промывка цепи','Протяжка спиц','Проверка давления')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Капитальное ТО',
+(1,'Капитальное ТО',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),180,6900,'any',
  'Полная переборка всех узлов велосипеда с промывкой и диагностикой.',
  JSON_ARRAY('Разборка и сборка каретки','Переборка втулок и рулевой','Замена расходников','Финальная настройка и тест')),
-(1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Диагностика',
+(1,'Диагностика',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),30,1500,'any',
  'Быстрая проверка состояния велосипеда с рекомендациями по обслуживанию.',
  JSON_ARRAY('Проверка всех узлов','Список необходимых работ','Оценка стоимости ремонта','Без разборки'));

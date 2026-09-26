@@ -2610,6 +2610,8 @@
       text-transform: uppercase;
       letter-spacing: .4px;
       margin-bottom: 8px;
+      background: #f3f4f6;   /* новые категории (например, массаж) — нейтральный цвет */
+      color: #374151;
     }
 
     .lib-card-cat.training {
@@ -4494,18 +4496,21 @@
             <h2 class="adm-panel-title">Библиотека тренировок</h2>
             <div style="display:flex;gap:8px">
               <div style="display:flex;gap:6px">
-                <button class="chip active" id="lib-tab-training"
+                <button class="chip active" id="lib-tab-trainings"
                   onclick="switchLibTab('trainings',this)">Тренировки</button>
                 <button class="chip amber" id="lib-tab-services" onclick="switchLibTab('services',this)">Услуги</button>
               </div>
-              <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openLibItemModal(null)">+
-                Добавить</button>
+              <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openLibItemModal(null,'trainings')">+
+                Тренировка</button>
+              <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openLibItemModal(null,'services')">+
+                Услуга</button>
             </div>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
             <input class="form-input" id="lib-search" placeholder="Поиск..."
               style="max-width:280px;height:36px;font-size:13px" oninput="renderLibrary()">
             <select class="form-input" id="lib-loc-filter" style="max-width:220px;height:36px;font-size:13px" onchange="renderLibrary()"></select>
+            <select class="form-input" id="lib-cat-filter" style="max-width:200px;height:36px;font-size:13px;display:none" onchange="renderLibrary()"></select>
             <select class="form-input" id="lib-active-filter" style="max-width:200px;height:36px;font-size:13px" onchange="renderLibrary()">
               <option value="all">Все</option>
               <option value="active">Только действующие</option>
@@ -4995,11 +5000,12 @@
 
     // ── LIBRARY (библиотека тренировок/услуг — источник описаний слотов) ──
     const LibraryAPI = {
-      async list(type) {
+      async list(kind) {   // kind: training | service (по activity_category)
         let url = '/library.php?action=list';
-        if (type) url += `&type=${type}`;
+        if (kind) url += `&kind=${kind}`;
         return apiRequest(url);
       },
+      async categories() { return apiRequest('/library.php?action=categories'); },
       async listAll() { return apiRequest('/library.php?action=list&all=1'); },
       async get(id) { return apiRequest(`/library.php?action=get&id=${id}`); },
       async create(data) { return apiRequest('/library.php?action=create', 'POST', data); },
@@ -5196,14 +5202,38 @@
       } catch (e) { /* сервер недоступен */ }
     }
 
+    // Категории активностей (dictionaries.activity_category): code -> name.
+    // Значения по умолчанию — пока справочник не загрузился.
+    // spec_type / spec_name — тип специалиста категории (dictionaries.ref_id -> specialist_type).
+    let ACTIVITY_CATS = [
+      { code: 'training', name: 'Тренировка', spec_type: 'trainer',    spec_name: 'Тренер' },
+      { code: 'bikefit',  name: 'Байкфит',    spec_type: 'bikefitter', spec_name: 'Байкфиттер' },
+      { code: 'workshop', name: 'Мастерская', spec_type: 'mechanic',   spec_name: 'Мастер' },
+    ];
+    function catName(code) {
+      const c = ACTIVITY_CATS.find(function (x) { return x.code === code; });
+      return c ? c.name : (code || '—');
+    }
+    async function loadActivityCats() {
+      try {
+        const res = await LibraryAPI.categories();
+        if (res && res.length) ACTIVITY_CATS = res;
+      } catch (e) { /* сервер недоступен */ }
+    }
+
+    // Тренировка — категория training, всё остальное — услуги
+    function groupLibrary(items) {
+      const grouped = { trainings: [], services: [] };
+      items.forEach(function (it) {
+        (it.cat === 'training' ? grouped.trainings : grouped.services).push(it);
+      });
+      return grouped;
+    }
+
     async function loadLibrary() {
       try {
         const items = await LibraryAPI.list();
-        const grouped = { trainings: [], services: [] };
-        items.forEach(function (it) {
-          (it.type === 'service' ? grouped.services : grouped.trainings).push(it);
-        });
-        LIBRARY = grouped;
+        LIBRARY = groupLibrary(items);
         const wm = items.find(it => it.max != null);
         if (wm) HALL_CAP = wm.max;   // вместимость зала — из локации (одинакова для филиала)
       } catch (e) {
@@ -5215,11 +5245,7 @@
     async function loadLibraryAll() {
       try {
         const items = await LibraryAPI.listAll();
-        const grouped = { trainings: [], services: [] };
-        items.forEach(function (it) {
-          (it.type === 'service' ? grouped.services : grouped.trainings).push(it);
-        });
-        LIBRARY = grouped;
+        LIBRARY = groupLibrary(items);
       } catch (e) { /* сервер недоступен */ }
     }
 
@@ -5730,7 +5756,7 @@
         const full = left <= 0;
         const isBooked = alreadyBooked.has(s.id);
         const badgeClass = { training: 'badge-training', bikefit: 'badge-bikefit', workshop: 'badge-workshop' }[s.cat];
-        const badgeLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' }[s.cat];
+        const badgeLabel = catName(s.cat);
         const spotsHtml = isBooked
           ? `<span class="slot-badge badge-training">✓ Записан</span>`
           : full ? `<span class="spots-full">Мест нет</span>`
@@ -6445,11 +6471,10 @@
       const sel = document.getElementById('sm-lib-select');
       if (!sel) return;
       const allItems = [...(LIBRARY.trainings || []), ...(LIBRARY.services || [])];
-      const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       sel.innerHTML = '<option value="">— Выбрать из библиотеки —</option>' +
         allItems.map(function (item) {
           return '<option value="' + item.id + '__' + (LIBRARY.trainings.includes(item) ? 'trainings' : 'services') + '">' +
-            '[' + catLabel[item.cat] + '] ' + item.name + ' · ' + item.dur + 'мин · ' + Number(item.price).toLocaleString('ru') + '₽' +
+            '[' + catName(item.cat) + '] ' + item.name + ' · ' + item.dur + 'мин · ' + Number(item.price).toLocaleString('ru') + '₽' +
             '</option>';
         }).join('');
       document.getElementById('sm-lib-preview').style.display = 'none';
@@ -6467,7 +6492,7 @@
       // Заполняем поля формы
       document.getElementById('sm-name').value = item.name;
       document.getElementById('sm-cat').value = item.cat;
-      { const CL = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' }; const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = CL[item.cat] || item.cat; }
+      { const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = catName(item.cat); }
       smApplySpecialistFilter(item.cat);
       document.getElementById('sm-dur').value = item.dur;
       document.getElementById('sm-price').value = item.price;
@@ -6478,13 +6503,12 @@
     // Превью выбранной записи библиотеки (без перезаписи полей формы)
     function smRenderLibPreview(item) {
       const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
-      const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       const prev = document.getElementById('sm-lib-preview');
       if (!prev) return;
       prev.style.display = '';
       prev.innerHTML =
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (catCol[item.cat] || '#888') + ';margin-right:6px;vertical-align:middle"></span>' +
-        '<strong>' + item.name + '</strong> · ' + catLabel[item.cat] + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽' +
+        '<strong>' + item.name + '</strong> · ' + catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽' +
         (item.desc ? '<div style="color:var(--ink-60);margin-top:4px">' + item.desc + '</div>' : '');
     }
 
@@ -6534,12 +6558,11 @@
         document.getElementById('sm-price').value = s.price;
         smSelectedLibId = s.library_id || null;   // ссылка на библиотеку сохраняется как есть
         // Значения для нередактируемых полей (режим редактирования)
-        const CL = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
         const locObj = (LOCATIONS.find(function (x) { return x.id === s.location_id; })
                      || LOCATIONS_ALL.find(function (x) { return x.id === s.location_id; }) || {});
         document.getElementById('sm-location-view').textContent = locObj.name || '—';
         document.getElementById('sm-name-view').textContent = s.name || '—';
-        document.getElementById('sm-cat-view').textContent = CL[s.cat] || s.cat || '—';
+        document.getElementById('sm-cat-view').textContent = catName(s.cat);
         smSetSlotMode(true);
       } else {
         document.getElementById('slot-modal-title').textContent = 'Добавить слот';
@@ -7441,7 +7464,7 @@
       if (s.features) {
         try { featureList = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { }
       }
-      const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' }[s.cat];
+      const catLabel = catName(s.cat);
       const tagEl = document.getElementById('sdm-tag');
       tagEl.textContent = catLabel; tagEl.className = 'dm-tag ' + s.cat;
       document.getElementById('sdm-title').textContent = s.name;
@@ -7502,11 +7525,13 @@
 
     let libCurrentType = 'trainings';
 
+    // Вкладки «Тренировки» / «Услуги»: фильтр по activity_category (training / всё остальное)
     function switchLibTab(type, btn) {
       libCurrentType = type;
-      document.querySelectorAll('#atab-library .chip').forEach(c => c.classList.remove('active'));
-      btn.classList.add('active');
-      // Show/hide difficulty field in modal based on type
+      document.querySelectorAll('#adm-library .chip').forEach(c => c.classList.remove('active'));
+      (btn || document.getElementById('lib-tab-' + type)).classList.add('active');
+      const catSel = document.getElementById('lib-cat-filter');
+      if (catSel) { catSel.value = ''; catSel.style.display = type === 'services' ? '' : 'none'; }
       renderLibrary();
     }
 
@@ -7523,20 +7548,32 @@
       }
       const actSel = document.getElementById('lib-active-filter');
       const activeOnly = actSel && actSel.value === 'active';
+      // Категории услуг (всё, кроме training) — из справочника activity_category
+      const catSel = document.getElementById('lib-cat-filter');
+      let catFilter = '';
+      if (catSel) {
+        const cur = catSel.value;
+        catSel.innerHTML = '<option value="">Все категории</option>' +
+          ACTIVITY_CATS.filter(function (c) { return c.code !== 'training'; })
+            .map(function (c) { return '<option value="' + c.code + '">' + c.name + '</option>'; }).join('');
+        catSel.value = cur;
+        catFilter = libCurrentType === 'services' ? catSel.value : '';
+      }
       const items = LIBRARY[libCurrentType].filter(function (item) {
         const okQ = !q || item.name.toLowerCase().includes(q) || (item.desc || '').toLowerCase().includes(q);
         const okLoc = !locFilter || item.location_id === locFilter;
         const okAct = !activeOnly || Number(item.active);
-        return okQ && okLoc && okAct;
+        const okCat = !catFilter || item.cat === catFilter;
+        return okQ && okLoc && okAct && okCat;
       });
       const grid = document.getElementById('lib-grid');
       if (!grid) return;
       if (!items.length) {
-        grid.innerHTML = '<div class="lib-empty"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Ничего не найдено</div><button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="openLibItemModal(null)">Добавить первый элемент</button></div>';
+        grid.innerHTML = '<div class="lib-empty"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Ничего не найдено</div><button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="openLibItemModal(null,\'' + libCurrentType + '\')">' +
+          (libCurrentType === 'trainings' ? 'Добавить тренировку' : 'Добавить услугу') + '</button></div>';
         return;
       }
       const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
-      const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       grid.innerHTML = items.map(function (item) {
         const col = catCol[item.cat] || '#888';
         const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
@@ -7563,7 +7600,7 @@
         return '<div class="lib-card"' + cardStyle + '>' +
           difficultyHtml +
           '<div class="lib-card-header"><div>' +
-          '<div class="lib-card-cat ' + item.cat + '">' + catLabel[item.cat] + '</div>' +
+          '<div class="lib-card-cat ' + item.cat + '">' + catName(item.cat) + '</div>' +
           '<div class="lib-card-title">' + item.name + '</div>' +
           '</div></div>' +
           '<div class="lib-card-desc">' + item.desc + '</div>' +
@@ -7592,14 +7629,15 @@
 
       // Превью
       const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
-      const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       document.getElementById('lts-cat-dot').style.background = catCol[item.cat] || '#888';
       document.getElementById('lts-name').textContent = item.name;
       document.getElementById('lts-meta').textContent =
-        catLabel[item.cat] + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';
+        catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';
 
       const lt = document.getElementById('lts-time');
       if (lt) { lt.innerHTML = timeOptions15('10:00'); lt.value = '10:00'; }
+      // Тренер / Байкфиттер / Мастер — по категории записи (activity_category.ref_id)
+      applySpecialistFilter('lts-specialist', 'lts-specialist-label', item.cat);
       ltsRenderWeekLabel();
       ltsRenderDayBtns();
       document.getElementById('lib-to-sch-modal').classList.add('show');
@@ -7709,9 +7747,27 @@
     }
 
 
-    function openLibItemModal(id) {
-      const isTraining = libCurrentType === 'trainings';
+    // kind: 'trainings' | 'services' — какая кнопка нажата («+ Тренировка» / «+ Услуга»).
+    // При редактировании вид определяется категорией записи.
+    function openLibItemModal(id, kind) {
+      let item = null;
+      if (id !== null) {
+        item = [...LIBRARY.trainings, ...LIBRARY.services].find(x => x.id === id);
+        if (!item) return;
+        kind = item.cat === 'training' ? 'trainings' : 'services';
+      }
+      kind = kind || libCurrentType;
+      const isTraining = kind === 'trainings';
       const modal = document.getElementById('lib-modal');
+
+      // Категория: тренировка — фиксированно training (поле скрыто);
+      // услуга — выпадающий список activity_category без training
+      const catEl = document.getElementById('lm-cat');
+      catEl.innerHTML = isTraining
+        ? '<option value="training">' + catName('training') + '</option>'
+        : ACTIVITY_CATS.filter(function (c) { return c.code !== 'training'; })
+            .map(function (c) { return '<option value="' + c.code + '">' + c.name + '</option>'; }).join('');
+      document.getElementById('lm-cat-wrap').style.display = isTraining ? 'none' : '';
       const diffWrap = document.getElementById('lm-difficulty-wrap');
       diffWrap.style.display = isTraining ? '' : 'none';
       const capWrap = document.getElementById('lm-cap-wrap');
@@ -7719,7 +7775,7 @@
         capWrap.style.display = isTraining ? '' : 'none';
         document.getElementById('lm-cap').value = HALL_CAP ?? '';
       }
-      document.getElementById('lm-type').value = libCurrentType;
+      document.getElementById('lm-type').value = kind;
 
       // Список филиалов; если один — сразу выбран, иначе плейсхолдер
       const locSel = document.getElementById('lm-location');
@@ -7728,10 +7784,8 @@
           + LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
       }
 
-      if (id !== null) {
-        const item = LIBRARY[libCurrentType].find(x => x.id === id);
-        if (!item) return;
-        document.getElementById('lib-modal-title').textContent = 'Редактировать';
+      if (item) {
+        document.getElementById('lib-modal-title').textContent = isTraining ? 'Редактировать тренировку' : 'Редактировать услугу';
         document.getElementById('lm-id').value = id;
         if (locSel) locSel.value = item.location_id || '';
         document.getElementById('lm-name').value = item.name;
@@ -7747,7 +7801,7 @@
         document.getElementById('lm-id').value = '';
         if (locSel) locSel.value = LOCATIONS.length === 1 ? LOCATIONS[0].id : '';
         document.getElementById('lm-name').value = '';
-        document.getElementById('lm-cat').value = isTraining ? 'training' : 'bikefit';
+        catEl.selectedIndex = 0;
         document.getElementById('lm-dur').value = 60;
         document.getElementById('lm-price').value = isTraining ? 1200 : 3000;
         document.getElementById('lm-difficulty').value = 'any';
@@ -7756,7 +7810,6 @@
         document.getElementById('lm-active').checked = true;
       }
       // Категорию можно задать только при создании; при редактировании — только чтение
-      const catEl = document.getElementById('lm-cat');
       catEl.disabled = (id !== null);
       catEl.classList.toggle('sm-locked', id !== null);
       catEl.classList.toggle('sm-editable', id === null);
@@ -7776,12 +7829,14 @@
       if (!location_id) { showToast('Выберите филиал', 'error'); return; }
       const features = document.getElementById('lm-features').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
 
+      const cat = type === 'trainings' ? 'training' : document.getElementById('lm-cat').value;
+      if (type === 'services' && (!cat || cat === 'training')) { showToast('Выберите категорию услуги', 'error'); return; }
+
       const data = {
-        type: type === 'services' ? 'service' : 'training',           // library_type для БД
         location_id,
         active: document.getElementById('lm-active').checked ? 1 : 0,
         name,
-        cat: document.getElementById('lm-cat').value,
+        cat,   // activity_category — определяет, тренировка это или услуга
         dur: parseInt(document.getElementById('lm-dur').value),
         price: parseInt(document.getElementById('lm-price').value),
         difficulty: document.getElementById('lm-difficulty').value,   // код
@@ -7802,7 +7857,9 @@
         return;   // ошибка показана в apiRequest; модалку оставляем открытой для повторной попытки
       }
       closeLibModal();
-      renderLibrary();
+      // Показываем вкладку, куда попала запись (тренировки / услуги)
+      if (type !== libCurrentType) switchLibTab(type);
+      else renderLibrary();
     }
 
     async function deleteLibItem(id) {
@@ -7877,7 +7934,7 @@
         promos: loadPromos,
         notif: loadNotifications,
         chat: loadChatDialogs,
-        library: loadLibraryAll,
+        library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats()]); },
         settings: loadLocationsAll,
         finance: loadAdminBookings,
         dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients(), loadNotifications()]); },
@@ -8656,41 +8713,39 @@
       } catch (e) { /* сервер недоступен */ }
     }
 
-    // Заполнить выпадающие списки тренеров данными из БД (везде одинаково)
+    // Перезаполнить выпадающие списки специалистов после загрузки данных из БД
     function fillSpecialistSelects() {
-      function buildOpts(list, placeholder) {
-        return '<option value="">' + placeholder + '</option>' +
-          list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
-      }
-      // Библиотека тренировок → «В расписание»: только dictionaries(specialist_type).code = 'trainer'
-      var trainers = SPECIALISTS_DATA.filter(function (t) { return t.category === 'trainer'; });
-      var el = document.getElementById('lts-specialist');
-      if (el) {
-        var cur = el.value;
-        el.innerHTML = buildOpts(trainers, '— Тренер —');
-        el.value = cur;
-      }
       var cat = document.getElementById('sm-cat');
       smApplySpecialistFilter(cat ? cat.value : '');
+      var libItem = ltsLibId ? [...LIBRARY.trainings, ...LIBRARY.services].find(function (x) { return x.id === ltsLibId; }) : null;
+      applySpecialistFilter('lts-specialist', 'lts-specialist-label', libItem ? libItem.cat : '');
     }
 
-    // Форма слота: для категории «Тренировка» поле называется «Тренер» и список — только тренеры
-    // (dictionaries: group_code = 'specialist_type', code = 'trainer'); для остальных — все специалисты.
-    function smApplySpecialistFilter(cat) {
-      var sel = document.getElementById('sm-specialist');
+    // Список специалистов по категории активности: тип специалиста берётся из справочника
+    // (activity_category.ref_id -> specialist_type: training -> trainer, bikefit -> bikefitter,
+    // workshop -> mechanic). Подпись поля — название типа («Тренер», «Байкфиттер», «Мастер»).
+    // Если у категории связи нет — поле «Специалист» и все специалисты.
+    function applySpecialistFilter(selectId, labelId, cat) {
+      var sel = document.getElementById(selectId);
       if (!sel) return;
-      var isTraining = cat === 'training';
-      var title = isTraining ? 'Тренер' : 'Специалист';
-      var list = isTraining
-        ? SPECIALISTS_DATA.filter(function (t) { return t.category === 'trainer'; })
+      var c = ACTIVITY_CATS.find(function (x) { return x.code === cat; });
+      var specType = c && c.spec_type;
+      var title = specType ? c.spec_name : 'Специалист';
+      var list = specType
+        ? SPECIALISTS_DATA.filter(function (t) { return t.category === specType; })
         : SPECIALISTS_DATA;
-      var label = document.getElementById('sm-specialist-label');
+      var label = document.getElementById(labelId);
       if (label) label.textContent = title;
       var cur = sel.value;
       sel.innerHTML = '<option value="">— ' + title + ' —</option>' +
         list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
       sel.value = cur;
       if (sel.value !== cur) sel.value = '';
+    }
+
+    // Форма слота в расписании
+    function smApplySpecialistFilter(cat) {
+      applySpecialistFilter('sm-specialist', 'sm-specialist-label', cat);
     }
 
     // ── Загрузка клиентов с сервера ───────────────────────────────
@@ -8838,6 +8893,7 @@
         loadSpecialists(),
         loadSubPlans(),
         loadLibrary(),
+        loadActivityCats(),
         loadServices(),
       ]);
       renderServices();   // перерисовываем карточки услуг данными из БД
@@ -9182,13 +9238,9 @@
           <label class="form-label">Название</label>
           <input class="form-input sm-editable" id="lm-name" placeholder="Название тренировки / услуги">
         </div>
-        <div class="form-field">
+        <div class="form-field" id="lm-cat-wrap">
           <label class="form-label">Категория</label>
-          <select class="form-input sm-editable" id="lm-cat">
-            <option value="training">Тренировка</option>
-            <option value="bikefit">Байкфит</option>
-            <option value="workshop">Мастерская</option>
-          </select>
+          <select class="form-input sm-editable" id="lm-cat"></select>
         </div>
       </div>
       <div class="form-row">
@@ -9284,9 +9336,9 @@
           <select class="form-input" id="lts-time"></select>
         </div>
         <div class="form-field">
-          <label class="form-label">Тренер</label>
+          <label class="form-label" id="lts-specialist-label">Специалист</label>
           <select class="form-input" id="lts-specialist">
-            <option value="">— Тренер —</option>
+            <option value="">— Специалист —</option>
           </select>
         </div>
       </div>

@@ -27,18 +27,24 @@ CREATE TABLE locations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Единый справочник ───────────────────────────────────────
--- group_code — код справочника (user_role, library_type, activity_category,
+-- group_code — код справочника (user_role, activity_category,
 -- slot_type, specialist_type); неизменяем — защищён триггером ниже.
 -- station_type вынесен в отдельную таблицу (см. ниже).
+-- ref_id — связанное значение другого справочника. Сейчас используется так:
+-- activity_category -> specialist_type (какой специалист ведёт активность:
+-- training -> trainer, bikefit -> bikefitter, workshop -> mechanic).
 CREATE TABLE dictionaries (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     group_code VARCHAR(40)  NOT NULL,
     code       VARCHAR(40)  NOT NULL,
     name       VARCHAR(100) NOT NULL,
+    ref_id     INT NULL,                          -- dictionaries.id связанного значения
     active     TINYINT DEFAULT 1,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_dict (group_code, code),
-    KEY idx_group (group_code)
+    KEY idx_group (group_code),
+    KEY fk_dict_ref (ref_id),
+    CONSTRAINT fk_dict_ref FOREIGN KEY (ref_id) REFERENCES dictionaries(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 DELIMITER $$
@@ -103,9 +109,10 @@ CREATE TABLE specialists (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Библиотека тренировок/услуг (источник описаний слотов) ───
+-- Тренировка или услуга — по категории: activity_category.code = 'training' — тренировка,
+-- любая другая (bikefit, workshop, massage…) — услуга.
 CREATE TABLE library (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    type_id     INT NOT NULL,                    -- dictionaries.library_type
     name        VARCHAR(255) NOT NULL,
     category_id INT NOT NULL,                    -- dictionaries.activity_category
     duration    INT NOT NULL DEFAULT 60,
@@ -118,9 +125,7 @@ CREATE TABLE library (
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY fk_library_location (location_id),
-    KEY fk_library_type (type_id),
     KEY fk_library_category (category_id),
-    CONSTRAINT fk_library_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
     CONSTRAINT fk_library_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
     CONSTRAINT fk_library_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

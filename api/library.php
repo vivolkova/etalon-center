@@ -1,7 +1,8 @@
 <?php
 // api/library.php — Библиотека тренировок и услуг.
 // Единый источник описаний: слоты ссылаются на строку library через slots.library_id.
-// В БД хранятся коды (type, category, difficulty), русские подписи — только на фронте.
+// В БД хранятся коды (category, difficulty), русские подписи — только на фронте.
+// Тренировка или услуга — по категории: activity_category = 'training' — тренировка, остальные — услуги.
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
 
@@ -22,9 +23,8 @@ function libRow($r) {
     return [
         'id'          => (int)$r['id'],
         'location_id' => (int)$r['location_id'],
-        'type'       => $r['type'],                 // library_type: training | service
         'name'       => $r['name'],
-        'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop
+        'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop | …
         'dur'        => (int)$r['duration'],
         'price'      => (int)$r['price'],
         'max'        => $r['max_people'] !== null ? (int)$r['max_people'] : null,
@@ -37,24 +37,37 @@ function libRow($r) {
 
 $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_people, l.difficulty,
                     l.summary, l.details, l.active,
-                    lt.code AS type, dc.code AS cat
+                    dc.code AS cat
              FROM library l
-             JOIN dictionaries lt ON l.type_id     = lt.id
              JOIN dictionaries dc ON l.category_id = dc.id
              JOIN locations   loc ON l.location_id = loc.id';
 
 // GET — список (публичный; нужен и форме слота, и экрану «Библиотека»)
+// kind=training — только тренировки, kind=service — только услуги (все категории, кроме training)
 if ($method === 'GET' && $action === 'list') {
     $db  = getDB();
     $all = !empty($_GET['all']);
     if ($all) authAdmin();
     $sql = $LIST_SQL . ($all ? ' WHERE 1' : ' WHERE l.active = 1');
-    $params = [];
-    if (!empty($_GET['type'])) { $sql .= ' AND lt.code = ?'; $params[] = $_GET['type']; }
+    $kind = $_GET['kind'] ?? '';
+    if ($kind === 'training') $sql .= " AND dc.code = 'training'";
+    if ($kind === 'service')  $sql .= " AND dc.code <> 'training'";
     $sql .= ' ORDER BY l.id';
     $stmt = $db->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute();
     ok(array_map('libRow', $stmt->fetchAll()));
+}
+
+// GET — категории активностей (activity_category) для фильтров и формы.
+// spec_type / spec_name — тип специалиста, который ведёт категорию (dictionaries.ref_id).
+if ($method === 'GET' && $action === 'categories') {
+    $db   = getDB();
+    $stmt = $db->prepare("SELECT d.code, d.name, st.code AS spec_type, st.name AS spec_name
+                          FROM dictionaries d
+                          LEFT JOIN dictionaries st ON st.id = d.ref_id AND st.group_code = 'specialist_type'
+                          WHERE d.group_code = 'activity_category' AND d.active = 1 ORDER BY d.id");
+    $stmt->execute();
+    ok($stmt->fetchAll());
 }
 
 // GET — один элемент
@@ -76,7 +89,6 @@ if ($method === 'POST' && $action === 'create') {
     require_fields($d, ['name', 'price', 'location_id']);
 
     $db     = getDB();
-    $typeId = libDictId($db, 'library_type',     $d['type'] ?? 'training');
     $catId  = libDictId($db, 'activity_category', $d['cat']  ?? 'training');
     $features = isset($d['features']) && is_array($d['features'])
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
@@ -85,10 +97,10 @@ if ($method === 'POST' && $action === 'create') {
     // Вместимость не хранится в библиотеке — она задаётся в locations.max_people.
     $locId = (int)$d['location_id'];   // филиал записи выбирается на форме
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, type_id, name, category_id, duration, price, difficulty, summary, details, active)
-        VALUES (?,?,?,?,?,?,?,?,?,?)');
+        (location_id, name, category_id, duration, price, difficulty, summary, details, active)
+        VALUES (?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
-        $locId, $typeId, $d['name'], $catId,
+        $locId, $d['name'], $catId,
         $d['dur']   ?? 60,
         $d['price'],
         $d['difficulty'] ?? 'any',
@@ -107,7 +119,6 @@ if ($method === 'PUT' && $action === 'update') {
     if (!$id) err('Не указан id');
 
     $db     = getDB();
-    $typeId = libDictId($db, 'library_type',     $d['type'] ?? 'training');
     $catId  = libDictId($db, 'activity_category', $d['cat']  ?? 'training');
     $features = isset($d['features']) && is_array($d['features'])
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
@@ -115,10 +126,10 @@ if ($method === 'PUT' && $action === 'update') {
 
     require_fields($d, ['location_id']);
     $stmt = $db->prepare('UPDATE library SET
-        location_id=?, type_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
+        location_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
         WHERE id=?');
     $stmt->execute([
-        (int)$d['location_id'], $typeId, $d['name'], $catId,
+        (int)$d['location_id'], $d['name'], $catId,
         $d['dur']   ?? 60,
         $d['price'],
         $d['difficulty'] ?? 'any',
