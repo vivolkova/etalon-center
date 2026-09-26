@@ -23,14 +23,13 @@ CREATE TABLE locations (
 
 -- ── Единый справочник ───────────────────────────────────────
 -- group_code — код справочника (user_role, library_type, activity_category,
--- station_type, slot_type); неизменяем — защищён триггером ниже.
+-- slot_type); неизменяем — защищён триггером ниже.
+-- station_type вынесен в отдельную таблицу (см. ниже).
 CREATE TABLE dictionaries (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     group_code VARCHAR(40)  NOT NULL,
     code       VARCHAR(40)  NOT NULL,
     name       VARCHAR(100) NOT NULL,
-    icon       TEXT NULL,
-    sort_order INT DEFAULT 0,
     active     TINYINT DEFAULT 1,
     UNIQUE KEY uq_dict (group_code, code),
     KEY idx_group (group_code)
@@ -45,6 +44,18 @@ BEGIN
     END IF;
 END$$
 DELIMITER ;
+
+-- ── Типы станков ────────────────────────────────────────────
+-- Отдельный справочник (раньше был группой station_type в dictionaries).
+-- icon — SVG-иконка типа станка для схемы зала.
+CREATE TABLE station_type (
+    id         INT AUTO_INCREMENT PRIMARY KEY,
+    code       VARCHAR(40)  NOT NULL,
+    name       VARCHAR(100) NOT NULL,
+    icon       TEXT NULL,
+    active     TINYINT DEFAULT 1,
+    UNIQUE KEY uq_station_type_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Пользователи ────────────────────────────────────────────
 CREATE TABLE users (
@@ -138,7 +149,7 @@ CREATE TABLE slots (
 CREATE TABLE stations (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     location_id INT NOT NULL,
-    type_id     INT NOT NULL,                    -- dictionaries.station_type
+    type_id     INT NOT NULL,                    -- station_type.id
     label       VARCHAR(64) NOT NULL,
     pos_x       INT NOT NULL DEFAULT 0,          -- колонка сетки зала
     pos_y       INT NOT NULL DEFAULT 0,          -- ряд сетки зала
@@ -148,7 +159,7 @@ CREATE TABLE stations (
     KEY location_id (location_id),
     KEY fk_stations_type (type_id),
     CONSTRAINT fk_stations_location FOREIGN KEY (location_id) REFERENCES locations(id),
-    CONSTRAINT fk_stations_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id)
+    CONSTRAINT fk_stations_type     FOREIGN KEY (type_id)     REFERENCES station_type(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Брони ───────────────────────────────────────────────────
