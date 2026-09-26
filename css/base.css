@@ -1,0 +1,46 @@
+/* Базовые стили: переменные темы, сброс, типографика */
+
+:root {
+  --green: #00BAB3;
+  --green-dark: #008F89;
+  --green-light: #E0F7F6;
+  --green-mid: #006E6A;
+  --amber: #c07a10;
+  --amber-light: #fdf0d8;
+  --purple: #4e42b5;
+  --purple-light: #eeedfd;
+  --ink: #0d1117;
+  --ink-60: rgba(13, 17, 23, .6);
+  --ink-20: rgba(13, 17, 23, .12);
+  --white: #ffffff;
+  --surface: #F4FAFA;
+  --card: #ffffff;
+  --border: rgba(13, 17, 23, .1);
+  --radius: 14px;
+  --radius-sm: 8px;
+  --font-display: 'Unbounded', sans-serif;
+  --font-body: 'Golos Text', sans-serif;
+  --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, .12);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+

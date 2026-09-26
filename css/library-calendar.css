@@ -1,0 +1,527 @@
+/* Библиотека и недельный календарь расписания */
+
+/* ── LIBRARY ── */
+.lib-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 14px;
+}
+
+.lib-card {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+  transition: border-color .15s, box-shadow .15s;
+  position: relative;
+}
+
+.lib-card:hover {
+  border-color: var(--green);
+  box-shadow: 0 4px 16px rgba(0, 186, 179, .1);
+}
+
+.lib-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.lib-card-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.lib-card-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 8px;
+  background: #f3f4f6;   /* новые категории (например, массаж) — нейтральный цвет */
+  color: #374151;
+}
+
+.lib-card-cat.training {
+  background: #e0f7f6;
+  color: #006E6A;
+}
+
+.lib-card-cat.bikefit {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.lib-card-cat.workshop {
+  background: #ede9fe;
+  color: #4c1d95;
+}
+
+.lib-card-desc {
+  font-size: 12px;
+  color: var(--ink-60);
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.lib-card-features {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.lib-card-feature {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.lib-card-feature-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lib-card-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lib-meta-tag {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-60);
+}
+
+.lib-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.lib-card-price {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.lib-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.lib-add-slot-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  border: 1.5px solid var(--green);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: .15s;
+}
+
+.lib-add-slot-btn:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+.lib-empty {
+  grid-column: 1/-1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--ink-60);
+}
+
+.lib-difficulty {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-60);
+}
+
+
+/* ── SCHEDULE CALENDAR ── */
+/* ── WEEK CALENDAR ── */
+.week-cal-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.week-cal-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sch-cal-nav-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-60);
+  transition: .15s;
+}
+
+.sch-cal-nav-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.sch-cal-month {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 160px;
+  text-align: center;
+}
+
+.sch-today-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-60);
+  cursor: pointer;
+  transition: .15s;
+}
+
+.sch-today-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.week-cal-wrap {
+  overflow-x: auto;
+}
+
+.week-cal-grid {
+  display: grid;
+  grid-template-columns: 48px repeat(7, 1fr);
+  min-width: 760px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+
+/* Шапки дней */
+.wc-corner {
+  background: var(--surface);
+  border-bottom: 1.5px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.wc-day-hdr {
+  background: var(--surface);
+  border-bottom: 1.5px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.wc-day-hdr:last-child {
+  border-right: none;
+}
+
+.wc-day-hdr.today {
+  background: var(--green);
+}
+
+.wc-day-hdr.today .wc-dow,
+.wc-day-hdr.today .wc-date {
+  color: #fff;
+}
+
+.wc-day-hdr.past {
+  opacity: .5;
+}
+
+.wc-dow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--ink-60);
+}
+
+.wc-date {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.wc-day-count {
+  font-size: 10px;
+  color: var(--ink-60);
+  margin-top: 2px;
+}
+
+.wc-day-hdr.today .wc-day-count {
+  color: rgba(255, 255, 255, .75);
+}
+
+/* Временная шкала */
+.wc-time-col {
+  border-right: 1px solid var(--border);
+}
+
+.wc-time-row {
+  height: 80px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 10px;
+  color: var(--ink-60);
+  font-weight: 600;
+}
+
+.wc-time-row:last-child {
+  border-bottom: none;
+}
+
+/* Ячейка дня */
+.wc-day-col {
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+
+.wc-day-col:last-child {
+  border-right: none;
+}
+
+.wc-day-col.today-col {
+  background: rgba(0, 186, 179, .02);
+}
+
+.wc-day-col.past-col {
+  background: rgba(0, 0, 0, .01);
+}
+
+.wc-cell {
+  height: 80px;
+  border-bottom: 1.5px solid var(--border);
+  position: relative;
+}
+
+.wc-cell::after {
+  content: '';
+  position: absolute;
+  bottom: 50%;
+  left: 0;
+  right: 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, .08);
+  pointer-events: none;
+}
+
+.wc-cell:last-child {
+  border-bottom: none;
+}
+
+/* Слот внутри сетки */
+.wc-slot {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 6px;
+  padding: 5px 7px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  border-left: 3px solid;
+  transition: box-shadow .12s, opacity .12s;
+}
+
+.wc-slot:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .15);
+  opacity: .9;
+  transform: none;
+}
+
+.wc-slot.cat-training {
+  background: #e0f7f6;
+  border-left-color: #00BAB3;
+}
+
+.wc-slot.cat-bikefit {
+  background: #fef3c7;
+  border-left-color: #c07a10;
+}
+
+.wc-slot.cat-workshop {
+  background: #ede9fe;
+  border-left-color: #4e42b5;
+}
+
+.wc-slot.booked {
+  opacity: .75;
+}
+
+.wc-slot.full {
+  opacity: .45;
+}
+
+.wc-slot-time {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ink-60);
+  white-space: nowrap;
+}
+
+.wc-slot-name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.wc-slot-spots {
+  font-size: 9px;
+  color: var(--ink-60);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.wc-slot.booked .wc-slot-spots {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.wc-slot-book {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 0;
+  border-radius: 4px;
+  border: none;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-slot-book:hover {
+  background: var(--green-dark);
+}
+
+.wc-slot.full .wc-slot-book {
+  background: #9ca3af;
+  cursor: default;
+}
+
+.wc-slot.booked .wc-slot-book {
+  background: transparent;
+  color: var(--green-dark);
+  border: 1px solid var(--green);
+  font-size: 8px;
+  cursor: default;
+}
+
+/* Маленький слот — только иконка «+» */
+.wc-slot.slot-xs .wc-slot-book {
+  font-size: 0;
+  padding: 0;
+  height: 6px;
+  border-radius: 2px;
+  margin-top: 2px;
+}
+
+/* Слот средний — текст «Записаться» */
+.wc-slot.slot-sm .wc-slot-book {
+  font-size: 8px;
+  padding: 2px 0;
+}
+
+/* Слот нормальный — полная кнопка */
+.wc-slot.slot-md .wc-slot-book,
+.wc-slot.slot-lg .wc-slot-book {
+  font-size: 9px;
+  padding: 3px 0;
+}
+
+/* Пустое состояние в ячейке */
+.wc-no-slots {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sch-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sch-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-60);
+}
+
+.sch-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+@media(max-width:600px) {
+  .week-cal-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+
