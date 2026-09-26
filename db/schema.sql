@@ -22,7 +22,8 @@ CREATE TABLE locations (
     work_hours  JSON,                                 -- режим работы: [{day,open,from,to}]
     timezone    VARCHAR(64)  NOT NULL DEFAULT 'Europe/Moscow',
     active      TINYINT(1)   NOT NULL DEFAULT 1,
-    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Единый справочник ───────────────────────────────────────
@@ -35,6 +36,7 @@ CREATE TABLE dictionaries (
     code       VARCHAR(40)  NOT NULL,
     name       VARCHAR(100) NOT NULL,
     active     TINYINT DEFAULT 1,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_dict (group_code, code),
     KEY idx_group (group_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -58,6 +60,7 @@ CREATE TABLE station_type (
     name       VARCHAR(100) NOT NULL,
     icon       TEXT NULL,
     active     TINYINT DEFAULT 1,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_station_type_code (code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -91,6 +94,7 @@ CREATE TABLE trainers (
     color       VARCHAR(16) DEFAULT '#00BAB3',
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY fk_trainers_location (location_id),
     CONSTRAINT fk_trainers_location FOREIGN KEY (location_id) REFERENCES locations(id)
@@ -109,6 +113,7 @@ CREATE TABLE library (
     details     JSON,                            -- список особенностей
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY fk_library_location (location_id),
     KEY fk_library_type (type_id),
@@ -133,6 +138,7 @@ CREATE TABLE slots (
     taken       INT DEFAULT 0,                    -- сколько станков забронировано (вместимость — из locations)
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY idx_active_date (active, slot_date),
     KEY trainer_id (trainer_id),
@@ -158,6 +164,7 @@ CREATE TABLE stations (
     sort_order  INT NOT NULL DEFAULT 0,
     active      TINYINT(1) NOT NULL DEFAULT 1,
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY location_id (location_id),
     KEY fk_stations_type (type_id),
     CONSTRAINT fk_stations_location FOREIGN KEY (location_id) REFERENCES locations(id),
@@ -196,6 +203,7 @@ CREATE TABLE slot_station_blocks (
     station_id  INT NOT NULL,
     reason      VARCHAR(255),
     created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_slot_station (slot_id, station_id),
     KEY station_id (station_id),
     CONSTRAINT fk_ssb_slot    FOREIGN KEY (slot_id)    REFERENCES slots(id)    ON DELETE CASCADE,
@@ -214,6 +222,7 @@ CREATE TABLE subscription_plans (
     active      TINYINT(1) DEFAULT 1,
     sort_order  INT DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY fk_plans_location (location_id),
     CONSTRAINT fk_plans_location FOREIGN KEY (location_id) REFERENCES locations(id)
@@ -229,6 +238,7 @@ CREATE TABLE subscriptions (
     payment_id    VARCHAR(128),
     price_paid    INT NOT NULL,
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_user (user_id),
     KEY idx_status (status),
     KEY plan_id (plan_id),
@@ -248,6 +258,7 @@ CREATE TABLE services (
     sort_order  INT DEFAULT 0,
     active      TINYINT(1)   DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY fk_services_location (location_id),
     CONSTRAINT fk_services_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -260,6 +271,7 @@ CREATE TABLE chat_messages (
     message     TEXT NOT NULL,
     is_read     TINYINT(1) DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_from (from_user),
     KEY idx_to (to_user),
     KEY idx_read (is_read),
@@ -275,6 +287,7 @@ CREATE TABLE notifications (
     target_user INT,
     is_read     TINYINT(1) DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_target (target_user),
     KEY idx_read (is_read)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -285,6 +298,7 @@ CREATE TABLE sessions (
     user_id     INT NOT NULL,
     expires_at  DATETIME NOT NULL,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_user (user_id),
     CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -300,5 +314,6 @@ CREATE TABLE promo_codes (
     expires_at  DATE,
     description VARCHAR(255),
     active      TINYINT(1) DEFAULT 1,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
