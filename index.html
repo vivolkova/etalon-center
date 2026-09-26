@@ -4751,23 +4751,12 @@
           <div class="adm-panel-header">
             <h2 class="adm-panel-title">Настройки студии</h2>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-            <div class="adm-card">
-              <div class="adm-card-title" style="margin-bottom:16px">Основная информация</div>
-              <div class="form-field"><label class="form-label">Название студии</label><input class="form-input"
-                  id="set-name" value="ETALONCENTER"></div>
-              <div class="form-field"><label class="form-label">Адрес</label><input class="form-input" id="set-address"
-                  placeholder="ул. Примерная, д. 1"></div>
-              <div class="form-field"><label class="form-label">Телефон</label><input class="form-input" id="set-phone"
-                  placeholder="+7 (___) ___-__-__"></div>
-              <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="set-email"
-                  placeholder="info@etaloncenter.ru"></div>
-              <button class="btn-primary" style="margin-top:8px" onclick="saveSettings()">Сохранить</button>
+          <div class="adm-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div class="adm-card-title">Филиалы</div>
+              <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openLocationModal(null)">+ Добавить филиал</button>
             </div>
-            <div class="adm-card">
-              <div class="adm-card-title" style="margin-bottom:16px">Режим работы</div>
-              <div id="settings-hours"></div>
-            </div>
+            <div id="settings-locations" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
           </div>
         </div>
 
@@ -5052,6 +5041,8 @@
     // ── LOCATIONS ──────────────────────────────────────────────
     const LocationsAPI = {
       async list() { return apiRequest('/locations.php?action=list'); },
+      async create(data) { return apiRequest('/locations.php?action=create', 'POST', data); },
+      async update(data) { return apiRequest('/locations.php?action=update', 'PUT', data); },
     };
 
     // ── CLIENTS ────────────────────────────────────────────────
@@ -8278,14 +8269,174 @@
     // ═══ SETTINGS ════════════════════════════════════════════════════════
 
     function renderSettings() {
-      const el = document.getElementById('settings-hours');
+      renderLocations();
+    }
+
+    // ── Филиалы (locations) ───────────────────────────────────────
+    const LOC_DAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+    const LOC_DAYS_SHORT = { 'Понедельник': 'Пн', 'Вторник': 'Вт', 'Среда': 'Ср', 'Четверг': 'Чт', 'Пятница': 'Пт', 'Суббота': 'Сб', 'Воскресенье': 'Вс' };
+
+    function parseWorkHours(wh) {
+      if (!wh) return null;
+      if (Array.isArray(wh)) return wh;
+      try { return JSON.parse(wh); } catch (e) { return null; }
+    }
+
+    // Маска телефона: +7 (XXX) XXX-XX-XX — оставляем только цифры и форматируем
+    function maskPhone(v) {
+      let d = (v || '').replace(/\D/g, '');
+      if (!d) return '';
+      if (d[0] === '8') d = '7' + d.slice(1);
+      if (d[0] !== '7') d = '7' + d;
+      d = d.slice(0, 11);
+      const rest = d.slice(1);            // до 10 цифр после кода страны
+      let r = '+7';
+      if (rest.length > 0) r += ' (' + rest.slice(0, 3);
+      if (rest.length >= 3) r += ')';
+      if (rest.length > 3) r += ' ' + rest.slice(3, 6);
+      if (rest.length > 6) r += '-' + rest.slice(6, 8);
+      if (rest.length > 8) r += '-' + rest.slice(8, 10);
+      return r;
+    }
+    function isValidEmail(v) {
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    }
+
+    // Редактор режима работы в модалке филиала
+    function renderLocHours(hours) {
+      const el = document.getElementById('loc-hours');
       if (!el) return;
-      el.innerHTML = STUDIO_SETTINGS.hours.map((h, i) => '<div class="hours-row">' +
-        '<span class="hours-day">' + h.day + '</span>' +
-        '<button class="hours-toggle ' + (h.open ? 'on' : 'off') + '" onclick="toggleHour(' + i + ')" style="width:36px;height:20px;border-radius:10px;border:none;cursor:pointer;background:' + (h.open ? 'var(--green)' : '#d1d5db') + '">' +
-        '</button>' +
-        '<span style="font-size:12px;color:var(--ink-60)">' + h.from + ' – ' + h.to + '</span>' +
-        '</div>').join('');
+      const arr = parseWorkHours(hours);
+      const map = {};
+      (arr || []).forEach(function (h) { map[h.day] = h; });
+      el.innerHTML = LOC_DAYS.map(function (d, i) {
+        const h = map[d] || { open: false, from: '', to: '' };
+        const weekend = (d === 'Суббота' || d === 'Воскресенье');
+        const dayColor = weekend ? '#9ca3af' : '#3b8dff';
+        return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+          '<label style="width:120px;font-size:13px;display:flex;align-items:center;gap:6px;color:' + dayColor + '">' +
+          '<input type="checkbox" class="loc-h-open" data-i="' + i + '"' + (h.open ? ' checked' : '') + '>' + d + '</label>' +
+          '<input type="time" class="form-input loc-h-from" data-i="' + i + '" value="' + (h.from || '') + '" style="width:auto;padding:4px 8px">' +
+          '<span>–</span>' +
+          '<input type="time" class="form-input loc-h-to" data-i="' + i + '" value="' + (h.to || '') + '" style="width:auto;padding:4px 8px">' +
+          '</div>';
+      }).join('');
+    }
+
+    // Краткая сводка режима работы для карточки филиала
+    function locHoursSummary(wh) {
+      const arr = parseWorkHours(wh);
+      if (!arr || !arr.length) return '';
+      const rows = arr.map(function (h) {
+        const weekend = (h.day === 'Суббота' || h.day === 'Воскресенье');
+        const color = weekend ? '#9ca3af' : '#3b8dff';
+        return '<div style="display:flex;justify-content:space-between;font-size:12px;line-height:1.7;color:' + color + '">' +
+          '<span>' + (LOC_DAYS_SHORT[h.day] || h.day) + '</span>' +
+          '<span>' + (h.open ? (h.from + '–' + h.to) : 'выходной') + '</span></div>';
+      }).join('');
+      return '<div style="margin-top:10px;border-top:1px solid var(--line,#eee);padding-top:8px">' + rows + '</div>';
+    }
+
+    function renderLocations() {
+      const el = document.getElementById('settings-locations');
+      if (!el) return;
+      if (!LOCATIONS.length) {
+        el.innerHTML = '<div style="color:var(--ink-60);font-size:13px">Филиалов пока нет. Нажмите «Добавить филиал».</div>';
+        return;
+      }
+      const infoLine = 'font-size:13px;color:var(--ink-60);line-height:1.6';
+      el.innerHTML = LOCATIONS.map(function (l) {
+        return '<div class="lib-card" style="margin-bottom:0;padding:14px">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
+          '<div style="min-width:0">' +
+          '<div style="font-weight:600;font-size:14px;line-height:1.6">' + l.name + '</div>' +
+          (l.address ? '<div style="' + infoLine + '">' + l.address + '</div>' : '') +
+          (l.phone ? '<div style="' + infoLine + '">Тел.: ' + l.phone + '</div>' : '') +
+          (l.email ? '<div style="' + infoLine + '">Email: ' + l.email + '</div>' : '') +
+          '</div>' +
+          '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px;white-space:nowrap" onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
+          '</div>' +
+          '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+          '<span class="lib-meta-tag">Зал ' + l.hall_cols + '×' + l.hall_rows + '</span>' +
+          '<span class="lib-meta-tag">Вместимость: ' + l.max_people + '</span>' +
+          '</div>' +
+          locHoursSummary(l.work_hours) +
+          '</div>';
+      }).join('');
+    }
+
+    function openLocationModal(id) {
+      const modal = document.getElementById('location-modal');
+      if (id !== null) {
+        const l = LOCATIONS.find(x => x.id === id);
+        if (!l) return;
+        document.getElementById('location-modal-title').textContent = 'Редактировать филиал';
+        document.getElementById('loc-id').value = l.id;
+        document.getElementById('loc-name').value = l.name || '';
+        document.getElementById('loc-address').value = l.address || '';
+        document.getElementById('loc-cols').value = l.hall_cols;
+        document.getElementById('loc-rows').value = l.hall_rows;
+        document.getElementById('loc-max').value = l.max_people;
+        document.getElementById('loc-email').value = l.email || '';
+        document.getElementById('loc-phone').value = maskPhone(l.phone || '');
+        renderLocHours(l.work_hours);
+      } else {
+        document.getElementById('location-modal-title').textContent = 'Добавить филиал';
+        document.getElementById('loc-id').value = '';
+        document.getElementById('loc-name').value = '';
+        document.getElementById('loc-address').value = '';
+        document.getElementById('loc-cols').value = '';
+        document.getElementById('loc-rows').value = '';
+        document.getElementById('loc-max').value = '';
+        document.getElementById('loc-email').value = '';
+        document.getElementById('loc-phone').value = '';
+        renderLocHours(null);
+      }
+      modal.classList.add('show');
+    }
+
+    function closeLocationModal() {
+      document.getElementById('location-modal').classList.remove('show');
+    }
+
+    async function saveLocation() {
+      const name = document.getElementById('loc-name').value.trim();
+      if (!name) { showToast('Введите название филиала', 'error'); return; }
+      const cols = parseInt(document.getElementById('loc-cols').value);
+      const rows = parseInt(document.getElementById('loc-rows').value);
+      const max  = parseInt(document.getElementById('loc-max').value);
+      if (!cols || !rows) { showToast('Укажите размер зала (колонки и ряды)', 'error'); return; }
+      if (!max) { showToast('Укажите вместимость зала', 'error'); return; }
+      const email = document.getElementById('loc-email').value.trim();
+      if (email && !isValidEmail(email)) { showToast('Введите корректный email', 'error'); return; }
+      const phone = document.getElementById('loc-phone').value.trim();
+      if (phone && phone.replace(/\D/g, '').length !== 11) { showToast('Введите телефон полностью', 'error'); return; }
+      const idVal = document.getElementById('loc-id').value;
+      const work_hours = LOC_DAYS.map(function (d, i) {
+        return {
+          day: d,
+          open: document.querySelector('.loc-h-open[data-i="' + i + '"]').checked,
+          from: document.querySelector('.loc-h-from[data-i="' + i + '"]').value,
+          to: document.querySelector('.loc-h-to[data-i="' + i + '"]').value,
+        };
+      });
+      const data = {
+        name,
+        address: document.getElementById('loc-address').value.trim(),
+        hall_cols: cols,
+        hall_rows: rows,
+        max_people: max,
+        email,
+        phone,
+        work_hours,
+      };
+      try {
+        if (idVal) { await LocationsAPI.update({ id: parseInt(idVal), ...data }); showToast('Филиал обновлён', 'success'); }
+        else { await LocationsAPI.create(data); showToast('Филиал добавлен', 'success'); }
+        await loadLocations();
+      } catch (e) { return; }
+      closeLocationModal();
+      renderLocations();
     }
 
     function toggleHour(idx) {
@@ -8838,6 +8989,54 @@
   </div>
 
 
+  <!-- MODAL: LOCATION -->
+  <div class="admin-modal-overlay" id="location-modal">
+    <div class="admin-modal" style="max-width:520px">
+      <div class="admin-modal-title" id="location-modal-title">Добавить филиал</div>
+      <input type="hidden" id="loc-id">
+      <div class="form-field">
+        <label class="form-label">Название</label>
+        <input class="form-input" id="loc-name">
+      </div>
+      <div class="form-field">
+        <label class="form-label">Адрес</label>
+        <input class="form-input" id="loc-address">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Колонок в зале</label>
+          <input class="form-input" id="loc-cols" type="number" min="1">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Рядов в зале</label>
+          <input class="form-input" id="loc-rows" type="number" min="1">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Макс. вместимость зала</label>
+        <input class="form-input" id="loc-max" type="number" min="1">
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Email</label>
+          <input class="form-input" id="loc-email" type="email" inputmode="email" placeholder="name@example.ru">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Телефон</label>
+          <input class="form-input" id="loc-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
+        </div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Режим работы</label>
+        <div id="loc-hours"></div>
+      </div>
+      <div class="admin-modal-actions">
+        <button class="btn-ghost" onclick="closeLocationModal()">Отмена</button>
+        <button class="btn-primary" onclick="saveLocation()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: LIBRARY ITEM -->
   <div class="admin-modal-overlay" id="lib-modal">
     <div class="admin-modal" style="max-width:540px">
@@ -8891,10 +9090,8 @@
           placeholder="Краткое описание для клиентов..."></textarea>
       </div>
       <div class="form-field">
-        <label class="form-label">Особенности (каждая с новой строки)</label>
-        <textarea class="form-input" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Аэробная зона ЧСС
-Zwift-трассы
-Подходит для начинающих"></textarea>
+        <label class="form-label">Особенности</label>
+        <textarea class="form-input" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Каждая особенность — с новой строки"></textarea>
       </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeLibModal()">Отмена</button>

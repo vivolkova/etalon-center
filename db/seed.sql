@@ -28,8 +28,9 @@ INSERT INTO station_type (code, name, icon) VALUES
 ('rollers', 'Роллерный станок', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="36" r="10.5"/><circle cx="50" cy="36" r="10.5"/><path d="M14 36h16l-6-17M14 36l10-15h19l7 15M30 36l13-15M20 17h8M41 17h6"/><g stroke="#ff6a1a" stroke-width="3"><circle cx="9" cy="51" r="3.5"/><circle cx="19" cy="51" r="3.5"/><circle cx="50" cy="51" r="3.5"/><path d="M19 47.5h31M19 54.5h31"/></g><path d="M3 58h58M6 58v-2M58 58v-2" stroke-width="3"/></svg>');
 
 -- Филиал по умолчанию (зал 6×2 = 12 мест).
-INSERT INTO locations (id, name, address, hall_cols, hall_rows, max_people) VALUES
-(1, 'Эталон — основной филиал', '', 6, 2, 7);
+INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, phone, work_hours) VALUES
+('Эталон — основной филиал', '', 6, 2, 7, 'info@etaloncenter.ru', '+7 495 000-00-00',
+ '[{"day":"Понедельник","open":true,"from":"07:00","to":"22:00"},{"day":"Вторник","open":true,"from":"07:00","to":"22:00"},{"day":"Среда","open":true,"from":"07:00","to":"22:00"},{"day":"Четверг","open":true,"from":"07:00","to":"22:00"},{"day":"Пятница","open":true,"from":"07:00","to":"21:00"},{"day":"Суббота","open":true,"from":"09:00","to":"20:00"},{"day":"Воскресенье","open":false,"from":"10:00","to":"18:00"}]');
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES

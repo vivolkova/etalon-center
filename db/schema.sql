@@ -17,6 +17,9 @@ CREATE TABLE locations (
     hall_cols   TINYINT UNSIGNED NOT NULL,
     hall_rows   TINYINT UNSIGNED NOT NULL,
     max_people  INT          NOT NULL,               -- максимальная вместимость зала (единый источник; задаётся в админке)
+    email       VARCHAR(255),
+    phone       VARCHAR(32),
+    work_hours  JSON,                                 -- режим работы: [{day,open,from,to}]
     timezone    VARCHAR(64)  NOT NULL DEFAULT 'Europe/Moscow',
     active      TINYINT(1)   NOT NULL DEFAULT 1,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
