@@ -24,11 +24,11 @@ if ($method === 'GET' && $action === 'list') {
 
     $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
                    dt.code AS type, dt.name AS type_name,
-                   t.name AS trainer_name, t.full_name AS trainer_full,
+                   t.name AS specialist_name, t.full_name AS specialist_full,
                    l.summary, l.details,
                    loc.max_people
             FROM slots s
-            LEFT JOIN trainers t   ON s.trainer_id = t.id
+            LEFT JOIN specialists t   ON s.specialist_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
@@ -49,11 +49,11 @@ if ($method === 'GET' && $action === 'get') {
     if (!$id) err('Не указан id');
     $db   = getDB();
     $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
-                                 dt.code AS type, dt.name AS type_name, t.name AS trainer_name,
+                                 dt.code AS type, dt.name AS type_name, t.name AS specialist_name,
                                  l.summary, l.details,
                                  loc.max_people
                           FROM slots s
-                          LEFT JOIN trainers t   ON s.trainer_id = t.id
+                          LEFT JOIN specialists t   ON s.specialist_id = t.id
                           LEFT JOIN library  l   ON s.library_id = l.id
                           JOIN locations   loc ON s.location_id = loc.id
                           JOIN dictionaries dc ON s.category_id = dc.id
@@ -81,7 +81,7 @@ if ($method === 'POST' && $action === 'create') {
     $locId      = (int)$d['location_id'];   // филиал выбирается на форме
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
-    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price)
+    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,specialist_id,price)
                           VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId,
@@ -92,7 +92,7 @@ if ($method === 'POST' && $action === 'create') {
         $d['slot_date'],
         $d['start_time'],
         $d['duration']    ?? 60,
-        $d['trainer_id']  ?? null,
+        $d['specialist_id']  ?? null,
         $d['price'],
     ]);
     ok(['id' => $db->lastInsertId()], 'Слот создан');
@@ -115,13 +115,13 @@ if ($method === 'PUT' && $action === 'update') {
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
-    $stmt = $db->prepare('UPDATE slots SET location_id=?,library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=? WHERE id=?');
+    $stmt = $db->prepare('UPDATE slots SET location_id=?,library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,specialist_id=?,price=? WHERE id=?');
     $stmt->execute([
         (int)$d['location_id'],
         $d['library_id'] ?? null,
         $d['name'], $categoryId, $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
-        $d['trainer_id'] ?? null, $d['price'],
+        $d['specialist_id'] ?? null, $d['price'],
         $id,
     ]);
     ok(null, 'Слот обновлён');

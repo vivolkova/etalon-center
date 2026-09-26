@@ -18,7 +18,10 @@ INSERT INTO dictionaries (group_code, code, name) VALUES
 ('activity_category', 'bikefit', 'Байкфит'),
 ('activity_category', 'workshop', 'Мастерская'),
 ('slot_type', 'group', 'Групповая'),
-('slot_type', 'open', 'Свободная');
+('slot_type', 'open', 'Свободная'),
+('specialist_type', 'trainer', 'Тренер'),
+('specialist_type', 'bikefitter', 'Байкфиттер'),
+('specialist_type', 'mechanic', 'Мастер');
 
 -- Типы станков (вынесены из dictionaries).
 INSERT INTO station_type (code, name, icon) VALUES
@@ -45,9 +48,10 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────
 
-INSERT INTO trainers (location_id, name, full_name, speciality, experience, rating, color) VALUES
-(1, 'Анна К.',   'Анна Козлова',   'Групповые тренировки', 5, 4.9, '#00BAB3'),
-(1, 'Максим Р.', 'Максим Романов', 'HIIT',                 7, 4.8, '#4e42b5');
+INSERT INTO specialists (location_id, type_id, name, full_name, speciality, experience, rating) VALUES
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Анна К.',   'Анна Козлова',   'Групповые тренировки', 5, 4.9),
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Максим Р.', 'Максим Романов', 'HIIT',                 7, 4.8),
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='bikefitter'), 'Игорь Б.', 'Игорь Белов', 'Байкфит, настройка посадки', 6, 4.9);
 
 INSERT INTO subscription_plans (location_id, name, sessions, price, validity, color, sort_order) VALUES
 (1, 'Старт',   4, 4200, 30, '#6b7280', 1),
@@ -112,7 +116,7 @@ INSERT INTO library (location_id, type_id, name, category_id, duration, price, d
  JSON_ARRAY('Проверка всех узлов','Список необходимых работ','Оценка стоимости ремонта','Без разборки'));
 
 -- Слоты расписания на ближайшую неделю (тестовые)
-INSERT INTO slots (location_id, library_id, name, category_id, type_id, slot_date, start_time, duration, trainer_id, price) VALUES
+INSERT INTO slots (location_id, library_id, name, category_id, type_id, slot_date, start_time, duration, specialist_id, price) VALUES
 (1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '10:00:00', 60, 1, 1200),
 (1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '19:00:00', 60, 2, 900),
 (1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 1 DAY, '09:00:00', 60, 1, 1200),

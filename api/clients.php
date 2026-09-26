@@ -51,11 +51,11 @@ if ($method === 'GET' && $action === 'get') {
 
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, dc.code AS category,
-               t.name AS trainer_name
+               t.name AS specialist_name
         FROM bookings b
         JOIN slots s ON b.slot_id=s.id
         JOIN dictionaries dc ON s.category_id=dc.id
-        LEFT JOIN trainers t ON s.trainer_id=t.id
+        LEFT JOIN specialists t ON s.specialist_id=t.id
         WHERE b.user_id=?
         ORDER BY s.slot_date DESC
     ');

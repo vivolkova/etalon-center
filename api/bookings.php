@@ -12,11 +12,11 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
-               t.name AS trainer_name, st.label AS station_label
+               t.name AS specialist_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         JOIN dictionaries dc ON s.category_id = dc.id
-        LEFT JOIN trainers t ON s.trainer_id = t.id
+        LEFT JOIN specialists t ON s.specialist_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
         WHERE b.user_id = ?
         ORDER BY s.slot_date DESC, s.start_time DESC
@@ -37,12 +37,12 @@ if ($method === 'GET' && $action === 'all') {
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                    s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, dc.code AS category,
-                   t.name AS trainer_name, st.label AS station_label
+                   t.name AS specialist_name, st.label AS station_label
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
             JOIN dictionaries dc ON s.category_id = dc.id
-            LEFT JOIN trainers t ON s.trainer_id = t.id
+            LEFT JOIN specialists t ON s.specialist_id = t.id
             LEFT JOIN stations st ON b.station_id = st.id
             WHERE s.slot_date BETWEEN ? AND ?';
     $params = [$from, $to];

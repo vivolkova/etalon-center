@@ -3527,13 +3527,13 @@
     }
 
     /* Тренеры */
-    .adm-trainers-grid {
+    .adm-specialists-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
       gap: 16px;
     }
 
-    .trainer-card {
+    .specialist-card {
       background: #fff;
       border: 1.5px solid var(--border);
       border-radius: 14px;
@@ -3542,12 +3542,12 @@
       transition: .15s;
     }
 
-    .trainer-card:hover {
+    .specialist-card:hover {
       border-color: var(--green);
       box-shadow: 0 4px 16px rgba(0, 186, 179, .1);
     }
 
-    .trainer-avatar {
+    .specialist-avatar {
       width: 60px;
       height: 60px;
       border-radius: 50%;
@@ -3559,30 +3559,30 @@
       font-weight: 700;
     }
 
-    .trainer-name {
+    .specialist-name {
       font-size: 14px;
       font-weight: 700;
     }
 
-    .trainer-spec {
+    .specialist-spec {
       font-size: 12px;
       color: var(--ink-60);
       margin-top: 3px;
     }
 
-    .trainer-stats {
+    .specialist-stats {
       display: flex;
       justify-content: center;
       gap: 16px;
       margin: 12px 0;
     }
 
-    .trainer-stat-val {
+    .specialist-stat-val {
       font-size: 16px;
       font-weight: 700;
     }
 
-    .trainer-stat-label {
+    .specialist-stat-label {
       font-size: 10px;
       color: var(--ink-60);
     }
@@ -4267,13 +4267,13 @@
             </svg>
             Расписание
           </div>
-          <div class="adm-nav-item" onclick="admNav('trainers',this)">
+          <div class="adm-nav-item" onclick="admNav('specialists',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="8" r="4" />
               <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
             </svg>
-            Тренеры
+            Специалисты
           </div>
           <div class="adm-nav-item" onclick="admNav('library',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -4479,13 +4479,13 @@
         </div>
 
         <!-- ТРЕНЕРЫ -->
-        <div class="adm-panel" id="adm-trainers">
+        <div class="adm-panel" id="adm-specialists">
           <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Тренеры</h2>
+            <h2 class="adm-panel-title">Специалисты</h2>
             <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openTrainerModal(null)">+
-              Добавить тренера</button>
+              Добавить специалиста</button>
           </div>
-          <div class="adm-trainers-grid" id="adm-trainers-grid"></div>
+          <div class="adm-specialists-grid" id="adm-specialists-grid"></div>
         </div>
 
         <!-- БИБЛИОТЕКА -->
@@ -5076,10 +5076,10 @@
     };
 
     // ── TRAINERS ───────────────────────────────────────────────
-    const TrainersAPI = {
-      async create(data) { return apiRequest('/trainers.php?action=create', 'POST', data); },
-      async update(data) { return apiRequest('/trainers.php?action=update', 'PUT', data); },
-      async delete(id) { return apiRequest(`/trainers.php?action=delete&id=${id}`, 'DELETE'); },
+    const SpecialistsAPI = {
+      async create(data) { return apiRequest('/specialists.php?action=create', 'POST', data); },
+      async update(data) { return apiRequest('/specialists.php?action=update', 'PUT', data); },
+      async delete(id) { return apiRequest(`/specialists.php?action=delete&id=${id}`, 'DELETE'); },
     };
 
     // ── CHAT ───────────────────────────────────────────────────
@@ -5373,7 +5373,7 @@
             cat: b.category,
             date: b.slot_date,
             time: b.start_time ? b.start_time.slice(0, 5) : '',
-            trainer: b.trainer_name || '',
+            specialist: b.specialist_name || '',
             price: Number(b.price),
             status: b.status,
             paymentStatus: b.payment_status,
@@ -5399,7 +5399,7 @@
             cat: b.category,
             date: b.slot_date,
             time: b.start_time ? b.start_time.slice(0, 5) : '',
-            trainer: b.trainer_name || '',
+            specialist: b.specialist_name || '',
             price: Number(b.price),
             status: b.status,
             paymentStatus: b.payment_status,
@@ -5445,8 +5445,8 @@
             dur: parseInt(s.duration),
             name: s.name,
             cat: s.category,
-            trainer: s.trainer_name || '',
-            trainer_id: s.trainer_id || null,
+            specialist: s.specialist_name || '',
+            specialist_id: s.specialist_id || null,
             price: Number(s.price),
             max: parseInt(s.max_people),
             taken: parseInt(s.taken),
@@ -5745,7 +5745,7 @@
       <div class="slot-info">
         <div class="slot-name">${s.name}</div>
         <div class="slot-meta">
-          <span class="slot-trainer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.trainer}</span>
+          <span class="slot-trainer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist}</span>
           <span class="slot-badge ${badgeClass}">${badgeLabel}</span>
         </div>
       </div>
@@ -5766,7 +5766,7 @@
       if (!selectedSlot) return;
       const s = selectedSlot;
       document.getElementById('bm-title').textContent = s.name;
-      document.getElementById('bm-sub').textContent = `${s.date.getDate()} ${MONTHS_FULL[s.date.getMonth()]} · ${s.time} · ${s.trainer}`;
+      document.getElementById('bm-sub').textContent = `${s.date.getDate()} ${MONTHS_FULL[s.date.getMonth()]} · ${s.time} · ${s.specialist}`;
       document.getElementById('bm-details').innerHTML = `
     <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="detail-val">${s.dur} мин</div><div class="detail-label">Продолжительность</div></div>
     <div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div class="detail-val"><span id="bm-free">—</span> мест</div><div class="detail-label">Свободно</div></div>
@@ -5902,7 +5902,7 @@
       </div>
       <div class="booking-info">
         <div class="booking-name">${b.service}</div>
-        <div class="booking-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${b.time} · <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${b.trainer} · ${b.price.toLocaleString('ru')} ₽</div>
+        <div class="booking-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${b.time} · <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${b.specialist} · ${b.price.toLocaleString('ru')} ₽</div>
       </div>
       <span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span>
       ${b.status !== 'cancelled' ? `<button class="btn-cancel" onclick="cancelBooking(${b.id})">Отменить</button>` : ''}
@@ -6156,7 +6156,7 @@
         <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status] || sMap.confirmed || '•'}</div>
         <div style="flex:1">
           <div style="font-weight:600;font-size:13px">${b.service}</div>
-          <div style="font-size:11px;color:var(--ink-60)">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.trainer}</div>
+          <div style="font-size:11px;color:var(--ink-60)">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
         </div>
         <div style="font-weight:700;font-size:13px;color:${catCol}">${b.price.toLocaleString('ru')} ₽</div>
       </div>`;
@@ -6333,7 +6333,7 @@
             cellHtml += '<div class="adm-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
             cellHtml += '<div class="adm-slot-time">' + s.time + '</div>';
             cellHtml += '<div class="adm-slot-name">' + s.name + '</div>';
-            cellHtml += '<div class="adm-slot-info">' + s.trainer + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
+            cellHtml += '<div class="adm-slot-info">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
             cellHtml += '<div class="adm-slot-btns">';
             cellHtml += '<button class="adm-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
             cellHtml += '<button class="adm-slot-btn" style="color:#dc2626" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
@@ -6413,7 +6413,7 @@
             start_time: newTime,
             duration: s.dur,
             price: s.price,
-            trainer_id: s.trainer_id || null,
+            specialist_id: s.specialist_id || null,
           }).catch(function (e) { showToast('Ошибка сохранения перемещения', 'error'); });
           showToast(s.name + ' → ' + dayNames[dayIdx] + ' ' + newTime, 'success');
         }
@@ -6468,6 +6468,7 @@
       document.getElementById('sm-name').value = item.name;
       document.getElementById('sm-cat').value = item.cat;
       { const CL = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' }; const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = CL[item.cat] || item.cat; }
+      smApplySpecialistFilter(item.cat);
       document.getElementById('sm-dur').value = item.dur;
       document.getElementById('sm-price').value = item.price;
       document.getElementById('sm-max').value = HALL_CAP ?? '';
@@ -6511,7 +6512,7 @@
       const show = function (id, vis) { const e = document.getElementById(id); if (e) e.style.display = vis ? '' : 'none'; };
       show('sm-location', !isEdit);        show('sm-location-view', isEdit);
       show('sm-name', !isEdit);            show('sm-name-view', isEdit);
-      show('sm-trainer', true);            show('sm-trainer-view', false);
+      show('sm-specialist', true);            show('sm-specialist-view', false);
     }
 
     function openSlotModal(slotId) {
@@ -6524,11 +6525,12 @@
         smFillLocations(s.location_id);
         document.getElementById('sm-name').value = s.name;
         document.getElementById('sm-cat').value = s.cat;
+        smApplySpecialistFilter(s.cat);
         document.getElementById('sm-day').value = s.dayOfWeek;
         document.getElementById('sm-time').value = s.time;
         document.getElementById('sm-dur').value = s.dur;
         document.getElementById('sm-max').value = s.max != null ? s.max : (HALL_CAP ?? '');
-        document.getElementById('sm-trainer').value = s.trainer;
+        document.getElementById('sm-specialist').value = s.specialist;
         document.getElementById('sm-price').value = s.price;
         smSelectedLibId = s.library_id || null;   // ссылка на библиотеку сохраняется как есть
         // Значения для нередактируемых полей (режим редактирования)
@@ -6547,11 +6549,12 @@
         document.getElementById('sm-name').value = '';
         document.getElementById('sm-cat').value = 'training';
         document.getElementById('sm-cat-view').textContent = 'Тренировка';
+        smApplySpecialistFilter('training');
         document.getElementById('sm-day').value = '0';
         document.getElementById('sm-time').value = '10:00';
         document.getElementById('sm-dur').value = '60';
         document.getElementById('sm-max').value = HALL_CAP ?? '';
-        document.getElementById('sm-trainer').value = '';
+        document.getElementById('sm-specialist').value = '';
         document.getElementById('sm-price').value = '1200';
         smSetSlotMode(false);
       }
@@ -6573,9 +6576,9 @@
       slotDate.setDate(admWeekStart.getDate() + ((dayOfWeek - startDow + 7) % 7));
       slotDate.setHours(0, 0, 0, 0);
 
-      // Находим trainer_id по имени
-      const trainerName = document.getElementById('sm-trainer').value;
-      const trainerObj = TRAINERS_DATA ? TRAINERS_DATA.find(t => t.name === trainerName) : null;
+      // Находим specialist_id по имени
+      const trainerName = document.getElementById('sm-specialist').value;
+      const trainerObj = SPECIALISTS_DATA ? SPECIALISTS_DATA.find(t => t.name === trainerName) : null;
 
       const location_id = parseInt(document.getElementById('sm-location').value) || null;
       if (!location_id) { showToast('Выберите филиал', 'error'); return; }
@@ -6588,7 +6591,7 @@
         slot_date: fmtLocalDate(slotDate),
         start_time: time,
         duration: parseInt(document.getElementById('sm-dur').value),
-        trainer_id: trainerObj ? trainerObj.id : null,
+        specialist_id: trainerObj ? trainerObj.id : null,
         price: parseInt(document.getElementById('sm-price').value),
       };
 
@@ -6606,8 +6609,8 @@
         dayOfWeek, time,
         dur: apiData.duration,
         max: HALL_CAP,
-        trainer: trainerName,
-        trainer_id: apiData.trainer_id,
+        specialist: trainerName,
+        specialist_id: apiData.specialist_id,
         price: apiData.price,
         library_id: smSelectedLibId,
         description: libDesc,
@@ -6981,7 +6984,7 @@
         <div class="mini-event-dot" style="background:${col}"></div>
         <div class="mini-event-info">
           <div class="mini-event-name">${s.name}</div>
-          <div class="mini-event-time">${s.time} · ${s.trainer}</div>
+          <div class="mini-event-time">${s.time} · ${s.specialist}</div>
         </div>
         <span class="mini-event-spots" style="background:${col}20;color:${col}">${left > 0 ? left + ' мест' : 'Занято'}</span>
       </div>`;
@@ -7057,7 +7060,7 @@
         <div class="cp-slot-time">${s.time}</div>
         <div class="cp-slot-info">
           <div class="cp-slot-name">${s.name}</div>
-          <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.trainer} · ${s.dur} мин · ${s.max - s.taken} мест</div>
+          <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${s.dur} мин · ${s.max - s.taken} мест</div>
         </div>
         <div style="font-weight:700;color:var(--green);font-size:13px">${s.price.toLocaleString('ru')} ₽</div>
         <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>
@@ -7107,7 +7110,7 @@
       <div class="cp-slot-time">${s.time}<div style="font-size:10px;color:var(--ink-60);font-weight:400">${s.dur}мин</div></div>
       <div class="cp-slot-info">
         <div class="cp-slot-name">${s.name}</div>
-        <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.trainer} · ${left} / ${s.max} мест · ${s.price.toLocaleString('ru')} ₽</div>
+        <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${left} / ${s.max} мест · ${s.price.toLocaleString('ru')} ₽</div>
       </div>
       ${booked ? `<span class="status-badge status-confirmed">✓ Записан</span>`
             : full ? `<span style="font-size:12px;color:#dc2626;font-weight:600">Мест нет</span>`
@@ -7147,7 +7150,7 @@
       </div>
       <div class="booking-info">
         <div class="booking-name">${b.service}</div>
-        <div class="booking-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${b.time} · <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${b.trainer} · ${b.price.toLocaleString('ru')} ₽</div>
+        <div class="booking-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${b.time} · <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${b.specialist} · ${b.price.toLocaleString('ru')} ₽</div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
         <span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span>
@@ -7442,7 +7445,7 @@
       const tagEl = document.getElementById('sdm-tag');
       tagEl.textContent = catLabel; tagEl.className = 'dm-tag ' + s.cat;
       document.getElementById('sdm-title').textContent = s.name;
-      document.getElementById('sdm-subtitle').textContent = DAYS_FULL[s.dayOfWeek] + ' · ' + s.time + ' · ' + s.trainer;
+      document.getElementById('sdm-subtitle').textContent = DAYS_FULL[s.dayOfWeek] + ' · ' + s.time + ' · ' + s.specialist;
       const left = s.max - s.taken;
 
       const clockSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>`;
@@ -7656,8 +7659,8 @@
       if (!item) return;
 
       const time = document.getElementById('lts-time').value || '10:00';
-      const trainerName = document.getElementById('lts-trainer').value;
-      const trainerObj = TRAINERS_DATA ? TRAINERS_DATA.find(t => t.name === trainerName) : null;
+      const trainerName = document.getElementById('lts-specialist').value;
+      const trainerObj = SPECIALISTS_DATA ? SPECIALISTS_DATA.find(t => t.name === trainerName) : null;
       const repeat = document.getElementById('lts-repeat').value;
       const weeks = repeat === 'once' ? 1 : repeat === '2weeks' ? 2 : 4;
 
@@ -7680,7 +7683,7 @@
             duration: item.dur,
             price: item.price,
             location_id: item.location_id,
-            trainer_id: trainerObj ? trainerObj.id : null,
+            specialist_id: trainerObj ? trainerObj.id : null,
           };
           const dow = (slotDate.getDay() + 6) % 7;
           promises.push(
@@ -7691,7 +7694,7 @@
 
       await Promise.allSettled(promises);
 
-      // Перечитываем слоты с сервера (полные данные: реальные id, location_id, trainer_id, library_id)
+      // Перечитываем слоты с сервера (полные данные: реальные id, location_id, specialist_id, library_id)
       admWeekStart = new Date(ltsWeekStart);
       const reloadFrom = new Date(ltsWeekStart);
       const reloadTo = new Date(ltsWeekStart);
@@ -7818,7 +7821,8 @@
 
     // ═══ ADMIN DATA ══════════════════════════════════════════════════════
 
-    let TRAINERS_DATA = [];
+    let SPECIALISTS_DATA = [];
+    const SPEC_TYPE_LABEL = { trainer: 'Тренер', bikefitter: 'Байкфиттер', mechanic: 'Мастер' };
 
     let SUB_PLANS = [];
 
@@ -7869,7 +7873,7 @@
         bookings: loadAdminBookings,
         clients: loadClients,
         subscriptions: loadSubPlans,
-        trainers: loadTrainers,
+        specialists: loadSpecialists,
         promos: loadPromos,
         notif: loadNotifications,
         chat: loadChatDialogs,
@@ -7884,7 +7888,7 @@
         dashboard: renderDashboard,
         analytics: renderAnalytics,
         schedule: renderAdminSchedule,
-        trainers: renderTrainers,
+        specialists: renderSpecialists,
         library: renderLibrary,
         bookings: renderAdminBookings,
         clients: renderAdminClients,
@@ -7998,15 +8002,16 @@
 
     // ═══ TRAINERS ════════════════════════════════════════════════════════
 
-    function renderTrainers() {
-      const grid = document.getElementById('adm-trainers-grid');
+    function renderSpecialists() {
+      const grid = document.getElementById('adm-specialists-grid');
       if (!grid) return;
-      grid.innerHTML = TRAINERS_DATA.map(t => {
+      grid.innerHTML = SPECIALISTS_DATA.map(t => {
         const init = t.name.split(' ').map(w => w[0]).join('');
-        const slotCount = SLOTS.filter(s => s.trainer === t.name).length;
+        const slotCount = SLOTS.filter(s => s.specialist === t.name).length;
         return '<div class="trainer-card">' +
-          '<div class="trainer-avatar" style="background:' + t.color + '20;color:' + t.color + '">' + init + '</div>' +
+          '<div class="trainer-avatar" style="background:var(--green-light);color:var(--green-dark)">' + init + '</div>' +
           '<div class="trainer-name">' + t.full + '</div>' +
+          '<div class="lib-meta-tag" style="display:inline-block;margin:4px 0">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
           '<div class="trainer-spec" style="color:var(--ink-60)">' + t.spec + '</div>' +
           '<div class="trainer-stats" style="margin:14px 0">' +
           '<div style="text-align:center"><div class="trainer-stat-val">' + t.exp + '</div><div class="trainer-stat-label">лет опыта</div></div>' +
@@ -8023,14 +8028,17 @@
     }
 
     function openTrainerModal(id) {
-      var t = id ? TRAINERS_DATA.find(function (x) { return x.id === id; }) : null;
+      var t = id ? SPECIALISTS_DATA.find(function (x) { return x.id === id; }) : null;
       var el = document.createElement('div');
       el.className = 'admin-modal-overlay show';
       el.id = 'trainer-tmp-modal';
       el.addEventListener('click', function (e) { if (e.target === el) el.remove(); });
       el.innerHTML =
         '<div class="admin-modal" style="max-width:420px">' +
-        '<div class="admin-modal-title">' + (t ? 'Редактировать тренера' : 'Добавить тренера') + '</div>' +
+        '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
+        '<div class="form-field"><label class="form-label">Категория</label><select class="form-input" id="trm-cat">' +
+        ['trainer','bikefitter','mechanic'].map(function(c){return '<option value="'+c+'"'+((t?t.category:'trainer')===c?' selected':'')+'>'+SPEC_TYPE_LABEL[c]+'</option>';}).join('') +
+        '</select></div>' +
         '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
         '<div class="form-row">' +
         '<div class="form-field"><label class="form-label">Специализация</label><input class="form-input" id="trm-spec" value="' + (t ? t.spec : '') + '" placeholder="Групповые тренировки"></div>' +
@@ -8052,23 +8060,23 @@
       const apiData = {
         full_name: fullName,
         name: shortName,
+        category: document.getElementById('trm-cat').value,
         speciality: document.getElementById('trm-spec').value,
         experience: parseInt(document.getElementById('trm-exp').value) || 0,
-        color: '#00BAB3',
       };
       try {
         if (id) {
-          await TrainersAPI.update({ id, ...apiData });
-          showToast('Тренер обновлён', 'success');
+          await SpecialistsAPI.update({ id, ...apiData });
+          showToast('Специалист обновлён', 'success');
         } else {
-          await TrainersAPI.create(apiData);
-          showToast('Тренер добавлен', 'success');
+          await SpecialistsAPI.create(apiData);
+          showToast('Специалист добавлен', 'success');
         }
         var ttm = document.getElementById('trainer-tmp-modal'); if (ttm) ttm.remove();
-        await loadTrainers();
-        renderTrainers();
+        await loadSpecialists();
+        renderSpecialists();
       } catch (e) {
-        showToast('Ошибка сохранения тренера', 'error');
+        showToast('Ошибка сохранения специалиста', 'error');
       }
     }
 
@@ -8633,31 +8641,56 @@
 
 
     // ── Загрузка тренеров с сервера ───────────────────────────────
-    async function loadTrainers() {
+    async function loadSpecialists() {
       try {
-        const res = await apiRequest('/trainers.php?action=list');
-        TRAINERS_DATA = (res || []).map(function (t) {
+        const res = await apiRequest('/specialists.php?action=list');
+        SPECIALISTS_DATA = (res || []).map(function (t) {
           return {
             id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
             exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-            rating: parseFloat(t.rating) || 5.0, color: t.color || '#00BAB3'
+            rating: parseFloat(t.rating) || 5.0,
+            category: t.category || 'trainer'
           };
         });
-        fillTrainerSelects();
+        fillSpecialistSelects();
       } catch (e) { /* сервер недоступен */ }
     }
 
     // Заполнить выпадающие списки тренеров данными из БД (везде одинаково)
-    function fillTrainerSelects() {
-      var opts = '<option value="">— Тренер —</option>' +
-        TRAINERS_DATA.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
-      ['sm-trainer', 'lts-trainer'].forEach(function (id) {
-        var el = document.getElementById(id);
-        if (!el) return;
+    function fillSpecialistSelects() {
+      function buildOpts(list, placeholder) {
+        return '<option value="">' + placeholder + '</option>' +
+          list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
+      }
+      // Библиотека тренировок → «В расписание»: только dictionaries(specialist_type).code = 'trainer'
+      var trainers = SPECIALISTS_DATA.filter(function (t) { return t.category === 'trainer'; });
+      var el = document.getElementById('lts-specialist');
+      if (el) {
         var cur = el.value;
-        el.innerHTML = opts;
+        el.innerHTML = buildOpts(trainers, '— Тренер —');
         el.value = cur;
-      });
+      }
+      var cat = document.getElementById('sm-cat');
+      smApplySpecialistFilter(cat ? cat.value : '');
+    }
+
+    // Форма слота: для категории «Тренировка» поле называется «Тренер» и список — только тренеры
+    // (dictionaries: group_code = 'specialist_type', code = 'trainer'); для остальных — все специалисты.
+    function smApplySpecialistFilter(cat) {
+      var sel = document.getElementById('sm-specialist');
+      if (!sel) return;
+      var isTraining = cat === 'training';
+      var title = isTraining ? 'Тренер' : 'Специалист';
+      var list = isTraining
+        ? SPECIALISTS_DATA.filter(function (t) { return t.category === 'trainer'; })
+        : SPECIALISTS_DATA;
+      var label = document.getElementById('sm-specialist-label');
+      if (label) label.textContent = title;
+      var cur = sel.value;
+      sel.innerHTML = '<option value="">— ' + title + ' —</option>' +
+        list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
+      sel.value = cur;
+      if (sel.value !== cur) sel.value = '';
     }
 
     // ── Загрузка клиентов с сервера ───────────────────────────────
@@ -8780,7 +8813,7 @@
             id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email,
             service: b.slot_name, cat: b.category,
             date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
-            trainer: b.trainer_name || '', price: Number(b.price),
+            specialist: b.specialist_name || '', price: Number(b.price),
             status: b.status, paymentStatus: b.payment_status,
             clientId: b.user_email
           };
@@ -8802,7 +8835,7 @@
       await Promise.allSettled([
         loadLocations(),
         loadSlots(),
-        loadTrainers(),
+        loadSpecialists(),
         loadSubPlans(),
         loadLibrary(),
         loadServices(),
@@ -8888,11 +8921,11 @@
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Тренер</label>
-          <select class="form-input sm-editable" id="sm-trainer">
-            <option value="">— Тренер —</option>
+          <label class="form-label" id="sm-specialist-label">Специалист</label>
+          <select class="form-input sm-editable" id="sm-specialist">
+            <option value="">— Специалист —</option>
           </select>
-          <div class="form-input sm-view" id="sm-trainer-view" style="display:none"></div>
+          <div class="form-input sm-view" id="sm-specialist-view" style="display:none"></div>
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>
@@ -9252,7 +9285,7 @@
         </div>
         <div class="form-field">
           <label class="form-label">Тренер</label>
-          <select class="form-input" id="lts-trainer">
+          <select class="form-input" id="lts-specialist">
             <option value="">— Тренер —</option>
           </select>
         </div>

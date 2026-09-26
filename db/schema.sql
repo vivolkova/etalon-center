@@ -28,7 +28,7 @@ CREATE TABLE locations (
 
 -- ── Единый справочник ───────────────────────────────────────
 -- group_code — код справочника (user_role, library_type, activity_category,
--- slot_type); неизменяем — защищён триггером ниже.
+-- slot_type, specialist_type); неизменяем — защищён триггером ниже.
 -- station_type вынесен в отдельную таблицу (см. ниже).
 CREATE TABLE dictionaries (
     id         INT AUTO_INCREMENT PRIMARY KEY,
@@ -84,20 +84,22 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Тренеры ─────────────────────────────────────────────────
-CREATE TABLE trainers (
+CREATE TABLE specialists (
     id          INT AUTO_INCREMENT PRIMARY KEY,
+    type_id     INT NOT NULL,                    -- dictionaries.specialist_type (тренер/байкфиттер/мастер)
     name        VARCHAR(128) NOT NULL,
     full_name   VARCHAR(255) NOT NULL,
     speciality  VARCHAR(255),
     experience  INT DEFAULT 0,
     rating      DECIMAL(3,1) DEFAULT 5.0,
-    color       VARCHAR(16) DEFAULT '#00BAB3',
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
-    KEY fk_trainers_location (location_id),
-    CONSTRAINT fk_trainers_location FOREIGN KEY (location_id) REFERENCES locations(id)
+    KEY fk_specialists_location (location_id),
+    KEY fk_specialists_type (type_id),
+    CONSTRAINT fk_specialists_location FOREIGN KEY (location_id) REFERENCES locations(id),
+    CONSTRAINT fk_specialists_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Библиотека тренировок/услуг (источник описаний слотов) ───
@@ -133,7 +135,7 @@ CREATE TABLE slots (
     slot_date   DATE NOT NULL,
     start_time  TIME NOT NULL,
     duration    INT NOT NULL DEFAULT 60,
-    trainer_id  INT,
+    specialist_id INT,
     price       INT NOT NULL,
     taken       INT DEFAULT 0,                    -- сколько станков забронировано (вместимость — из locations)
     active      TINYINT(1) DEFAULT 1,
@@ -141,7 +143,7 @@ CREATE TABLE slots (
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT,
     KEY idx_active_date (active, slot_date),
-    KEY trainer_id (trainer_id),
+    KEY specialist_id (specialist_id),
     KEY library_id (library_id),
     KEY fk_slots_location (location_id),
     KEY fk_slots_type (type_id),
@@ -149,7 +151,7 @@ CREATE TABLE slots (
     CONSTRAINT fk_slots_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
     CONSTRAINT fk_slots_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
     CONSTRAINT fk_slots_location FOREIGN KEY (location_id) REFERENCES locations(id),
-    CONSTRAINT fk_slots_trainer  FOREIGN KEY (trainer_id)  REFERENCES trainers(id)  ON DELETE SET NULL,
+    CONSTRAINT fk_slots_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id) ON DELETE SET NULL,
     CONSTRAINT fk_slots_library  FOREIGN KEY (library_id)  REFERENCES library(id)   ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
