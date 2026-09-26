@@ -54,7 +54,8 @@ CREATE TABLE users (
     name        VARCHAR(255) NOT NULL,
     phone       VARCHAR(32)  NOT NULL,
     role_id     INT NOT NULL,                    -- dictionaries.user_role
-    status      ENUM('new','active','vip','inactive') DEFAULT 'new',
+    type        ENUM('new','vip') DEFAULT 'new',           -- категория клиента
+    active      TINYINT(1)   NOT NULL DEFAULT 1,        -- soft-delete: 0 = удалён/отключён
     bike        VARCHAR(64),
     birth_date  DATE,
     notes       TEXT,
@@ -90,8 +91,8 @@ CREATE TABLE library (
     price       INT NOT NULL,
     max_people  INT,
     difficulty  VARCHAR(32) DEFAULT 'any',       -- код; подпись на фронте
-    description TEXT,
-    features    JSON,
+    summary     TEXT,                            -- краткое описание тренировки
+    details     JSON,                            -- список особенностей
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     location_id INT,
@@ -169,7 +170,7 @@ CREATE TABLE bookings (
     UNIQUE KEY uq_booking_station_active (slot_id, station_id, active_key),
     UNIQUE KEY uq_booking_user_active    (user_id, slot_id, active_key),
     KEY fk_bookings_station (station_id),
-    CONSTRAINT fk_bookings_user    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE CASCADE,
+    CONSTRAINT fk_bookings_user    FOREIGN KEY (user_id)    REFERENCES users(id)    ON DELETE RESTRICT,
     CONSTRAINT fk_bookings_slot    FOREIGN KEY (slot_id)    REFERENCES slots(id)    ON DELETE CASCADE,
     CONSTRAINT fk_bookings_station FOREIGN KEY (station_id) REFERENCES stations(id),
     CONSTRAINT chk_booking_status  CHECK (status IN ('booked','cancelled'))
@@ -218,7 +219,7 @@ CREATE TABLE subscriptions (
     KEY idx_user (user_id),
     KEY idx_status (status),
     KEY plan_id (plan_id),
-    CONSTRAINT fk_subs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_subs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_subs_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -249,7 +250,7 @@ CREATE TABLE chat_messages (
     KEY idx_from (from_user),
     KEY idx_to (to_user),
     KEY idx_read (is_read),
-    CONSTRAINT fk_chat_from FOREIGN KEY (from_user) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_chat_from FOREIGN KEY (from_user) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Уведомления ─────────────────────────────────────────────
@@ -272,7 +273,7 @@ CREATE TABLE sessions (
     expires_at  DATETIME NOT NULL,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     KEY idx_user (user_id),
-    CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Промокоды ───────────────────────────────────────────────

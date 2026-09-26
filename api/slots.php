@@ -25,7 +25,7 @@ if ($method === 'GET' && $action === 'list') {
     $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
                    dt.code AS type, dt.name AS type_name,
                    t.name AS trainer_name, t.full_name AS trainer_full,
-                   l.description AS description, l.features AS features
+                   l.summary AS description, l.details AS features
             FROM slots s
             LEFT JOIN trainers t   ON s.trainer_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
@@ -48,7 +48,7 @@ if ($method === 'GET' && $action === 'get') {
     $db   = getDB();
     $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
                                  dt.code AS type, dt.name AS type_name, t.name AS trainer_name,
-                                 l.description AS description, l.features AS features
+                                 l.summary AS description, l.details AS features
                           FROM slots s
                           LEFT JOIN trainers t   ON s.trainer_id = t.id
                           LEFT JOIN library  l   ON s.library_id = l.id

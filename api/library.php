@@ -28,13 +28,13 @@ function libRow($r) {
         'price'      => (int)$r['price'],
         'max'        => $r['max_people'] !== null ? (int)$r['max_people'] : null,
         'difficulty' => $r['difficulty'],           // код: any | beginner | intermediate | advanced
-        'desc'       => $r['description'] ?? '',
-        'features'   => $r['features'] ? json_decode($r['features'], true) : [],
+        'desc'       => $r['summary'] ?? '',
+        'features'   => $r['details'] ? json_decode($r['details'], true) : [],
     ];
 }
 
 $LIST_SQL = 'SELECT l.id, l.name, l.duration, l.price, l.max_people, l.difficulty,
-                    l.description, l.features,
+                    l.summary, l.details,
                     lt.code AS type, dc.code AS cat
              FROM library l
              JOIN dictionaries lt ON l.type_id     = lt.id
@@ -78,7 +78,7 @@ if ($method === 'POST' && $action === 'create') {
         : null;
 
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, type_id, name, category_id, duration, price, max_people, difficulty, description, features)
+        (location_id, type_id, name, category_id, duration, price, max_people, difficulty, summary, details)
         VALUES (1,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $typeId, $d['name'], $catId,
@@ -107,7 +107,7 @@ if ($method === 'PUT' && $action === 'update') {
         : null;
 
     $stmt = $db->prepare('UPDATE library SET
-        type_id=?, name=?, category_id=?, duration=?, price=?, max_people=?, difficulty=?, description=?, features=?
+        type_id=?, name=?, category_id=?, duration=?, price=?, max_people=?, difficulty=?, summary=?, details=?
         WHERE id=?');
     $stmt->execute([
         $typeId, $d['name'], $catId,

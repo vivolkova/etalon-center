@@ -106,8 +106,9 @@ if ($method === 'POST' && $action === 'create') {
         $stmt->execute([$user['id'], $slotId, $stationId, $notes]);
         $bookingId = $db->lastInsertId();
 
-        // Статус клиента → active при первой записи
-        $db->prepare('UPDATE users SET status="active" WHERE id=? AND status="new"')->execute([$user['id']]);
+        // Кэш занятости слота: атомарный инкремент под блокировкой строки (без гонки).
+        // Настоящая защита от овербукинга — UNIQUE-индекс выше; это счётчик для отображения.
+        $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id = ?')->execute([$slotId]);
 
         // Уведомление администратору
         $stmt = $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)');
@@ -150,9 +151,21 @@ if ($method === 'PUT' && $action === 'status') {
     // допустимые статусы брони
     if (!in_array($status, ['booked', 'cancelled'], true)) err('Неизвестный статус');
 
+    $slotId = (int)$booking['slot_id'];
     $db->beginTransaction();
     try {
-        $db->prepare('UPDATE bookings SET status=? WHERE id=?')->execute([$status, $id]);
+        // Меняем статус только при реальном переходе (WHERE status<>new).
+        // rowCount()>0 => переход состоялся именно в этом запросе — тогда и правим счётчик.
+        // Так двойная отмена/повторная запись не задвоят taken (защита от гонки).
+        $upd = $db->prepare('UPDATE bookings SET status=? WHERE id=? AND status<>?');
+        $upd->execute([$status, $id, $status]);
+        $changed = $upd->rowCount() > 0;
+
+        if ($changed && $status === 'cancelled') {
+            $db->prepare('UPDATE slots SET taken = GREATEST(taken - 1, 0) WHERE id = ?')->execute([$slotId]);
+        } elseif ($changed && $status === 'booked') {
+            $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id = ?')->execute([$slotId]);
+        }
 
         $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
            ->execute([

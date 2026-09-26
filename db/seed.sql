@@ -50,12 +50,12 @@ INSERT INTO subscription_plans (location_id, name, sessions, price, validity, co
 (1, 'Базовый', 8, 7500, 30, '#00BAB3', 2);
 
 -- Локальный админ: admin@local / admin123
-INSERT INTO users (email, password, name, phone, role_id, status) VALUES
+INSERT INTO users (email, password, name, phone, role_id, type) VALUES
 ('admin@local', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', 'Админ (dev)', '',
- (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='admin'), 'active');
+ (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='admin'), 'new');
 
 -- Библиотека тренировок и услуг (единый источник описаний; коды сложности, подписи — на фронте)
-INSERT INTO library (location_id, type_id, name, category_id, duration, price, max_people, difficulty, description, features) VALUES
+INSERT INTO library (location_id, type_id, name, category_id, duration, price, max_people, difficulty, summary, details) VALUES
 -- Тренировки (library_type = training)
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Утренний сайкл',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,12,'beginner',

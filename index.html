@@ -4554,10 +4554,8 @@
             <select class="form-input" id="clients-filter" style="width:150px;height:36px;font-size:13px"
               onchange="filterClients(document.getElementById('clients-search').value)">
               <option value="all">Все клиенты</option>
-              <option value="active">Активные</option>
               <option value="vip">VIP</option>
               <option value="new">Новые</option>
-              <option value="inactive">Неактивные</option>
             </select>
           </div>
           <div class="clients-stats" id="clients-stats"></div>
@@ -5761,7 +5759,9 @@
       const cols = data.cols || 6, rows = data.rows || 2;
       const stations = data.stations || [];
       const free = stations.filter(x => x.state === 'free').length;
-      const fe = document.getElementById('bm-free'); if (fe) fe.textContent = free;
+      // «Свободно» в шапке — из слота (всего мест − занято), как и в деталях слота
+      const fe = document.getElementById('bm-free');
+      if (fe && selectedSlot) fe.textContent = Math.max(selectedSlot.max - selectedSlot.taken, 0);
 
       // Станки по координатам сетки: ключ "x,y" (pos_x = колонка, pos_y = ряд)
       const byPos = {};
@@ -5939,13 +5939,11 @@
       // Stats bar
       const statsEl = document.getElementById('clients-stats');
       const total = CLIENTS.length;
-      const vips = CLIENTS.filter(c => c.status === 'vip').length;
-      const actives = CLIENTS.filter(c => c.status === 'active').length;
-      const newOnes = CLIENTS.filter(c => c.status === 'new').length;
+      const vips = CLIENTS.filter(c => c.type === 'vip').length;
+      const newOnes = CLIENTS.filter(c => c.type === 'new').length;
       const totalRevenue = CLIENTS.reduce((s, c) => s + getClientStats(c.email).spent, 0);
       statsEl.innerHTML = [
         { val: total, label: 'Всего клиентов', color: 'var(--green)' },
-        { val: actives, label: 'Активных', color: '#059669' },
         { val: vips, label: 'VIP', color: '#c07a10' },
         { val: newOnes, label: 'Новых', color: '#0284c7' },
         { val: totalRevenue.toLocaleString('ru') + ' ₽', label: 'Общая выручка', color: 'var(--purple)' },
@@ -5982,7 +5980,7 @@
       <td style="font-weight:600;text-align:center">${stats.total}</td>
       <td style="font-weight:600;color:var(--green)">${stats.spent ? stats.spent.toLocaleString('ru') + ' ₽' : '—'}</td>
       <td style="font-size:12px;color:var(--ink-60)">${lastStr}<br><span style="font-size:10px">рег. ${regStr}</span></td>
-      <td><span class="c-badge ${c.status}">${{ active: 'Активный', vip: 'VIP', new: 'Новый', inactive: 'Неактивный' }[c.status]}</span></td>
+      <td><span class="c-badge ${c.type}">${{ new: 'Новый', vip: 'VIP' }[c.type] || c.type}</span></td>
       <td>
         <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" onclick="openClientProfile('${c.email}')">Просмотр</button>
@@ -5998,7 +5996,7 @@
     function filterClients(q) {
       const filter = document.getElementById('clients-filter')?.value || 'all';
       let list = CLIENTS;
-      if (filter !== 'all') list = list.filter(c => c.status === filter);
+      if (filter !== 'all') list = list.filter(c => c.type === filter);
       if (q) {
         const lq = q.toLowerCase();
         list = list.filter(c =>
@@ -6020,7 +6018,7 @@
         document.getElementById('cm-name').value = c.name;
         document.getElementById('cm-phone').value = c.phone || '';
         document.getElementById('cm-email').value = c.email;
-        document.getElementById('cm-status').value = c.status;
+        document.getElementById('cm-type').value = c.type;
         document.getElementById('cm-birth').value = c.birth || '';
         document.getElementById('cm-bike').value = c.bike || '';
         document.getElementById('cm-notes').value = c.notes || '';
@@ -6028,7 +6026,7 @@
         document.getElementById('client-modal-title').textContent = 'Добавить клиента';
         document.getElementById('cm-email-orig').value = '';
         ['cm-name', 'cm-phone', 'cm-email', 'cm-birth', 'cm-notes'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('cm-status').value = 'new';
+        document.getElementById('cm-type').value = 'new';
         document.getElementById('cm-bike').value = '';
       }
       modal.classList.add('show');
@@ -6043,7 +6041,7 @@
       const apiData = {
         name, email,
         phone: document.getElementById('cm-phone').value.trim(),
-        status: document.getElementById('cm-status').value,
+        type: document.getElementById('cm-type').value,
         birth_date: document.getElementById('cm-birth').value,
         bike: document.getElementById('cm-bike').value,
         notes: document.getElementById('cm-notes').value.trim(),
@@ -6922,8 +6920,8 @@
       document.getElementById('cp-user-email').textContent = currentUser.email;
       const cData = CLIENTS.find(c => c.email === currentUser.email);
       const badge = document.getElementById('cp-user-badge');
-      badge.className = 'cp-user-badge c-badge ' + (cData?.status || 'active');
-      badge.textContent = { active: 'Активный', vip: 'VIP', new: 'Новый', inactive: 'Неактивный' }[cData?.status || 'active'];
+      badge.className = 'cp-user-badge c-badge ' + (cData?.type || 'new');
+      badge.textContent = { new: 'Новый', vip: 'VIP' }[cData?.type || 'new'] || 'Новый';
 
       // Chat badge
       const myMsgs = chatMessages[currentUser.email] || [];
@@ -8205,7 +8203,7 @@
       const aud = document.getElementById('mail-audience');
       const audText = aud.options[aud.selectedIndex].text;
       if (!subj || !body) { showToast('Заполните тему и текст', 'error'); return; }
-      const count = aud.value === 'all' ? CLIENTS.length : aud.value === 'vip' ? CLIENTS.filter(c => c.status === 'vip').length : aud.value === 'active' ? CLIENTS.filter(c => c.status === 'active').length : CLIENTS.filter(c => c.status === aud.value).length;
+      const count = aud.value === 'all' ? CLIENTS.length : CLIENTS.filter(c => c.type === aud.value).length;
       showToast('Предпросмотр: «' + subj + '» · ' + count + ' получателей (' + audText + ')', 'success');
     }
 
@@ -8354,7 +8352,7 @@
           CLIENTS = res.map(function (c) {
             return {
               id: parseInt(c.id) || 0, email: c.email, name: c.name, phone: c.phone || '',
-              status: c.status || 'new', bike: c.bike || '',
+              type: c.type || 'new', bike: c.bike || '',
               birth: c.birth_date || '', notes: c.notes || '',
               regDate: c.created_at ? c.created_at.slice(0, 10) : '',
               totalBookings: parseInt(c.total_bookings) || 0,
@@ -8935,11 +8933,9 @@ Zwift-трассы
         </div>
         <div class="form-field">
           <label class="form-label">Статус</label>
-          <select class="form-input" id="cm-status">
-            <option value="active">Активный</option>
+          <select class="form-input" id="cm-type">
             <option value="new">Новый</option>
             <option value="vip">VIP</option>
-            <option value="inactive">Неактивный</option>
           </select>
         </div>
       </div>
