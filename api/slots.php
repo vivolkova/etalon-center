@@ -15,21 +15,6 @@ function dictId($db, $group, $code) {
     return (int)$id;
 }
 
-// Физическая вместимость локации = число активных станков.
-// max_people слота не может её превышать (иначе «мест» больше, чем станков в зале).
-function locationStationCount($db, $locId) {
-    $st = $db->prepare('SELECT COUNT(*) FROM stations WHERE location_id = ? AND active = 1');
-    $st->execute([$locId]);
-    return (int)$st->fetchColumn();
-}
-function clampMaxPeople($db, $locId, $requested) {
-    $cap = locationStationCount($db, $locId);
-    $val = (int)($requested ?? ($cap ?: 12));
-    if ($cap > 0 && $val > $cap) $val = $cap;   // обрезаем по числу станков
-    if ($val < 1) $val = 1;
-    return $val;
-}
-
 // GET — список слотов
 if ($method === 'GET' && $action === 'list') {
     $db    = getDB();
@@ -40,10 +25,12 @@ if ($method === 'GET' && $action === 'list') {
     $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
                    dt.code AS type, dt.name AS type_name,
                    t.name AS trainer_name, t.full_name AS trainer_full,
-                   l.summary AS description, l.details AS features
+                   l.summary, l.details,
+                   loc.max_people
             FROM slots s
             LEFT JOIN trainers t   ON s.trainer_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
+            JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
             JOIN dictionaries dt ON s.type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
@@ -63,10 +50,12 @@ if ($method === 'GET' && $action === 'get') {
     $db   = getDB();
     $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
                                  dt.code AS type, dt.name AS type_name, t.name AS trainer_name,
-                                 l.summary AS description, l.details AS features
+                                 l.summary, l.details,
+                                 loc.max_people
                           FROM slots s
                           LEFT JOIN trainers t   ON s.trainer_id = t.id
                           LEFT JOIN library  l   ON s.library_id = l.id
+                          JOIN locations   loc ON s.location_id = loc.id
                           JOIN dictionaries dc ON s.category_id = dc.id
                           JOIN dictionaries dt ON s.type_id = dt.id
                           WHERE s.id = ?');
@@ -80,7 +69,7 @@ if ($method === 'GET' && $action === 'get') {
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'slot_date', 'start_time', 'price']);
+    require_fields($d, ['name', 'slot_date', 'start_time', 'price', 'location_id']);
 
     // Время занятия — в пределах сетки расписания (08:00–22:00)
     $st = substr($d['start_time'], 0, 5);
@@ -89,11 +78,11 @@ if ($method === 'POST' && $action === 'create') {
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
     $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
-    $locId      = (int)($d['location_id'] ?? 1);
-    $maxPeople  = clampMaxPeople($db, $locId, $d['max_people'] ?? null);
+    $locId      = (int)$d['location_id'];   // филиал выбирается на форме
 
-    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price,max_people)
-                          VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+    // Вместимость не хранится в слоте — она берётся из locations.max_people.
+    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price)
+                          VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId,
         $d['library_id']  ?? null,
@@ -105,7 +94,6 @@ if ($method === 'POST' && $action === 'create') {
         $d['duration']    ?? 60,
         $d['trainer_id']  ?? null,
         $d['price'],
-        $maxPeople,
     ]);
     ok(['id' => $db->lastInsertId()], 'Слот создан');
 }
@@ -122,21 +110,19 @@ if ($method === 'PUT' && $action === 'update') {
         if ($st < '08:00' || $st >= '22:00') err('Время занятия должно быть в диапазоне 08:00–22:00');
     }
 
+    require_fields($d, ['location_id']);
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
-    // локация слота -> обрезка max_people по числу станков
-    $ls = $db->prepare('SELECT location_id FROM slots WHERE id=?');
-    $ls->execute([$id]);
-    $locId = (int)($ls->fetchColumn() ?: 1);
-    $maxPeople = clampMaxPeople($db, $locId, $d['max_people'] ?? null);
 
-    $stmt = $db->prepare('UPDATE slots SET library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
+    // Вместимость не хранится в слоте — она берётся из locations.max_people.
+    $stmt = $db->prepare('UPDATE slots SET location_id=?,library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=? WHERE id=?');
     $stmt->execute([
+        (int)$d['location_id'],
         $d['library_id'] ?? null,
         $d['name'], $categoryId, $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
         $d['trainer_id'] ?? null, $d['price'],
-        $maxPeople, $id,
+        $id,
     ]);
     ok(null, 'Слот обновлён');
 }

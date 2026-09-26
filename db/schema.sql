@@ -16,6 +16,7 @@ CREATE TABLE locations (
     address     VARCHAR(512),
     hall_cols   TINYINT UNSIGNED NOT NULL,
     hall_rows   TINYINT UNSIGNED NOT NULL,
+    max_people  INT          NOT NULL,               -- максимальная вместимость зала (единый источник; задаётся в админке)
     timezone    VARCHAR(64)  NOT NULL DEFAULT 'Europe/Moscow',
     active      TINYINT(1)   NOT NULL DEFAULT 1,
     created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -100,7 +101,6 @@ CREATE TABLE library (
     category_id INT NOT NULL,                    -- dictionaries.activity_category
     duration    INT NOT NULL DEFAULT 60,
     price       INT NOT NULL,
-    max_people  INT,
     difficulty  VARCHAR(32) DEFAULT 'any',       -- код; подпись на фронте
     summary     TEXT,                            -- краткое описание тренировки
     details     JSON,                            -- список особенностей
@@ -127,8 +127,7 @@ CREATE TABLE slots (
     duration    INT NOT NULL DEFAULT 60,
     trainer_id  INT,
     price       INT NOT NULL,
-    max_people  INT,
-    taken       INT DEFAULT 0,
+    taken       INT DEFAULT 0,                    -- сколько станков забронировано (вместимость — из locations)
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     location_id INT,

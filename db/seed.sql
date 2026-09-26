@@ -28,8 +28,8 @@ INSERT INTO station_type (code, name, icon) VALUES
 ('rollers', 'Роллерный станок', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="36" r="10.5"/><circle cx="50" cy="36" r="10.5"/><path d="M14 36h16l-6-17M14 36l10-15h19l7 15M30 36l13-15M20 17h8M41 17h6"/><g stroke="#ff6a1a" stroke-width="3"><circle cx="9" cy="51" r="3.5"/><circle cx="19" cy="51" r="3.5"/><circle cx="50" cy="51" r="3.5"/><path d="M19 47.5h31M19 54.5h31"/></g><path d="M3 58h58M6 58v-2M58 58v-2" stroke-width="3"/></svg>');
 
 -- Филиал по умолчанию (зал 6×2 = 12 мест).
-INSERT INTO locations (id, name, address, hall_cols, hall_rows) VALUES
-(1, 'Эталон — основной филиал', '', 6, 2);
+INSERT INTO locations (id, name, address, hall_cols, hall_rows, max_people) VALUES
+(1, 'Эталон — основной филиал', '', 6, 2, 7);
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
@@ -58,71 +58,71 @@ INSERT INTO users (email, password, name, phone, role_id, type) VALUES
  (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='admin'), 'new');
 
 -- Библиотека тренировок и услуг (единый источник описаний; коды сложности, подписи — на фронте)
-INSERT INTO library (location_id, type_id, name, category_id, duration, price, max_people, difficulty, summary, details) VALUES
+INSERT INTO library (location_id, type_id, name, category_id, duration, price, difficulty, summary, details) VALUES
 -- Тренировки (library_type = training)
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Утренний сайкл',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,12,'beginner',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,'beginner',
  'Лёгкая утренняя тренировка для разгона метаболизма. Аэробная зона, комфортный темп.',
  JSON_ARRAY('Аэробная зона ЧСС 60-70%','Темп: 85-95 RPM','Zwift - равнинные трассы','Подходит после перерыва')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Endurance Ride',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),90,1500,8,'intermediate',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),90,1500,'intermediate',
  'Длинная тренировка на выносливость. Стабильная мощность, развивает аэробную базу.',
  JSON_ARRAY('Зона 2-3 по мощности','Темп: 80-90 RPM','Без спринтов и ускорений','Подготовка к гранфондо')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Интервальный сайкл',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,12,'advanced',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,1200,'advanced',
  'Высокоинтенсивные интервалы для роста МПК и скоростной выносливости.',
  JSON_ARRAY('Интервалы 30/30, 1/1, 4 мин','Пиковая мощность 120-150% FTP','Zwift - гонки','VO2max развитие')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Персональная тренировка',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,2500,1,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,2500,'any',
  'Индивидуальное занятие с тренером. Программа полностью под ваш уровень и цели.',
  JSON_ARRAY('Тест FTP при первом занятии','Индивидуальный план','Анализ педалирования','Обратная связь в реальном времени')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Восстановительная',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),45,900,8,'beginner',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),45,900,'beginner',
  'Лёгкое восстановительное занятие после интенсивных тренировок или соревнований.',
  JSON_ARRAY('Зона 1 по мощности','Высокий каденс 95-105 RPM','Без нагрузки','Растяжка в конце')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='training'),'Свободная тренировка',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,800,12,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'),60,800,'any',
  'Самостоятельная тренировка на смарт-тренере в удобном темпе. Зал, оборудование и Zwift в вашем распоряжении - без программы и тренера.',
  JSON_ARRAY('Свободный график нагрузки','Доступ к Zwift и ERG-режиму','Подходит для любого уровня','Оплата за одно посещение')),
 -- Услуги (library_type = service)
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Байкфит стандарт',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),120,9500,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),120,9500,'any',
  'Полная настройка посадки с видеозахватом в трёх плоскостях.',
  JSON_ARRAY('Замеры углов в ключевых точках','Настройка седла, руля, шипов','Видеоразбор со специалистом','PDF-отчёт с параметрами')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Байкфит PRO',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),180,12000,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),180,12000,'any',
  'Максимальный формат: байкфит, индивидуальные стельки и 3D-анализ.',
  JSON_ARRAY('Всё из стандартного байкфита','3D-сканирование позиции','Индивидуальные ортопедические стельки','Расширенный цифровой отчёт')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Настройка шипов',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),60,3500,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'),60,3500,'any',
  'Точная установка шипов по биомеханике стопы для эффективного педалирования.',
  JSON_ARRAY('Анализ положения стопы','Установка угла и смещения шипов','Проверка на станке','Рекомендации по обуви')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'ТО среднее',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),60,3400,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),60,3400,'any',
  'Плановое обслуживание для поддержания велосипеда в рабочем состоянии.',
  JSON_ARRAY('Настройка переключателей и тормозов','Смазка и промывка цепи','Протяжка спиц','Проверка давления')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Капитальное ТО',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),180,6900,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),180,6900,'any',
  'Полная переборка всех узлов велосипеда с промывкой и диагностикой.',
  JSON_ARRAY('Разборка и сборка каретки','Переборка втулок и рулевой','Замена расходников','Финальная настройка и тест')),
 (1,(SELECT id FROM dictionaries WHERE group_code='library_type' AND code='service'),'Диагностика',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),30,1500,NULL,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'),30,1500,'any',
  'Быстрая проверка состояния велосипеда с рекомендациями по обслуживанию.',
  JSON_ARRAY('Проверка всех узлов','Список необходимых работ','Оценка стоимости ремонта','Без разборки'));
 
 -- Слоты расписания на ближайшую неделю (тестовые)
-INSERT INTO slots (location_id, library_id, name, category_id, type_id, slot_date, start_time, duration, trainer_id, price, max_people) VALUES
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '10:00:00', 60, 1, 1200, 7),
-(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '19:00:00', 60, 2, 900, 7),
-(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 1 DAY, '09:00:00', 60, 1, 1200, 7),
-(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 1 DAY, '18:00:00', 60, 2, 1500, 7),
-(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='open'), CURDATE() + INTERVAL 2 DAY, '12:00:00', 60, NULL, 800, 7),
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 2 DAY, '20:00:00', 60, 1, 1200, 7),
-(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 3 DAY, '10:00:00', 60, 1, 1200, 7),
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 4 DAY, '17:00:00', 60, 2, 1200, 7),
-(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='open'), CURDATE() + INTERVAL 4 DAY, '19:00:00', 60, NULL, 800, 7),
-(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 5 DAY, '11:00:00', 60, 1, 1500, 7),
-(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 6 DAY, '12:00:00', 60, 2, 900, 7);
+INSERT INTO slots (location_id, library_id, name, category_id, type_id, slot_date, start_time, duration, trainer_id, price) VALUES
+(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '10:00:00', 60, 1, 1200),
+(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 0 DAY, '19:00:00', 60, 2, 900),
+(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 1 DAY, '09:00:00', 60, 1, 1200),
+(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 1 DAY, '18:00:00', 60, 2, 1500),
+(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='open'), CURDATE() + INTERVAL 2 DAY, '12:00:00', 60, NULL, 800),
+(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 2 DAY, '20:00:00', 60, 1, 1200),
+(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 3 DAY, '10:00:00', 60, 1, 1200),
+(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 4 DAY, '17:00:00', 60, 2, 1200),
+(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='open'), CURDATE() + INTERVAL 4 DAY, '19:00:00', 60, NULL, 800),
+(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 5 DAY, '11:00:00', 60, 1, 1500),
+(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'), CURDATE() + INTERVAL 6 DAY, '12:00:00', 60, 2, 900);
 
 -- Услуги главной страницы (перенос из localStorage в БД)
 INSERT INTO services (location_id, icon, name, description, price, features, sort_order) VALUES

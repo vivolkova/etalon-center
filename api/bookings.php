@@ -102,12 +102,15 @@ if ($method === 'POST' && $action === 'create') {
 
     $db->beginTransaction();
     try {
-        // Лочим строку слота и проверяем вместимость. FOR UPDATE сериализует все брони
-        // этого слота -> без гонки: даже одновременные запросы не превысят max_people.
-        $cap = $db->prepare('SELECT max_people, taken FROM slots WHERE id=? FOR UPDATE');
+        // Лочим строку слота (FOR UPDATE сериализует все брони этого слота -> без гонки).
+        // Вместимость берём из locations.max_people (единый источник), taken — из слота.
+        $cap = $db->prepare('SELECT taken, location_id FROM slots WHERE id=? FOR UPDATE');
         $cap->execute([$slotId]);
         $capRow = $cap->fetch();
-        if ($capRow && (int)$capRow['taken'] >= (int)$capRow['max_people']) {
+        $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
+        $lc->execute([(int)($capRow['location_id'] ?? 0)]);
+        $maxPeople = (int)$lc->fetchColumn();
+        if ($capRow && (int)$capRow['taken'] >= $maxPeople) {
             $db->rollBack();
             err('Свободных мест нет');
         }

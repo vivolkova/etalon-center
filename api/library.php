@@ -20,7 +20,8 @@ function libDictId($db, $group, $code) {
 // строка БД -> объект в терминах фронтенда (dur/max/desc/cat/features)
 function libRow($r) {
     return [
-        'id'         => (int)$r['id'],
+        'id'          => (int)$r['id'],
+        'location_id' => (int)$r['location_id'],
         'type'       => $r['type'],                 // library_type: training | service
         'name'       => $r['name'],
         'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop
@@ -33,12 +34,13 @@ function libRow($r) {
     ];
 }
 
-$LIST_SQL = 'SELECT l.id, l.name, l.duration, l.price, l.max_people, l.difficulty,
+$LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_people, l.difficulty,
                     l.summary, l.details,
                     lt.code AS type, dc.code AS cat
              FROM library l
              JOIN dictionaries lt ON l.type_id     = lt.id
-             JOIN dictionaries dc ON l.category_id = dc.id';
+             JOIN dictionaries dc ON l.category_id = dc.id
+             JOIN locations   loc ON l.location_id = loc.id';
 
 // GET — список (публичный; нужен и форме слота, и экрану «Библиотека»)
 if ($method === 'GET' && $action === 'list') {
@@ -68,7 +70,7 @@ if ($method === 'GET' && $action === 'get') {
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'price']);
+    require_fields($d, ['name', 'price', 'location_id']);
 
     $db     = getDB();
     $typeId = libDictId($db, 'library_type',     $d['type'] ?? 'training');
@@ -77,14 +79,15 @@ if ($method === 'POST' && $action === 'create') {
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
         : null;
 
+    // Вместимость не хранится в библиотеке — она задаётся в locations.max_people.
+    $locId = (int)$d['location_id'];   // филиал записи выбирается на форме
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, type_id, name, category_id, duration, price, max_people, difficulty, summary, details)
-        VALUES (1,?,?,?,?,?,?,?,?,?)');
+        (location_id, type_id, name, category_id, duration, price, difficulty, summary, details)
+        VALUES (?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
-        $typeId, $d['name'], $catId,
+        $locId, $typeId, $d['name'], $catId,
         $d['dur']   ?? 60,
         $d['price'],
-        $d['max']   ?? null,
         $d['difficulty'] ?? 'any',
         $d['desc']  ?? null,
         $features,
@@ -106,14 +109,14 @@ if ($method === 'PUT' && $action === 'update') {
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
         : null;
 
+    require_fields($d, ['location_id']);
     $stmt = $db->prepare('UPDATE library SET
-        type_id=?, name=?, category_id=?, duration=?, price=?, max_people=?, difficulty=?, summary=?, details=?
+        location_id=?, type_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?
         WHERE id=?');
     $stmt->execute([
-        $typeId, $d['name'], $catId,
+        (int)$d['location_id'], $typeId, $d['name'], $catId,
         $d['dur']   ?? 60,
         $d['price'],
-        $d['max']   ?? null,
         $d['difficulty'] ?? 'any',
         $d['desc']  ?? null,
         $features, $id,

@@ -5049,6 +5049,11 @@
       },
     };
 
+    // ── LOCATIONS ──────────────────────────────────────────────
+    const LocationsAPI = {
+      async list() { return apiRequest('/locations.php?action=list'); },
+    };
+
     // ── CLIENTS ────────────────────────────────────────────────
     const ClientsAPI = {
       async list(status, search) {
@@ -5176,6 +5181,16 @@
     const DIFFICULTY_LABEL = { any: 'Любой', beginner: 'Начинающий', intermediate: 'Средний', advanced: 'Продвинутый' };
 
     // Библиотека грузится ТОЛЬКО из БД (api/library.php).
+    async function loadLocations() {
+      try {
+        const res = await LocationsAPI.list();
+        if (res && res.length) {
+          LOCATIONS = res;
+          HALL_CAP = parseInt(res[0].max_people);   // вместимость — из локации
+        }
+      } catch (e) { /* сервер недоступен */ }
+    }
+
     async function loadLibrary() {
       try {
         const items = await LibraryAPI.list();
@@ -5184,6 +5199,8 @@
           (it.type === 'service' ? grouped.services : grouped.trainings).push(it);
         });
         LIBRARY = grouped;
+        const wm = items.find(it => it.max != null);
+        if (wm) HALL_CAP = wm.max;   // вместимость зала — из локации (одинакова для филиала)
       } catch (e) {
         // Сервер недоступен — остаются данные по умолчанию (без localStorage-кэша)
       }
@@ -5199,6 +5216,8 @@
     let currentUser = null;
     let bookings = [];
     let authMode = 'login';
+    let HALL_CAP = null;   // вместимость зала (locations.max_people); заполняется после загрузки данных
+    let LOCATIONS = [];    // филиалы (для выпадающих списков)
 
     // Fake user db
     const USERS = [
@@ -5413,11 +5432,14 @@
             price: Number(s.price),
             max: parseInt(s.max_people),
             taken: parseInt(s.taken),
-            description: s.description || '',
-            features: s.features || null,
+            location_id: s.location_id || null,
+            description: s.summary || '',
+            features: s.details || null,
             library_id: s.library_id || null,
           });
         });
+        const sm = data.find(s => s.max_people != null);
+        if (sm) HALL_CAP = parseInt(sm.max_people);
       } catch (e) {
         // Используем существующие слоты
       }
@@ -6421,7 +6443,7 @@
       document.getElementById('sm-cat').value = item.cat;
       document.getElementById('sm-dur').value = item.dur;
       document.getElementById('sm-price').value = item.price;
-      if (item.max) document.getElementById('sm-max').value = item.max;
+      document.getElementById('sm-max').value = HALL_CAP ?? '';
 
       // Превью
       const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
@@ -6442,6 +6464,17 @@
       if (prev) prev.style.display = 'none';
     }
 
+    // Заполнить выпадающий список филиалов в форме слота; один — сразу выбран.
+    function smFillLocations(selectedId) {
+      const sel = document.getElementById('sm-location');
+      if (!sel) return;
+      sel.innerHTML = (LOCATIONS.length === 1 ? '' : '<option value="">— Выберите филиал —</option>')
+        + LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
+      if (selectedId) sel.value = selectedId;
+      else if (LOCATIONS.length === 1) sel.value = LOCATIONS[0].id;
+      else sel.value = '';
+    }
+
     function openSlotModal(slotId) {
       smFillLibSelect();
       smClearLib();
@@ -6451,24 +6484,26 @@
         if (!s) return;
         document.getElementById('slot-modal-title').textContent = 'Редактировать слот';
         document.getElementById('sm-id').value = slotId;
+        smFillLocations(s.location_id);
         document.getElementById('sm-name').value = s.name;
         document.getElementById('sm-cat').value = s.cat;
         document.getElementById('sm-day').value = s.dayOfWeek;
         document.getElementById('sm-time').value = s.time;
         document.getElementById('sm-dur').value = s.dur;
-        document.getElementById('sm-max').value = s.max;
+        document.getElementById('sm-max').value = s.max != null ? s.max : (HALL_CAP ?? '');
         document.getElementById('sm-trainer').value = s.trainer;
         document.getElementById('sm-price').value = s.price;
         smSelectedLibId = s.library_id || null;
       } else {
         document.getElementById('slot-modal-title').textContent = 'Добавить слот';
         document.getElementById('sm-id').value = '';
+        smFillLocations(null);
         document.getElementById('sm-name').value = '';
         document.getElementById('sm-cat').value = 'training';
         document.getElementById('sm-day').value = '0';
         document.getElementById('sm-time').value = '10:00';
         document.getElementById('sm-dur').value = '60';
-        document.getElementById('sm-max').value = '10';
+        document.getElementById('sm-max').value = HALL_CAP ?? '';
         document.getElementById('sm-trainer').value = '';
         document.getElementById('sm-price').value = '1200';
       }
@@ -6494,14 +6529,17 @@
       const trainerName = document.getElementById('sm-trainer').value;
       const trainerObj = TRAINERS_DATA ? TRAINERS_DATA.find(t => t.name === trainerName) : null;
 
+      const location_id = parseInt(document.getElementById('sm-location').value) || null;
+      if (!location_id) { showToast('Выберите филиал', 'error'); return; }
+
       const apiData = {
         name,
+        location_id,
         library_id: smSelectedLibId,
         category: document.getElementById('sm-cat').value,
         slot_date: fmtLocalDate(slotDate),
         start_time: time,
         duration: parseInt(document.getElementById('sm-dur').value),
-        max_people: parseInt(document.getElementById('sm-max').value),
         trainer_id: trainerObj ? trainerObj.id : null,
         price: parseInt(document.getElementById('sm-price').value),
       };
@@ -6519,7 +6557,7 @@
         date: slotDate,
         dayOfWeek, time,
         dur: apiData.duration,
-        max: apiData.max_people,
+        max: HALL_CAP,
         trainer: trainerName,
         trainer_id: apiData.trainer_id,
         price: apiData.price,
@@ -7570,7 +7608,7 @@
             start_time: time,
             duration: item.dur,
             price: item.price,
-            max_people: item.max || 10,
+            location_id: item.location_id,
             trainer_id: trainerObj ? trainerObj.id : null,
           };
           const dow = (slotDate.getDay() + 6) % 7;
@@ -7579,7 +7617,7 @@
               SLOTS.push({
                 id: res && res.id ? res.id : Date.now() + added, date: slotDate,
                 dayOfWeek: dow, time, dur: item.dur, name: item.name, cat: item.cat,
-                trainer: trainerName, price: item.price, max: item.max || 10, taken: 0,
+                trainer: trainerName, price: item.price, max: HALL_CAP, taken: 0,
                 library_id: item.id, description: item.desc || ''
               });
               added++;
@@ -7587,7 +7625,7 @@
               SLOTS.push({
                 id: Date.now() + added, date: slotDate, dayOfWeek: dow,
                 time, dur: item.dur, name: item.name, cat: item.cat,
-                trainer: trainerName, price: item.price, max: item.max || 10, taken: 0,
+                trainer: trainerName, price: item.price, max: HALL_CAP, taken: 0,
                 library_id: item.id, description: item.desc || ''
               });
               added++;
@@ -7612,13 +7650,26 @@
       const modal = document.getElementById('lib-modal');
       const diffWrap = document.getElementById('lm-difficulty-wrap');
       diffWrap.style.display = isTraining ? '' : 'none';
+      const capWrap = document.getElementById('lm-cap-wrap');
+      if (capWrap) {
+        capWrap.style.display = isTraining ? '' : 'none';
+        document.getElementById('lm-cap').value = HALL_CAP ?? '';
+      }
       document.getElementById('lm-type').value = libCurrentType;
+
+      // Список филиалов; если один — сразу выбран, иначе плейсхолдер
+      const locSel = document.getElementById('lm-location');
+      if (locSel) {
+        locSel.innerHTML = (LOCATIONS.length === 1 ? '' : '<option value="">— Выберите филиал —</option>')
+          + LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
+      }
 
       if (id !== null) {
         const item = LIBRARY[libCurrentType].find(x => x.id === id);
         if (!item) return;
         document.getElementById('lib-modal-title').textContent = 'Редактировать';
         document.getElementById('lm-id').value = id;
+        if (locSel) locSel.value = item.location_id || '';
         document.getElementById('lm-name').value = item.name;
         document.getElementById('lm-cat').value = item.cat;
         document.getElementById('lm-dur').value = item.dur;
@@ -7629,6 +7680,7 @@
       } else {
         document.getElementById('lib-modal-title').textContent = isTraining ? 'Новая тренировка' : 'Новая услуга';
         document.getElementById('lm-id').value = '';
+        if (locSel) locSel.value = LOCATIONS.length === 1 ? LOCATIONS[0].id : '';
         document.getElementById('lm-name').value = '';
         document.getElementById('lm-cat').value = isTraining ? 'training' : 'bikefit';
         document.getElementById('lm-dur').value = 60;
@@ -7649,10 +7701,13 @@
       if (!name) { showToast('Введите название', 'error'); return; }
       const type = document.getElementById('lm-type').value;          // trainings | services
       const idVal = document.getElementById('lm-id').value;
+      const location_id = parseInt(document.getElementById('lm-location').value) || null;
+      if (!location_id) { showToast('Выберите филиал', 'error'); return; }
       const features = document.getElementById('lm-features').value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean);
 
       const data = {
         type: type === 'services' ? 'service' : 'training',           // library_type для БД
+        location_id,
         name,
         cat: document.getElementById('lm-cat').value,
         dur: parseInt(document.getElementById('lm-dur').value),
@@ -7660,7 +7715,6 @@
         difficulty: document.getElementById('lm-difficulty').value,   // код
         desc: document.getElementById('lm-desc').value.trim(),
         features,
-        max: type === 'trainings' ? 12 : null,
       };
 
       try {
@@ -8484,6 +8538,7 @@
     (async function () {
       // 1. Загружаем публичные данные (слоты, тренеры, планы абонементов)
       await Promise.allSettled([
+        loadLocations(),
         loadSlots(),
         loadTrainers(),
         loadSubPlans(),
@@ -8517,6 +8572,11 @@
     <div class="admin-modal">
       <div class="admin-modal-title" id="slot-modal-title">Добавить слот</div>
       <input type="hidden" id="sm-id">
+
+      <div class="form-field">
+        <label class="form-label">Филиал</label>
+        <select class="form-input" id="sm-location"></select>
+      </div>
 
       <!-- Выбор из библиотеки -->
       <div class="form-field" id="sm-lib-wrap">
@@ -8577,8 +8637,8 @@
           <input class="form-input" id="sm-dur" type="number" value="60" min="15" max="480">
         </div>
         <div class="form-field">
-          <label class="form-label">Макс. участников</label>
-          <input class="form-input" id="sm-max" type="number" value="10" min="1">
+          <label class="form-label">Мест в зале</label>
+          <input class="form-input" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации" style="opacity:.7;cursor:not-allowed">
         </div>
       </div>
       <div class="form-row">
@@ -8784,6 +8844,10 @@
       <div class="admin-modal-title" id="lib-modal-title">Добавить в библиотеку</div>
       <input type="hidden" id="lm-type">
       <input type="hidden" id="lm-id">
+      <div class="form-field">
+        <label class="form-label">Филиал</label>
+        <select class="form-input" id="lm-location"></select>
+      </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название</label>
@@ -8807,6 +8871,10 @@
           <label class="form-label">Цена (₽)</label>
           <input class="form-input" id="lm-price" type="number" value="1200" min="0">
         </div>
+      </div>
+      <div class="form-field" id="lm-cap-wrap">
+        <label class="form-label">Мест в зале (из локации)</label>
+        <input class="form-input" id="lm-cap" type="number" readonly title="Вместимость зала задаётся в локации" style="opacity:.7;cursor:not-allowed">
       </div>
       <div class="form-field" id="lm-difficulty-wrap">
         <label class="form-label">Уровень сложности</label>
