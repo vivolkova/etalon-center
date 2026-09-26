@@ -31,11 +31,12 @@ function libRow($r) {
         'difficulty' => $r['difficulty'],           // код: any | beginner | intermediate | advanced
         'desc'       => $r['summary'] ?? '',
         'features'   => $r['details'] ? json_decode($r['details'], true) : [],
+        'active'     => (int)$r['active'],
     ];
 }
 
 $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_people, l.difficulty,
-                    l.summary, l.details,
+                    l.summary, l.details, l.active,
                     lt.code AS type, dc.code AS cat
              FROM library l
              JOIN dictionaries lt ON l.type_id     = lt.id
@@ -45,7 +46,9 @@ $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_pe
 // GET — список (публичный; нужен и форме слота, и экрану «Библиотека»)
 if ($method === 'GET' && $action === 'list') {
     $db  = getDB();
-    $sql = $LIST_SQL . ' WHERE l.active = 1';
+    $all = !empty($_GET['all']);
+    if ($all) authAdmin();
+    $sql = $LIST_SQL . ($all ? ' WHERE 1' : ' WHERE l.active = 1');
     $params = [];
     if (!empty($_GET['type'])) { $sql .= ' AND lt.code = ?'; $params[] = $_GET['type']; }
     $sql .= ' ORDER BY l.id';
@@ -82,8 +85,8 @@ if ($method === 'POST' && $action === 'create') {
     // Вместимость не хранится в библиотеке — она задаётся в locations.max_people.
     $locId = (int)$d['location_id'];   // филиал записи выбирается на форме
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, type_id, name, category_id, duration, price, difficulty, summary, details)
-        VALUES (?,?,?,?,?,?,?,?,?)');
+        (location_id, type_id, name, category_id, duration, price, difficulty, summary, details, active)
+        VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId, $typeId, $d['name'], $catId,
         $d['dur']   ?? 60,
@@ -91,6 +94,7 @@ if ($method === 'POST' && $action === 'create') {
         $d['difficulty'] ?? 'any',
         $d['desc']  ?? null,
         $features,
+        isset($d['active']) ? (int)(bool)$d['active'] : 1,
     ]);
     ok(['id' => $db->lastInsertId()], 'Добавлено в библиотеку');
 }
@@ -111,7 +115,7 @@ if ($method === 'PUT' && $action === 'update') {
 
     require_fields($d, ['location_id']);
     $stmt = $db->prepare('UPDATE library SET
-        location_id=?, type_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?
+        location_id=?, type_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
         WHERE id=?');
     $stmt->execute([
         (int)$d['location_id'], $typeId, $d['name'], $catId,
@@ -119,7 +123,9 @@ if ($method === 'PUT' && $action === 'update') {
         $d['price'],
         $d['difficulty'] ?? 'any',
         $d['desc']  ?? null,
-        $features, $id,
+        $features,
+        isset($d['active']) ? (int)(bool)$d['active'] : 1,
+        $id,
     ]);
     ok(null, 'Обновлено');
 }

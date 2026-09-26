@@ -193,7 +193,7 @@
       padding: 80px 80px 60px;
       max-width: 100%;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 3rem;
       align-items: center;
     }
@@ -3979,7 +3979,6 @@
           </div>
         </div>
       </div>
-      <div class="hero-visual animate-up delay-2" id="hero-calendar"></div>
     </div>
   </div>
 
@@ -4507,6 +4506,10 @@
             <input class="form-input" id="lib-search" placeholder="Поиск..."
               style="max-width:280px;height:36px;font-size:13px" oninput="renderLibrary()">
             <select class="form-input" id="lib-loc-filter" style="max-width:220px;height:36px;font-size:13px" onchange="renderLibrary()"></select>
+            <select class="form-input" id="lib-active-filter" style="max-width:200px;height:36px;font-size:13px" onchange="renderLibrary()">
+              <option value="all">Все</option>
+              <option value="active">Только действующие</option>
+            </select>
           </div>
           <div class="lib-grid" id="lib-grid"></div>
         </div>
@@ -4997,6 +5000,7 @@
         if (type) url += `&type=${type}`;
         return apiRequest(url);
       },
+      async listAll() { return apiRequest('/library.php?action=list&all=1'); },
       async get(id) { return apiRequest(`/library.php?action=get&id=${id}`); },
       async create(data) { return apiRequest('/library.php?action=create', 'POST', data); },
       async update(data) { return apiRequest('/library.php?action=update', 'PUT', data); },
@@ -5144,7 +5148,6 @@
 
     // ═══ DATA ═══════════════════════════════════════════════════════
 
-    const TRAINERS = ['Анна К.', 'Максим Р.', 'Елена С.', 'Алексей Д.'];
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const todayIdx = ((today.getDay() + 6) % 7); // пн=0
 
@@ -5206,6 +5209,18 @@
       } catch (e) {
         // Сервер недоступен — остаются данные по умолчанию (без localStorage-кэша)
       }
+    }
+
+    // Библиотека для админки: все записи, включая удалённые (active=0)
+    async function loadLibraryAll() {
+      try {
+        const items = await LibraryAPI.listAll();
+        const grouped = { trainings: [], services: [] };
+        items.forEach(function (it) {
+          (it.type === 'service' ? grouped.services : grouped.trainings).push(it);
+        });
+        LIBRARY = grouped;
+      } catch (e) { /* сервер недоступен */ }
     }
 
     // ═══ STATE ══════════════════════════════════════════════════════
@@ -6331,6 +6346,8 @@
     }
 
     function admInitDragDrop(grid) {
+      if (grid.dataset.dragInit) return;   // слушатели вешаем один раз на грид
+      grid.dataset.dragInit = '1';
       var dragSlotId = null;
 
       // Drag start — просто запоминаем id
@@ -6383,12 +6400,13 @@
           // Сохраняем через API
           SlotsAPI.update({
             id: s.id,
+            location_id: s.location_id,
+            library_id: s.library_id || null,
             name: s.name,
             category: s.cat,
             slot_date: fmtLocalDate(newDate),
             start_time: newTime,
             duration: s.dur,
-            max_people: s.max,
             price: s.price,
             trainer_id: s.trainer_id || null,
           }).catch(function (e) { showToast('Ошибка сохранения перемещения', 'error'); });
@@ -6444,14 +6462,19 @@
       // Заполняем поля формы
       document.getElementById('sm-name').value = item.name;
       document.getElementById('sm-cat').value = item.cat;
+      { const CL = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' }; const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = CL[item.cat] || item.cat; }
       document.getElementById('sm-dur').value = item.dur;
       document.getElementById('sm-price').value = item.price;
       document.getElementById('sm-max').value = HALL_CAP ?? '';
+      smRenderLibPreview(item);
+    }
 
-      // Превью
+    // Превью выбранной записи библиотеки (без перезаписи полей формы)
+    function smRenderLibPreview(item) {
       const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
       const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       const prev = document.getElementById('sm-lib-preview');
+      if (!prev) return;
       prev.style.display = '';
       prev.innerHTML =
         '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (catCol[item.cat] || '#888') + ';margin-right:6px;vertical-align:middle"></span>' +
@@ -6478,9 +6501,15 @@
       else sel.value = '';
     }
 
+    // Режим формы слота: при редактировании нередактируемые поля показываем как значения
+    function smSetSlotMode(isEdit) {
+      const show = function (id, vis) { const e = document.getElementById(id); if (e) e.style.display = vis ? '' : 'none'; };
+      show('sm-location', !isEdit);        show('sm-location-view', isEdit);
+      show('sm-name', !isEdit);            show('sm-name-view', isEdit);
+      show('sm-trainer', true);            show('sm-trainer-view', false);
+    }
+
     function openSlotModal(slotId) {
-      smFillLibSelect();
-      smClearLib();
       const modal = document.getElementById('slot-modal');
       if (slotId) {
         const s = SLOTS.find(x => x.id === slotId);
@@ -6496,19 +6525,30 @@
         document.getElementById('sm-max').value = s.max != null ? s.max : (HALL_CAP ?? '');
         document.getElementById('sm-trainer').value = s.trainer;
         document.getElementById('sm-price').value = s.price;
-        smSelectedLibId = s.library_id || null;
+        smSelectedLibId = s.library_id || null;   // ссылка на библиотеку сохраняется как есть
+        // Значения для нередактируемых полей (режим редактирования)
+        const CL = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
+        const locObj = (LOCATIONS.find(function (x) { return x.id === s.location_id; })
+                     || LOCATIONS_ALL.find(function (x) { return x.id === s.location_id; }) || {});
+        document.getElementById('sm-location-view').textContent = locObj.name || '—';
+        document.getElementById('sm-name-view').textContent = s.name || '—';
+        document.getElementById('sm-cat-view').textContent = CL[s.cat] || s.cat || '—';
+        smSetSlotMode(true);
       } else {
         document.getElementById('slot-modal-title').textContent = 'Добавить слот';
         document.getElementById('sm-id').value = '';
+        smSelectedLibId = null;
         smFillLocations(null);
         document.getElementById('sm-name').value = '';
         document.getElementById('sm-cat').value = 'training';
+        document.getElementById('sm-cat-view').textContent = 'Тренировка';
         document.getElementById('sm-day').value = '0';
         document.getElementById('sm-time').value = '10:00';
         document.getElementById('sm-dur').value = '60';
         document.getElementById('sm-max').value = HALL_CAP ?? '';
         document.getElementById('sm-trainer').value = '';
         document.getElementById('sm-price').value = '1200';
+        smSetSlotMode(false);
       }
       modal.classList.add('show');
     }
@@ -6841,6 +6881,7 @@
 
     function renderHeroCalendar() {
       const container = document.getElementById('hero-calendar');
+      if (!container) return;
       const firstDay = (new Date(heroViewYear, heroViewMonth, 1).getDay() + 6) % 7;
       const daysInMonth = new Date(heroViewYear, heroViewMonth + 1, 0).getDate();
       const eventDays = new Set(
@@ -7472,10 +7513,13 @@
         locSel.value = cur;
         locFilter = locSel.value ? parseInt(locSel.value) : null;
       }
+      const actSel = document.getElementById('lib-active-filter');
+      const activeOnly = actSel && actSel.value === 'active';
       const items = LIBRARY[libCurrentType].filter(function (item) {
         const okQ = !q || item.name.toLowerCase().includes(q) || (item.desc || '').toLowerCase().includes(q);
         const okLoc = !locFilter || item.location_id === locFilter;
-        return okQ && okLoc;
+        const okAct = !activeOnly || Number(item.active);
+        return okQ && okLoc && okAct;
       });
       const grid = document.getElementById('lib-grid');
       if (!grid) return;
@@ -7500,7 +7544,15 @@
             }).join('') + '</div>';
         }
         let maxHtml = (isTraining && item.max) ? '<span class="lib-meta-tag">до ' + item.max + ' чел.</span>' : '';
-        return '<div class="lib-card">' +
+        const inactive = !Number(item.active);
+        const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
+        const delBadge = inactive ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Удалена</span>' : '';
+        const actionsHtml = inactive
+          ? '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
+          : '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' +
+            '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
+            '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
+        return '<div class="lib-card"' + cardStyle + '>' +
           difficultyHtml +
           '<div class="lib-card-header"><div>' +
           '<div class="lib-card-cat ' + item.cat + '">' + catLabel[item.cat] + '</div>' +
@@ -7508,14 +7560,10 @@
           '</div></div>' +
           '<div class="lib-card-desc">' + item.desc + '</div>' +
           featuresHtml +
-          '<div class="lib-card-meta">' + (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') + '<span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
+          '<div class="lib-card-meta">' + delBadge + (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') + '<span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
           '<div class="lib-card-footer">' +
           '<div class="lib-card-price">' + Number(item.price).toLocaleString('ru') + ' ₽</div>' +
-          '<div class="lib-card-actions">' +
-          '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' +
-          '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
-          '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteLibItem(' + item.id + ')">Уд.</button>' +
-          '</div>' +
+          '<div class="lib-card-actions">' + actionsHtml + '</div>' +
           '</div>' +
           '</div>';
       }).join('');
@@ -7631,33 +7679,23 @@
           };
           const dow = (slotDate.getDay() + 6) % 7;
           promises.push(
-            SlotsAPI.create(apiData).then(function (res) {
-              SLOTS.push({
-                id: res && res.id ? res.id : Date.now() + added, date: slotDate,
-                dayOfWeek: dow, time, dur: item.dur, name: item.name, cat: item.cat,
-                trainer: trainerName, price: item.price, max: HALL_CAP, taken: 0,
-                library_id: item.id, description: item.desc || ''
-              });
-              added++;
-            }).catch(function () {
-              SLOTS.push({
-                id: Date.now() + added, date: slotDate, dayOfWeek: dow,
-                time, dur: item.dur, name: item.name, cat: item.cat,
-                trainer: trainerName, price: item.price, max: HALL_CAP, taken: 0,
-                library_id: item.id, description: item.desc || ''
-              });
-              added++;
-            })
+            SlotsAPI.create(apiData).then(function () { added++; }).catch(function () { })
           );
         });
       }
 
       await Promise.allSettled(promises);
 
+      // Перечитываем слоты с сервера (полные данные: реальные id, location_id, trainer_id, library_id)
+      admWeekStart = new Date(ltsWeekStart);
+      const reloadFrom = new Date(ltsWeekStart);
+      const reloadTo = new Date(ltsWeekStart);
+      reloadTo.setDate(reloadTo.getDate() + weeks * 7);
+      await loadSlots(reloadFrom, reloadTo);
+
       closeLtsModal();
       const schTab = document.querySelector('.atab[onclick*="schedule"]');
       if (schTab) switchAdminTab('schedule', schTab);
-      admWeekStart = new Date(ltsWeekStart);
       renderAdminSchedule();
       showToast('Добавлено ' + added + ' занятий в расписание', 'success');
     }
@@ -7695,6 +7733,7 @@
         document.getElementById('lm-difficulty').value = item.difficulty || 'any';
         document.getElementById('lm-desc').value = item.desc || '';
         document.getElementById('lm-features').value = (item.features || []).join('\n');
+        document.getElementById('lm-active').checked = !!Number(item.active);
       } else {
         document.getElementById('lib-modal-title').textContent = isTraining ? 'Новая тренировка' : 'Новая услуга';
         document.getElementById('lm-id').value = '';
@@ -7706,7 +7745,13 @@
         document.getElementById('lm-difficulty').value = 'any';
         document.getElementById('lm-desc').value = '';
         document.getElementById('lm-features').value = '';
+        document.getElementById('lm-active').checked = true;
       }
+      // Категорию можно задать только при создании; при редактировании — только чтение
+      const catEl = document.getElementById('lm-cat');
+      catEl.disabled = (id !== null);
+      catEl.classList.toggle('sm-locked', id !== null);
+      catEl.classList.toggle('sm-editable', id === null);
       modal.classList.add('show');
     }
 
@@ -7726,6 +7771,7 @@
       const data = {
         type: type === 'services' ? 'service' : 'training',           // library_type для БД
         location_id,
+        active: document.getElementById('lm-active').checked ? 1 : 0,
         name,
         cat: document.getElementById('lm-cat').value,
         dur: parseInt(document.getElementById('lm-dur').value),
@@ -7743,7 +7789,7 @@
           await LibraryAPI.create(data);
           showToast('Добавлено в библиотеку', 'success');
         }
-        await loadLibrary();
+        await loadLibraryAll();
       } catch (e) {
         return;   // ошибка показана в apiRequest; модалку оставляем открытой для повторной попытки
       }
@@ -7756,7 +7802,7 @@
       const type = libCurrentType;
       try {
         await LibraryAPI.delete(id);
-        await loadLibrary();
+        await loadLibraryAll();
       } catch (e) {
         return;   // ошибка показана в apiRequest
       }
@@ -7822,6 +7868,7 @@
         promos: loadPromos,
         notif: loadNotifications,
         chat: loadChatDialogs,
+        library: loadLibraryAll,
         settings: loadLocationsAll,
         finance: loadAdminBookings,
         dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients(), loadNotifications()]); },
@@ -8584,21 +8631,28 @@
     async function loadTrainers() {
       try {
         const res = await apiRequest('/trainers.php?action=list');
-        if (res && res.length) {
-          TRAINERS_DATA = res.map(function (t) {
-            return {
-              id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
-              exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-              rating: parseFloat(t.rating) || 5.0, color: t.color || '#00BAB3'
-            };
-          });
-          // Обновляем select тренера в модалке слота
-          var sel = document.getElementById('sm-trainer');
-          if (sel) sel.innerHTML = TRAINERS_DATA.map(function (t) {
-            return '<option value="' + t.name + '">' + t.full + '</option>';
-          }).join('');
-        }
-      } catch (e) { /* используем встроенных тренеров */ }
+        TRAINERS_DATA = (res || []).map(function (t) {
+          return {
+            id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
+            exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
+            rating: parseFloat(t.rating) || 5.0, color: t.color || '#00BAB3'
+          };
+        });
+        fillTrainerSelects();
+      } catch (e) { /* сервер недоступен */ }
+    }
+
+    // Заполнить выпадающие списки тренеров данными из БД (везде одинаково)
+    function fillTrainerSelects() {
+      var opts = '<option value="">— Тренер —</option>' +
+        TRAINERS_DATA.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
+      ['sm-trainer', 'lts-trainer'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var cur = el.value;
+        el.innerHTML = opts;
+        el.value = cur;
+      });
     }
 
     // ── Загрузка клиентов с сервера ───────────────────────────────
@@ -8771,6 +8825,11 @@
   </script>
 
   <!-- MODAL: EDIT SLOT -->
+  <style>
+    .sm-editable { border-color: var(--green) !important; background:#fff !important; }
+    .sm-locked   { background:#f3f4f6 !important; color:#6b7280 !important; cursor:not-allowed; }
+    .sm-view     { background:#f3f4f6; color:#374151; min-height:38px; display:flex; align-items:center; }
+  </style>
   <div class="admin-modal-overlay" id="slot-modal">
     <div class="admin-modal">
       <div class="admin-modal-title" id="slot-modal-title">Добавить слот</div>
@@ -8778,48 +8837,26 @@
 
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input" id="sm-location"></select>
-      </div>
-
-      <!-- Выбор из библиотеки -->
-      <div class="form-field" id="sm-lib-wrap">
-        <label class="form-label">Выбрать из библиотеки</label>
-        <div style="display:flex;gap:8px">
-          <select class="form-input" id="sm-lib-select" onchange="smApplyLibItem(this.value)" style="flex:1">
-            <option value="">— Выбрать занятие из библиотеки —</option>
-          </select>
-          <button type="button" class="btn-ghost" style="padding:0 12px;font-size:12px;white-space:nowrap"
-            onclick="smClearLib()">Очистить</button>
-        </div>
-        <div id="sm-lib-preview"
-          style="display:none;margin-top:8px;padding:10px 12px;background:var(--surface);border-radius:10px;font-size:12px">
-        </div>
-      </div>
-
-      <div style="display:flex;align-items:center;gap:10px;margin:4px 0 12px">
-        <div style="flex:1;height:1px;background:var(--border)"></div>
-        <span style="font-size:11px;color:var(--ink-60);font-weight:600">или заполните вручную</span>
-        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <select class="form-input sm-editable" id="sm-location"></select>
+        <div class="form-input sm-view" id="sm-location-view" style="display:none"></div>
       </div>
 
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название занятия</label>
-          <input class="form-input" id="sm-name" placeholder="Интервальный сайкл">
+          <input class="form-input sm-editable" id="sm-name" placeholder="Интервальный сайкл">
+          <div class="form-input sm-view" id="sm-name-view" style="display:none"></div>
         </div>
         <div class="form-field">
           <label class="form-label">Категория</label>
-          <select class="form-input" id="sm-cat">
-            <option value="training">Тренировка</option>
-            <option value="bikefit">Байкфит</option>
-            <option value="workshop">Мастерская</option>
-          </select>
+          <input type="hidden" id="sm-cat">
+          <div class="form-input sm-view" id="sm-cat-view" title="Категория берётся из выбранной записи библиотеки"></div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">День недели</label>
-          <select class="form-input" id="sm-day">
+          <select class="form-input sm-editable" id="sm-day">
             <option value="0">Понедельник</option>
             <option value="1">Вторник</option>
             <option value="2">Среда</option>
@@ -8831,32 +8868,30 @@
         </div>
         <div class="form-field">
           <label class="form-label">Время начала</label>
-          <input class="form-input" id="sm-time" type="time" min="08:00" max="22:00" value="10:00">
+          <input class="form-input sm-editable" id="sm-time" type="time" min="08:00" max="22:00" value="10:00">
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input" id="sm-dur" type="number" value="60" min="15" max="480">
+          <input class="form-input sm-editable" id="sm-dur" type="number" value="60" min="15" max="480">
         </div>
         <div class="form-field">
           <label class="form-label">Мест в зале</label>
-          <input class="form-input" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации" style="opacity:.7;cursor:not-allowed">
+          <input class="form-input sm-locked" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации">
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Тренер</label>
-          <select class="form-input" id="sm-trainer">
-            <option value="Анна К.">Анна К.</option>
-            <option value="Максим Р.">Максим Р.</option>
-            <option value="Елена С.">Елена С.</option>
-            <option value="Алексей Д.">Алексей Д.</option>
+          <select class="form-input sm-editable" id="sm-trainer">
+            <option value="">— Тренер —</option>
           </select>
+          <div class="form-input sm-view" id="sm-trainer-view" style="display:none"></div>
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>
-          <input class="form-input" id="sm-price" type="number" value="1200" min="0">
+          <input class="form-input sm-editable" id="sm-price" type="number" value="1200" min="0">
         </div>
       </div>
       <div class="admin-modal-actions">
@@ -9102,16 +9137,16 @@
       <input type="hidden" id="lm-id">
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input" id="lm-location"></select>
+        <select class="form-input sm-editable" id="lm-location"></select>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название</label>
-          <input class="form-input" id="lm-name" placeholder="Название тренировки / услуги">
+          <input class="form-input sm-editable" id="lm-name" placeholder="Название тренировки / услуги">
         </div>
         <div class="form-field">
           <label class="form-label">Категория</label>
-          <select class="form-input" id="lm-cat">
+          <select class="form-input sm-editable" id="lm-cat">
             <option value="training">Тренировка</option>
             <option value="bikefit">Байкфит</option>
             <option value="workshop">Мастерская</option>
@@ -9121,20 +9156,20 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input" id="lm-dur" type="number" value="60" min="15">
+          <input class="form-input sm-editable" id="lm-dur" type="number" value="60" min="15">
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>
-          <input class="form-input" id="lm-price" type="number" value="1200" min="0">
+          <input class="form-input sm-editable" id="lm-price" type="number" value="1200" min="0">
         </div>
       </div>
       <div class="form-field" id="lm-cap-wrap">
         <label class="form-label">Мест в зале (из локации)</label>
-        <input class="form-input" id="lm-cap" type="number" readonly title="Вместимость зала задаётся в локации" style="opacity:.7;cursor:not-allowed">
+        <input class="form-input sm-locked" id="lm-cap" type="number" readonly title="Вместимость зала задаётся в локации">
       </div>
       <div class="form-field" id="lm-difficulty-wrap">
         <label class="form-label">Уровень сложности</label>
-        <select class="form-input" id="lm-difficulty">
+        <select class="form-input sm-editable" id="lm-difficulty">
           <option value="beginner">Начинающий</option>
           <option value="intermediate">Средний</option>
           <option value="advanced">Продвинутый</option>
@@ -9143,12 +9178,17 @@
       </div>
       <div class="form-field">
         <label class="form-label">Описание</label>
-        <textarea class="form-input" id="lm-desc" rows="3" style="height:auto;resize:vertical"
+        <textarea class="form-input sm-editable" id="lm-desc" rows="3" style="height:auto;resize:vertical"
           placeholder="Краткое описание для клиентов..."></textarea>
       </div>
       <div class="form-field">
         <label class="form-label">Особенности</label>
-        <textarea class="form-input" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Каждая особенность — с новой строки"></textarea>
+        <textarea class="form-input sm-editable" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Каждая особенность — с новой строки"></textarea>
+      </div>
+      <div class="form-field">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="lm-active" checked> Действующая
+        </label>
       </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeLibModal()">Отмена</button>
@@ -9208,10 +9248,7 @@
         <div class="form-field">
           <label class="form-label">Тренер</label>
           <select class="form-input" id="lts-trainer">
-            <option value="Анна К.">Анна К.</option>
-            <option value="Максим Р.">Максим Р.</option>
-            <option value="Елена С.">Елена С.</option>
-            <option value="Алексей Д.">Алексей Д.</option>
+            <option value="">— Тренер —</option>
           </select>
         </div>
       </div>
