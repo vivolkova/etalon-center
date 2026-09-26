@@ -13,12 +13,12 @@ SET NAMES utf8mb4;
 CREATE TABLE locations (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(255) NOT NULL,
-    address     VARCHAR(512),
+    address     VARCHAR(512) NOT NULL,
     hall_cols   TINYINT UNSIGNED NOT NULL,
     hall_rows   TINYINT UNSIGNED NOT NULL,
     max_people  INT          NOT NULL,               -- максимальная вместимость зала (единый источник; задаётся в админке)
-    email       VARCHAR(255),
-    phone       VARCHAR(32),
+    email       VARCHAR(255) NOT NULL,
+    phone       VARCHAR(32)  NOT NULL,
     work_hours  JSON,                                 -- режим работы: [{day,open,from,to}]
     timezone    VARCHAR(64)  NOT NULL DEFAULT 'Europe/Moscow',
     active      TINYINT(1)   NOT NULL DEFAULT 1,
@@ -144,7 +144,7 @@ CREATE TABLE slots (
     CONSTRAINT fk_slots_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
     CONSTRAINT fk_slots_location FOREIGN KEY (location_id) REFERENCES locations(id),
     CONSTRAINT fk_slots_trainer  FOREIGN KEY (trainer_id)  REFERENCES trainers(id)  ON DELETE SET NULL,
-    CONSTRAINT fk_slots_library  FOREIGN KEY (library_id)  REFERENCES library(id)   ON DELETE SET NULL
+    CONSTRAINT fk_slots_library  FOREIGN KEY (library_id)  REFERENCES library(id)   ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Станки (места в зале) ───────────────────────────────────

@@ -4503,8 +4503,11 @@
                 Добавить</button>
             </div>
           </div>
-          <input class="form-input" id="lib-search" placeholder="Поиск..."
-            style="max-width:280px;height:36px;font-size:13px;margin-bottom:16px" oninput="renderLibrary()">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <input class="form-input" id="lib-search" placeholder="Поиск..."
+              style="max-width:280px;height:36px;font-size:13px" oninput="renderLibrary()">
+            <select class="form-input" id="lib-loc-filter" style="max-width:220px;height:36px;font-size:13px" onchange="renderLibrary()"></select>
+          </div>
           <div class="lib-grid" id="lib-grid"></div>
         </div>
 
@@ -5041,6 +5044,7 @@
     // ── LOCATIONS ──────────────────────────────────────────────
     const LocationsAPI = {
       async list() { return apiRequest('/locations.php?action=list'); },
+      async listAll() { return apiRequest('/locations.php?action=list&all=1'); },
       async create(data) { return apiRequest('/locations.php?action=create', 'POST', data); },
       async update(data) { return apiRequest('/locations.php?action=update', 'PUT', data); },
     };
@@ -5182,6 +5186,13 @@
       } catch (e) { /* сервер недоступен */ }
     }
 
+    async function loadLocationsAll() {
+      try {
+        const res = await LocationsAPI.listAll();
+        if (res) LOCATIONS_ALL = res;
+      } catch (e) { /* сервер недоступен */ }
+    }
+
     async function loadLibrary() {
       try {
         const items = await LibraryAPI.list();
@@ -5208,7 +5219,8 @@
     let bookings = [];
     let authMode = 'login';
     let HALL_CAP = null;   // вместимость зала (locations.max_people); заполняется после загрузки данных
-    let LOCATIONS = [];    // филиалы (для выпадающих списков)
+    let LOCATIONS = [];    // активные филиалы (для выпадающих списков)
+    let LOCATIONS_ALL = []; // все филиалы, включая неактивные (для раздела Настройки)
 
     // Fake user db
     const USERS = [
@@ -7451,8 +7463,19 @@
 
     function renderLibrary() {
       const q = (document.getElementById('lib-search') ? document.getElementById('lib-search').value : '').toLowerCase();
+      const locSel = document.getElementById('lib-loc-filter');
+      let locFilter = null;
+      if (locSel) {
+        const cur = locSel.value;
+        locSel.innerHTML = '<option value="">Все филиалы</option>' +
+          LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
+        locSel.value = cur;
+        locFilter = locSel.value ? parseInt(locSel.value) : null;
+      }
       const items = LIBRARY[libCurrentType].filter(function (item) {
-        return !q || item.name.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q);
+        const okQ = !q || item.name.toLowerCase().includes(q) || (item.desc || '').toLowerCase().includes(q);
+        const okLoc = !locFilter || item.location_id === locFilter;
+        return okQ && okLoc;
       });
       const grid = document.getElementById('lib-grid');
       if (!grid) return;
@@ -7464,6 +7487,8 @@
       const catLabel = { training: 'Тренировка', bikefit: 'Байкфит', workshop: 'Мастерская' };
       grid.innerHTML = items.map(function (item) {
         const col = catCol[item.cat] || '#888';
+        const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
+        const locName = locObj ? locObj.name : '';
         const features = (item.features || []).slice(0, 3);
         const isTraining = libCurrentType === 'trainings';
         let difficultyHtml = (isTraining && item.difficulty) ? '<div class="lib-difficulty">' + (DIFFICULTY_LABEL[item.difficulty] || item.difficulty) + '</div>' : '';
@@ -7483,7 +7508,7 @@
           '</div></div>' +
           '<div class="lib-card-desc">' + item.desc + '</div>' +
           featuresHtml +
-          '<div class="lib-card-meta"><span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
+          '<div class="lib-card-meta">' + (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') + '<span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
           '<div class="lib-card-footer">' +
           '<div class="lib-card-price">' + Number(item.price).toLocaleString('ru') + ' ₽</div>' +
           '<div class="lib-card-actions">' +
@@ -7517,6 +7542,8 @@
       document.getElementById('lts-meta').textContent =
         catLabel[item.cat] + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';
 
+      const lt = document.getElementById('lts-time');
+      if (lt) { lt.innerHTML = timeOptions15('10:00'); lt.value = '10:00'; }
       ltsRenderWeekLabel();
       ltsRenderDayBtns();
       document.getElementById('lib-to-sch-modal').classList.add('show');
@@ -7795,7 +7822,7 @@
         promos: loadPromos,
         notif: loadNotifications,
         chat: loadChatDialogs,
-        settings: loadSettings,
+        settings: loadLocationsAll,
         finance: loadAdminBookings,
         dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients(), loadNotifications()]); },
       };
@@ -8302,6 +8329,18 @@
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
     }
 
+    // Опции времени с шагом 15 минут (00:00 … 23:45)
+    function timeOptions15(selected) {
+      let o = '<option value=""></option>';
+      for (let h = 0; h < 24; h++) {
+        for (let m = 0; m < 60; m += 15) {
+          const t = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+          o += '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
+        }
+      }
+      return o;
+    }
+
     // Редактор режима работы в модалке филиала
     function renderLocHours(hours) {
       const el = document.getElementById('loc-hours');
@@ -8312,13 +8351,13 @@
       el.innerHTML = LOC_DAYS.map(function (d, i) {
         const h = map[d] || { open: false, from: '', to: '' };
         const weekend = (d === 'Суббота' || d === 'Воскресенье');
-        const dayColor = weekend ? '#9ca3af' : '#3b8dff';
+        const dayColor = weekend ? '#9ca3af' : '#00BAB3';
         return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
           '<label style="width:120px;font-size:13px;display:flex;align-items:center;gap:6px;color:' + dayColor + '">' +
           '<input type="checkbox" class="loc-h-open" data-i="' + i + '"' + (h.open ? ' checked' : '') + '>' + d + '</label>' +
-          '<input type="time" class="form-input loc-h-from" data-i="' + i + '" value="' + (h.from || '') + '" style="width:auto;padding:4px 8px">' +
+          '<select class="form-input loc-h-from" data-i="' + i + '" style="width:auto;padding:4px 8px">' + timeOptions15(h.from || '') + '</select>' +
           '<span>–</span>' +
-          '<input type="time" class="form-input loc-h-to" data-i="' + i + '" value="' + (h.to || '') + '" style="width:auto;padding:4px 8px">' +
+          '<select class="form-input loc-h-to" data-i="' + i + '" style="width:auto;padding:4px 8px">' + timeOptions15(h.to || '') + '</select>' +
           '</div>';
       }).join('');
     }
@@ -8329,7 +8368,7 @@
       if (!arr || !arr.length) return '';
       const rows = arr.map(function (h) {
         const weekend = (h.day === 'Суббота' || h.day === 'Воскресенье');
-        const color = weekend ? '#9ca3af' : '#3b8dff';
+        const color = weekend ? '#9ca3af' : '#00BAB3';
         return '<div style="display:flex;justify-content:space-between;font-size:12px;line-height:1.7;color:' + color + '">' +
           '<span>' + (LOC_DAYS_SHORT[h.day] || h.day) + '</span>' +
           '<span>' + (h.open ? (h.from + '–' + h.to) : 'выходной') + '</span></div>';
@@ -8340,13 +8379,18 @@
     function renderLocations() {
       const el = document.getElementById('settings-locations');
       if (!el) return;
-      if (!LOCATIONS.length) {
+      if (!LOCATIONS_ALL.length) {
         el.innerHTML = '<div style="color:var(--ink-60);font-size:13px">Филиалов пока нет. Нажмите «Добавить филиал».</div>';
         return;
       }
       const infoLine = 'font-size:13px;color:var(--ink-60);line-height:1.6';
-      el.innerHTML = LOCATIONS.map(function (l) {
-        return '<div class="lib-card" style="margin-bottom:0;padding:14px">' +
+      el.innerHTML = LOCATIONS_ALL.map(function (l) {
+        const inactive = !Number(l.active);
+        const cardBg = inactive ? ';background:#f3f4f6' : '';
+        const statusBadge = inactive
+          ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Недействующий</span>'
+          : '<span class="lib-meta-tag" style="background:var(--green-light);color:var(--green-dark)">Действующий</span>';
+        return '<div class="lib-card" style="margin-bottom:0;padding:14px' + cardBg + '">' +
           '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
           '<div style="min-width:0">' +
           '<div style="font-weight:600;font-size:14px;line-height:1.6">' + l.name + '</div>' +
@@ -8357,6 +8401,7 @@
           '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px;white-space:nowrap" onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
           '</div>' +
           '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+          statusBadge +
           '<span class="lib-meta-tag">Зал ' + l.hall_cols + '×' + l.hall_rows + '</span>' +
           '<span class="lib-meta-tag">Вместимость: ' + l.max_people + '</span>' +
           '</div>' +
@@ -8368,10 +8413,11 @@
     function openLocationModal(id) {
       const modal = document.getElementById('location-modal');
       if (id !== null) {
-        const l = LOCATIONS.find(x => x.id === id);
+        const l = LOCATIONS_ALL.find(x => x.id === id);
         if (!l) return;
         document.getElementById('location-modal-title').textContent = 'Редактировать филиал';
         document.getElementById('loc-id').value = l.id;
+        document.getElementById('loc-active').checked = !!Number(l.active);
         document.getElementById('loc-name').value = l.name || '';
         document.getElementById('loc-address').value = l.address || '';
         document.getElementById('loc-cols').value = l.hall_cols;
@@ -8390,6 +8436,7 @@
         document.getElementById('loc-max').value = '';
         document.getElementById('loc-email').value = '';
         document.getElementById('loc-phone').value = '';
+        document.getElementById('loc-active').checked = true;
         renderLocHours(null);
       }
       modal.classList.add('show');
@@ -8407,10 +8454,14 @@
       const max  = parseInt(document.getElementById('loc-max').value);
       if (!cols || !rows) { showToast('Укажите размер зала (колонки и ряды)', 'error'); return; }
       if (!max) { showToast('Укажите вместимость зала', 'error'); return; }
+      const address = document.getElementById('loc-address').value.trim();
+      if (!address) { showToast('Укажите адрес филиала', 'error'); return; }
       const email = document.getElementById('loc-email').value.trim();
-      if (email && !isValidEmail(email)) { showToast('Введите корректный email', 'error'); return; }
+      if (!email) { showToast('Укажите email', 'error'); return; }
+      if (!isValidEmail(email)) { showToast('Введите корректный email', 'error'); return; }
       const phone = document.getElementById('loc-phone').value.trim();
-      if (phone && phone.replace(/\D/g, '').length !== 11) { showToast('Введите телефон полностью', 'error'); return; }
+      if (!phone) { showToast('Укажите телефон', 'error'); return; }
+      if (phone.replace(/\D/g, '').length !== 11) { showToast('Введите телефон полностью', 'error'); return; }
       const idVal = document.getElementById('loc-id').value;
       const work_hours = LOC_DAYS.map(function (d, i) {
         return {
@@ -8422,18 +8473,19 @@
       });
       const data = {
         name,
-        address: document.getElementById('loc-address').value.trim(),
+        address,
         hall_cols: cols,
         hall_rows: rows,
         max_people: max,
         email,
         phone,
         work_hours,
+        active: document.getElementById('loc-active').checked ? 1 : 0,
       };
       try {
         if (idVal) { await LocationsAPI.update({ id: parseInt(idVal), ...data }); showToast('Филиал обновлён', 'success'); }
         else { await LocationsAPI.create(data); showToast('Филиал добавлен', 'success'); }
-        await loadLocations();
+        await Promise.allSettled([loadLocations(), loadLocationsAll()]);
       } catch (e) { return; }
       closeLocationModal();
       renderLocations();
@@ -9030,6 +9082,11 @@
         <label class="form-label">Режим работы</label>
         <div id="loc-hours"></div>
       </div>
+      <div class="form-field">
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="loc-active" checked> Действующий филиал
+        </label>
+      </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeLocationModal()">Отмена</button>
         <button class="btn-primary" onclick="saveLocation()">Сохранить</button>
@@ -9146,7 +9203,7 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Время начала</label>
-          <input class="form-input" id="lts-time" type="time" value="10:00">
+          <select class="form-input" id="lts-time"></select>
         </div>
         <div class="form-field">
           <label class="form-label">Тренер</label>

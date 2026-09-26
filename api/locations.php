@@ -6,11 +6,14 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// GET ?action=list — активные филиалы
+// GET ?action=list — филиалы. По умолчанию только активные; ?all=1 (admin) — все.
 if ($method === 'GET' && $action === 'list') {
+    $all = !empty($_GET['all']);
+    if ($all) authAdmin();
     $db = getDB();
+    $where = $all ? '1' : 'active = 1';
     ok($db->query('SELECT id, name, address, hall_cols, hall_rows, max_people, email, phone, work_hours, active
-                   FROM locations WHERE active = 1 ORDER BY id')->fetchAll());
+                   FROM locations WHERE ' . $where . ' ORDER BY id')->fetchAll());
 }
 
 // GET ?action=get&id=X — один филиал
@@ -30,7 +33,7 @@ if ($method === 'GET' && $action === 'get') {
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'hall_cols', 'hall_rows', 'max_people']);
+    require_fields($d, ['name', 'address', 'email', 'phone', 'hall_cols', 'hall_rows', 'max_people']);
     $db = getDB();
     $workHours = isset($d['work_hours']) && is_array($d['work_hours'])
         ? json_encode(array_values($d['work_hours']), JSON_UNESCAPED_UNICODE)
@@ -39,12 +42,12 @@ if ($method === 'POST' && $action === 'create') {
                           VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $d['name'],
-        $d['address'] ?? '',
+        $d['address'],
         (int)$d['hall_cols'],
         (int)$d['hall_rows'],
         (int)$d['max_people'],
-        $d['email'] ?? null,
-        $d['phone'] ?? null,
+        $d['email'],
+        $d['phone'],
         $workHours,
         $d['timezone'] ?? 'Europe/Moscow',
         isset($d['active']) ? (int)(bool)$d['active'] : 1,
@@ -58,7 +61,7 @@ if ($method === 'PUT' && $action === 'update') {
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
-    require_fields($d, ['name', 'hall_cols', 'hall_rows', 'max_people']);
+    require_fields($d, ['name', 'address', 'email', 'phone', 'hall_cols', 'hall_rows', 'max_people']);
     $db = getDB();
     $workHours = isset($d['work_hours']) && is_array($d['work_hours'])
         ? json_encode(array_values($d['work_hours']), JSON_UNESCAPED_UNICODE)
@@ -66,12 +69,12 @@ if ($method === 'PUT' && $action === 'update') {
     $stmt = $db->prepare('UPDATE locations SET name=?, address=?, hall_cols=?, hall_rows=?, max_people=?, email=?, phone=?, work_hours=?, timezone=?, active=? WHERE id=?');
     $stmt->execute([
         $d['name'],
-        $d['address'] ?? '',
+        $d['address'],
         (int)$d['hall_cols'],
         (int)$d['hall_rows'],
         (int)$d['max_people'],
-        $d['email'] ?? null,
-        $d['phone'] ?? null,
+        $d['email'],
+        $d['phone'],
         $workHours,
         $d['timezone'] ?? 'Europe/Moscow',
         isset($d['active']) ? (int)(bool)$d['active'] : 1,

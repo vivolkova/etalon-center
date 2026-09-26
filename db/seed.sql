@@ -29,7 +29,7 @@ INSERT INTO station_type (code, name, icon) VALUES
 
 -- Филиал по умолчанию (зал 6×2 = 12 мест).
 INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, phone, work_hours) VALUES
-('Эталон — основной филиал', '', 6, 2, 7, 'info@etaloncenter.ru', '+7 495 000-00-00',
+('Эталон — основной филиал', 'Лиственная 18', 6, 2, 7, 'info@etaloncenter.ru', '+7 495 000-00-00',
  '[{"day":"Понедельник","open":true,"from":"07:00","to":"22:00"},{"day":"Вторник","open":true,"from":"07:00","to":"22:00"},{"day":"Среда","open":true,"from":"07:00","to":"22:00"},{"day":"Четверг","open":true,"from":"07:00","to":"22:00"},{"day":"Пятница","open":true,"from":"07:00","to":"21:00"},{"day":"Суббота","open":true,"from":"09:00","to":"20:00"},{"day":"Воскресенье","open":false,"from":"10:00","to":"18:00"}]');
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
