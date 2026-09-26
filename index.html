@@ -3673,43 +3673,6 @@
       margin-left: auto;
     }
 
-    /* Режим работы */
-    .hours-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 13px;
-    }
-
-    .hours-row:last-child {
-      border-bottom: none;
-    }
-
-    .hours-day {
-      width: 100px;
-      font-weight: 600;
-    }
-
-    .hours-toggle {
-      width: 36px;
-      height: 20px;
-      border-radius: 10px;
-      border: none;
-      cursor: pointer;
-      position: relative;
-      transition: .15s;
-    }
-
-    .hours-toggle.on {
-      background: var(--green);
-    }
-
-    .hours-toggle.off {
-      background: #d1d5db;
-    }
-
     @media(max-width:900px) {
       .adm-layout {
         grid-template-columns: 1fr;
@@ -6213,10 +6176,26 @@
     // ── SCHEDULE MANAGEMENT ────────────────────────────────────────────
 
     // ── ADMIN WEEK SCHEDULE ───────────────────────────────────────────
-    const ADM_HOUR_START = 8;   // 08:00
-    const ADM_HOUR_END = 22;  // 22:00
-    const ADM_HOURS = ADM_HOUR_END - ADM_HOUR_START; // 14 часов
     const ADM_ROW_H = 60;  // px на час
+
+    // Диапазон часов сетки: от самого раннего открытия до самого позднего закрытия
+    // среди активных филиалов (режим работы — Панель → Настройки → Филиалы),
+    // расширенный так, чтобы были видны все слоты недели. Без режима работы — 08–22.
+    function admHourRange(weekSlots) {
+      let from = Infinity, to = -Infinity;
+      LOCATIONS.forEach(function (l) {
+        for (let i = 0; i < 7; i++) {
+          const h = locDayHours(l.id, i);
+          if (h) { from = Math.min(from, h.from); to = Math.max(to, h.to); }
+        }
+      });
+      (weekSlots || []).forEach(function (s) {
+        const st = timeToMin(s.time);
+        from = Math.min(from, st); to = Math.max(to, st + (parseInt(s.dur) || 0));
+      });
+      if (from === Infinity) return { start: 8, end: 22 };
+      return { start: Math.floor(from / 60), end: Math.min(24, Math.ceil(to / 60)) };
+    }
 
     let admWeekStart = (function () {
       const d = new Date(today);
@@ -6278,9 +6257,10 @@
       });
 
       // Временная шкала + ячейки
-      for (let hr = ADM_HOUR_START; hr < ADM_HOUR_END; hr++) {
+      const hrRange = admHourRange(weekSlots);
+      for (let hr = hrRange.start; hr < hrRange.end; hr++) {
         const timeStr = String(hr).padStart(2, '0') + ':00';
-        const isLast = hr === ADM_HOUR_END - 1;
+        const isLast = hr === hrRange.end - 1;
         h += '<div class="adm-time-col"><div class="adm-time-row' + (isLast ? ' style="border-bottom:none"' : '') + '">' + timeStr + '</div></div>';
 
         days.forEach(function (d, di) {
@@ -6328,12 +6308,38 @@
       if (grid.dataset.dragInit) return;   // слушатели вешаем один раз на грид
       grid.dataset.dragInit = '1';
       var dragSlotId = null;
+      var grabOffsetPx = 0;   // где внутри слота схватили — чтобы верх слота встал туда, куда его отпустили
 
-      // Drag start — просто запоминаем id
+      // Время под курсором с шагом 15 минут: час ячейки + смещение внутри неё
+      // (смещение может выйти за ячейку, если курсор над длинным слотом — тогда это следующие часы)
+      function dropMinutes(cell, clientY) {
+        var hr = parseInt(cell.getAttribute('data-hr'));
+        var offsetPx = clientY - cell.getBoundingClientRect().top - grabOffsetPx;
+        var m = hr * 60 + Math.round(offsetPx * 60 / ADM_ROW_H / 15) * 15;
+        return Math.max(0, Math.min(24 * 60 - 15, m));
+      }
+
+      // Метка времени, показывающая, куда встанет слот
+      function showDropMarker(cell, minutes) {
+        var marker = grid.querySelector('.adm-drop-marker');
+        if (!marker) {
+          marker = document.createElement('div');
+          marker.className = 'adm-drop-marker';
+          marker.style.cssText = 'position:absolute;left:2px;right:2px;height:0;border-top:2px dashed var(--green);' +
+            'pointer-events:none;z-index:5;font-size:10px;font-weight:700;color:var(--green)';
+        }
+        if (marker.parentNode !== cell) cell.appendChild(marker);
+        var hr = parseInt(cell.getAttribute('data-hr'));
+        marker.style.top = Math.round((minutes - hr * 60) * ADM_ROW_H / 60) + 'px';
+        marker.textContent = minToTime(minutes);
+      }
+
+      // Drag start — запоминаем id и точку захвата
       grid.addEventListener('dragstart', function (e) {
         var slot = e.target.closest('[data-slot-id]');
         if (!slot) { e.preventDefault(); return; }
         dragSlotId = parseInt(slot.getAttribute('data-slot-id'));
+        grabOffsetPx = e.clientY - slot.getBoundingClientRect().top;
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', dragSlotId);
         setTimeout(function () { slot.classList.add('dragging'); }, 0);
@@ -6346,6 +6352,7 @@
         e.preventDefault();
         grid.querySelectorAll('.drag-over').forEach(function (c) { c.classList.remove('drag-over'); });
         cell.classList.add('drag-over');
+        showDropMarker(cell, dropMinutes(cell, e.clientY));
       });
 
       grid.addEventListener('dragleave', function (e) {
@@ -6364,13 +6371,15 @@
         var hr = parseInt(cell.getAttribute('data-hr'));
         if (isNaN(dayIdx) || isNaN(hr)) return;
 
-        var newTime = String(hr).padStart(2, '0') + ':00';
+        var newTime = minToTime(dropMinutes(cell, e.clientY));   // шаг 15 минут
         var newDate = new Date(admWeekStart);
         newDate.setDate(admWeekStart.getDate() + dayIdx);
         newDate.setHours(0, 0, 0, 0);
 
         var s = SLOTS.find(function (x) { return x.id === dragSlotId; });
         if (s) {
+          var whErr = workHoursError(s.location_id, dayIdx, newTime, s.dur);
+          if (whErr) { showToast(whErr, 'error'); cleanup(); return; }
           var oldTime = s.time;
           s.time = newTime;
           s.date = newDate;
@@ -6400,6 +6409,8 @@
 
       function cleanup() {
         dragSlotId = null;
+        grabOffsetPx = 0;
+        var marker = grid.querySelector('.adm-drop-marker'); if (marker) marker.remove();
         grid.querySelectorAll('.dragging').forEach(function (el) { el.classList.remove('dragging'); });
         grid.querySelectorAll('.drag-over').forEach(function (c) { c.classList.remove('drag-over'); });
       }
@@ -6409,8 +6420,36 @@
       openSlotModal(null);
       setTimeout(function () {
         document.getElementById('sm-day').value = dayIdx;
-        document.getElementById('sm-time').value = String(hour).padStart(2, '0') + ':00';
+        smRenderTimes(String(hour).padStart(2, '0') + ':00');
       }, 30);
+    }
+
+    // Время начала слота: шаг 15 мин в пределах режима работы филиала в выбранный день
+    // (занятие должно закончиться до закрытия). Режим не задан — весь день с шагом 15 мин.
+    // keepOutside — при открытии существующего слота сохранить его время, даже если оно вне режима.
+    function smRenderTimes(selected, keepOutside) {
+      const sel = document.getElementById('sm-time');
+      if (!sel) return;
+      const want = selected !== undefined ? selected : sel.value;
+      const locId = parseInt(document.getElementById('sm-location').value) || null;
+      const day = parseInt(document.getElementById('sm-day').value);
+      const dur = parseInt(document.getElementById('sm-dur').value) || 0;
+      const h = locId ? locDayHours(locId, day) : undefined;
+      let opts;
+      if (h === null) opts = '<option value="">— Выходной день филиала —</option>';
+      else if (h) opts = workTimeOptions(h.from, h.to, dur, want) || '<option value="">— Нет подходящего времени —</option>';
+      else opts = timeOptions15(want).replace('<option value=""></option>', '');
+      sel.innerHTML = opts;
+      if (want) sel.value = want;
+      if (want && sel.value !== want) {
+        if (keepOutside) {
+          // Время существующего слота вне режима/сетки — показываем, чтобы не потерять (сохранить не даст проверка)
+          sel.insertAdjacentHTML('afterbegin', '<option value="' + want + '">' + want + ' (вне режима работы)</option>');
+          sel.value = want;
+        } else {
+          sel.selectedIndex = 0;
+        }
+      }
     }
 
     let smSelectedLibId = null;   // id выбранной строки библиотеки для slots.library_id
@@ -6443,6 +6482,7 @@
       { const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = catName(item.cat); }
       smApplySpecialistFilter(item.cat);
       document.getElementById('sm-dur').value = item.dur;
+      smRenderTimes();
       document.getElementById('sm-price').value = item.price;
       document.getElementById('sm-max').value = HALL_CAP ?? '';
       smRenderLibPreview(item);
@@ -6499,8 +6539,8 @@
         document.getElementById('sm-cat').value = s.cat;
         smApplySpecialistFilter(s.cat);
         document.getElementById('sm-day').value = s.dayOfWeek;
-        document.getElementById('sm-time').value = s.time;
         document.getElementById('sm-dur').value = s.dur;
+        smRenderTimes(s.time, true);
         document.getElementById('sm-max').value = s.max != null ? s.max : (HALL_CAP ?? '');
         document.getElementById('sm-specialist').value = s.specialist;
         document.getElementById('sm-price').value = s.price;
@@ -6522,8 +6562,8 @@
         document.getElementById('sm-cat-view').textContent = 'Тренировка';
         smApplySpecialistFilter('training');
         document.getElementById('sm-day').value = '0';
-        document.getElementById('sm-time').value = '10:00';
         document.getElementById('sm-dur').value = '60';
+        smRenderTimes('10:00');
         document.getElementById('sm-max').value = HALL_CAP ?? '';
         document.getElementById('sm-specialist').value = '';
         document.getElementById('sm-price').value = '1200';
@@ -6539,7 +6579,7 @@
       const sid = document.getElementById('sm-id').value;
       const dayOfWeek = parseInt(document.getElementById('sm-day').value);
       const time = document.getElementById('sm-time').value;
-      if (time < '08:00' || time >= '22:00') { showToast('Время занятия — с 08:00 до 22:00', 'error'); return; }
+      if (!time) { showToast('Укажите время начала', 'error'); return; }
 
       // Вычисляем дату слота
       const slotDate = new Date(admWeekStart);
@@ -6553,6 +6593,9 @@
 
       const location_id = parseInt(document.getElementById('sm-location').value) || null;
       if (!location_id) { showToast('Выберите филиал', 'error'); return; }
+      // Время — в пределах режима работы филиала (Панель → Настройки → Филиалы)
+      const whErr = workHoursError(location_id, dayOfWeek, time, document.getElementById('sm-dur').value);
+      if (whErr) { showToast(whErr, 'error'); return; }
 
       const apiData = {
         name,
@@ -7582,13 +7625,39 @@
       document.getElementById('lts-meta').textContent =
         catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';
 
-      const lt = document.getElementById('lts-time');
-      if (lt) { lt.innerHTML = timeOptions15('10:00'); lt.value = '10:00'; }
       // Тренер / Байкфиттер / Мастер — по категории записи (activity_category.ref_id)
       applySpecialistFilter('lts-specialist', 'lts-specialist-label', item.cat);
       ltsRenderWeekLabel();
       ltsRenderDayBtns();
+      ltsRenderTimes();
       document.getElementById('lib-to-sch-modal').classList.add('show');
+    }
+
+    function ltsItem() {
+      return [...LIBRARY.trainings, ...LIBRARY.services].find(function (x) { return x.id === ltsLibId; }) || null;
+    }
+
+    // Время начала — по режиму работы филиала записи библиотеки.
+    // Если выбрано несколько дней — пересечение их часов работы.
+    function ltsRenderTimes() {
+      const lt = document.getElementById('lts-time');
+      const item = ltsItem();
+      if (!lt || !item) return;
+      const cur = lt.value;
+      if (!ltsSelectedDays.size) {
+        lt.innerHTML = '<option value="">— Сначала выберите день —</option>';
+        lt.disabled = true;
+        return;
+      }
+      let from = 0, to = 24 * 60;
+      ltsSelectedDays.forEach(function (i) {
+        const h = locDayHours(item.location_id, i);
+        if (h) { from = Math.max(from, h.from); to = Math.min(to, h.to); }
+      });
+      const opts = workTimeOptions(from, to, parseInt(item.dur) || 0, cur);
+      lt.disabled = !opts;
+      lt.innerHTML = opts || '<option value="">— Нет подходящего времени —</option>';
+      if (opts && !lt.value) lt.selectedIndex = 0;
     }
 
     function closeLtsModal() {
@@ -7601,6 +7670,7 @@
       ltsSelectedDays = new Set();
       ltsRenderWeekLabel();
       ltsRenderDayBtns();
+      ltsRenderTimes();
     }
 
     function ltsRenderWeekLabel() {
@@ -7615,14 +7685,16 @@
       const DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
       const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
       const cont = document.getElementById('lts-days');
+      const item = ltsItem();
       cont.innerHTML = DAYS.map(function (d, i) {
         const date = new Date(ltsWeekStart);
         date.setDate(ltsWeekStart.getDate() + i);
         const isPast = date < today;
+        const closed = item && locDayHours(item.location_id, i) === null;   // выходной филиала
         const sel = ltsSelectedDays.has(i);
         return '<button class="lts-day-btn' + (sel ? ' selected' : '') + '"' +
-          (isPast ? ' disabled style="opacity:.35;cursor:default"' : ' onclick="ltsToggleDay(' + i + ',this)"') +
-          ' title="' + d + ' ' + date.getDate() + ' ' + MONTHS_SHORT[date.getMonth()] + '">' +
+          (isPast || closed ? ' disabled style="opacity:.35;cursor:default"' : ' onclick="ltsToggleDay(' + i + ',this)"') +
+          ' title="' + d + ' ' + date.getDate() + ' ' + MONTHS_SHORT[date.getMonth()] + (closed ? ' — выходной' : '') + '">' +
           d + '</button>';
       }).join('');
     }
@@ -7635,16 +7707,18 @@
         ltsSelectedDays.add(idx);
         btn.classList.add('selected');
       }
+      ltsRenderTimes();
     }
 
     async function confirmAddToSchedule() {
       if (!ltsLibId) return;
       if (!ltsSelectedDays.size) { showToast('Выберите хотя бы один день', 'error'); return; }
 
-      const item = LIBRARY[libCurrentType].find(x => x.id === ltsLibId);
+      const item = ltsItem();
       if (!item) return;
 
-      const time = document.getElementById('lts-time').value || '10:00';
+      const time = document.getElementById('lts-time').value;
+      if (!time) { showToast('Нет времени, подходящего под режим работы филиала во все выбранные дни', 'error'); return; }
       const trainerName = document.getElementById('lts-specialist').value;
       const trainerObj = SPECIALISTS_DATA ? SPECIALISTS_DATA.find(t => t.name === trainerName) : null;
       const repeat = document.getElementById('lts-repeat').value;
@@ -7851,19 +7925,6 @@
       { subject: 'Летняя акция — скидка 20%', audience: 'Активные', sent: '25.05.2026', count: 32 },
       { subject: 'Напоминание о записи', audience: 'VIP', sent: '20.05.2026', count: 8 },
     ];
-
-    let STUDIO_SETTINGS = {
-      name: 'ETALONCENTER', address: '', phone: '+7 495 000-00-00', email: 'info@etaloncenter.ru',
-      hours: [
-        { day: 'Понедельник', open: true, from: '07:00', to: '22:00' },
-        { day: 'Вторник', open: true, from: '07:00', to: '22:00' },
-        { day: 'Среда', open: true, from: '07:00', to: '22:00' },
-        { day: 'Четверг', open: true, from: '07:00', to: '22:00' },
-        { day: 'Пятница', open: true, from: '07:00', to: '21:00' },
-        { day: 'Суббота', open: true, from: '09:00', to: '20:00' },
-        { day: 'Воскресенье', open: false, from: '10:00', to: '18:00' },
-      ]
-    };
 
     // ═══ ADMIN NAVIGATION ════════════════════════════════════════════════
 
@@ -8416,6 +8477,47 @@
       try { return JSON.parse(wh); } catch (e) { return null; }
     }
 
+    // ── Режим работы филиала (locations.work_hours) для расписания ──
+    function timeToMin(t) { const p = String(t).split(':'); return parseInt(p[0]) * 60 + parseInt(p[1] || 0); }
+    function minToTime(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+
+    function findLocation(locId) {
+      return LOCATIONS.concat(LOCATIONS_ALL).find(function (l) { return Number(l.id) === Number(locId); }) || null;
+    }
+
+    // Часы работы филиала в день недели (0 = Пн … 6 = Вс): { from, to } в минутах;
+    // null — выходной. undefined — режим работы у филиала не задан (не ограничиваем).
+    function locDayHours(locId, dayIdx) {
+      const loc = findLocation(locId);
+      const arr = loc ? parseWorkHours(loc.work_hours) : null;
+      if (!arr || !arr.length) return undefined;
+      const h = arr.find(function (x) { return x.day === LOC_DAYS[dayIdx]; });
+      if (!h || !h.open || !h.from || !h.to) return null;
+      return { from: timeToMin(h.from), to: timeToMin(h.to) };
+    }
+
+    // Помещается ли занятие в режим работы: начинается не раньше открытия и заканчивается не позже закрытия.
+    // Возвращает текст ошибки или '' если всё в порядке.
+    function workHoursError(locId, dayIdx, time, dur) {
+      const h = locDayHours(locId, dayIdx);
+      if (h === undefined) return '';
+      if (h === null) return 'В этот день филиал не работает';
+      const start = timeToMin(time), end = start + (parseInt(dur) || 0);
+      if (start < h.from || end > h.to)
+        return 'Занятие должно быть в режиме работы филиала: ' + minToTime(h.from) + '–' + minToTime(h.to);
+      return '';
+    }
+
+    // Варианты времени начала (шаг 15 мин) в пределах [from, to - dur]
+    function workTimeOptions(from, to, dur, selected) {
+      let o = '';
+      for (let m = from; m + dur <= to; m += 15) {
+        const t = minToTime(m);
+        o += '<option value="' + t + '"' + (t === selected ? ' selected' : '') + '>' + t + '</option>';
+      }
+      return o;
+    }
+
     // Маска телефона: +7 (XXX) XXX-XX-XX — оставляем только цифры и форматируем
     function maskPhone(v) {
       let d = (v || '').replace(/\D/g, '');
@@ -8596,22 +8698,6 @@
       } catch (e) { return; }
       closeLocationModal();
       renderLocations();
-    }
-
-    function toggleHour(idx) {
-      STUDIO_SETTINGS.hours[idx].open = !STUDIO_SETTINGS.hours[idx].open;
-      renderSettings();
-    }
-
-    async function saveSettings() {
-      STUDIO_SETTINGS.name = document.getElementById('set-name').value;
-      STUDIO_SETTINGS.address = document.getElementById('set-address').value;
-      STUDIO_SETTINGS.phone = document.getElementById('set-phone').value;
-      STUDIO_SETTINGS.email = document.getElementById('set-email').value;
-      try {
-        await apiRequest('/settings.php?action=save', 'PUT', STUDIO_SETTINGS);
-      } catch (e) { }
-      showToast('Настройки сохранены', 'success');
     }
 
     // Совместимость: старый renderAdmin теперь рендерит дашборд
@@ -8813,19 +8899,6 @@
       } catch (e) { /* используем встроенные промокоды */ }
     }
 
-    // ── Загрузка настроек студии ─────────────────────────────────
-    async function loadSettings() {
-      try {
-        const res = await apiRequest('/settings.php?action=get');
-        if (res) {
-          if (res.name) STUDIO_SETTINGS.name = res.name;
-          if (res.address) STUDIO_SETTINGS.address = res.address;
-          if (res.phone) STUDIO_SETTINGS.phone = res.phone;
-          if (res.email) STUDIO_SETTINGS.email = res.email;
-        }
-      } catch (e) { /* используем встроенные настройки */ }
-    }
-
     // ── Загрузка уведомлений с сервера ───────────────────────────
     async function loadNotifications() {
       try {
@@ -8939,7 +9012,7 @@
 
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input sm-editable" id="sm-location"></select>
+        <select class="form-input sm-editable" id="sm-location" onchange="smRenderTimes()"></select>
         <div class="form-input sm-view" id="sm-location-view" style="display:none"></div>
       </div>
 
@@ -8958,7 +9031,7 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">День недели</label>
-          <select class="form-input sm-editable" id="sm-day">
+          <select class="form-input sm-editable" id="sm-day" onchange="smRenderTimes()">
             <option value="0">Понедельник</option>
             <option value="1">Вторник</option>
             <option value="2">Среда</option>
@@ -8970,13 +9043,13 @@
         </div>
         <div class="form-field">
           <label class="form-label">Время начала</label>
-          <input class="form-input sm-editable" id="sm-time" type="time" min="08:00" max="22:00" value="10:00">
+          <select class="form-input sm-editable" id="sm-time"></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input sm-editable" id="sm-dur" type="number" value="60" min="15" max="480">
+          <input class="form-input sm-editable" id="sm-dur" type="number" value="60" min="15" max="480" step="15" onchange="smRenderTimes()">
         </div>
         <div class="form-field">
           <label class="form-label">Мест в зале</label>
@@ -9254,7 +9327,7 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input sm-editable" id="lm-dur" type="number" value="60" min="15">
+          <input class="form-input sm-editable" id="lm-dur" type="number" value="60" min="15" step="15">
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>

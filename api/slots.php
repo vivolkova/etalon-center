@@ -15,6 +15,38 @@ function dictId($db, $group, $code) {
     return (int)$id;
 }
 
+// Проверка: занятие целиком в режиме работы филиала (locations.work_hours).
+// work_hours — [{day:'Понедельник', open, from:'HH:MM', to:'HH:MM'}, …]; если не задан — не ограничиваем.
+function checkWorkHours($db, $locId, $date, $startTime, $duration) {
+    // Время начала — с шагом 15 минут
+    if (!preg_match('/^([01]\d|2[0-3]):(00|15|30|45)/', (string)$startTime)) {
+        err('Время начала — с шагом 15 минут (например, 10:00, 10:15, 10:30, 10:45)');
+    }
+
+    $st = $db->prepare('SELECT work_hours FROM locations WHERE id = ?');
+    $st->execute([(int)$locId]);
+    $hours = json_decode((string)$st->fetchColumn(), true);
+    if (!is_array($hours) || !$hours) return;
+
+    $days = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+    $ts = strtotime($date);
+    if ($ts === false) err('Некорректная дата занятия');
+    $dayName = $days[(int)date('N', $ts) - 1];
+
+    $day = null;
+    foreach ($hours as $h) { if (($h['day'] ?? '') === $dayName) { $day = $h; break; } }
+    if (!$day || empty($day['open']) || empty($day['from']) || empty($day['to'])) {
+        err('В этот день (' . $dayName . ') филиал не работает');
+    }
+
+    $toMin = function ($t) { $p = explode(':', $t); return (int)$p[0] * 60 + (int)($p[1] ?? 0); };
+    $start = $toMin(substr($startTime, 0, 5));
+    $end   = $start + (int)$duration;
+    if ($start < $toMin($day['from']) || $end > $toMin($day['to'])) {
+        err('Занятие должно быть в режиме работы филиала: ' . $day['from'] . '–' . $day['to']);
+    }
+}
+
 // GET — список слотов
 if ($method === 'GET' && $action === 'list') {
     $db    = getDB();
@@ -71,11 +103,9 @@ if ($method === 'POST' && $action === 'create') {
     $d = input();
     require_fields($d, ['name', 'slot_date', 'start_time', 'price', 'location_id']);
 
-    // Время занятия — в пределах сетки расписания (08:00–22:00)
-    $st = substr($d['start_time'], 0, 5);
-    if ($st < '08:00' || $st >= '22:00') err('Время занятия должно быть в диапазоне 08:00–22:00');
-
     $db = getDB();
+    // Время занятия — в пределах режима работы филиала
+    checkWorkHours($db, $d['location_id'], $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
     $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
     $locId      = (int)$d['location_id'];   // филиал выбирается на форме
@@ -105,13 +135,10 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
 
-    if (isset($d['start_time'])) {
-        $st = substr($d['start_time'], 0, 5);
-        if ($st < '08:00' || $st >= '22:00') err('Время занятия должно быть в диапазоне 08:00–22:00');
-    }
-
-    require_fields($d, ['location_id']);
+    require_fields($d, ['location_id', 'slot_date', 'start_time']);
     $db = getDB();
+    // Время занятия — в пределах режима работы филиала
+    checkWorkHours($db, $d['location_id'], $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
