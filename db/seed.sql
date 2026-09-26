@@ -54,10 +54,10 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────
 
-INSERT INTO specialists (location_id, type_id, name, full_name, speciality, experience, rating) VALUES
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Анна К.',   'Анна Козлова',   'Групповые тренировки', 5, 4.9),
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Максим Р.', 'Максим Романов', 'HIIT',                 7, 4.8),
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='bikefitter'), 'Игорь Б.', 'Игорь Белов', 'Байкфит, настройка посадки', 6, 4.9);
+INSERT INTO specialists (location_id, type_id, name, full_name, speciality, experience) VALUES
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Анна К.',   'Анна Козлова',   'Групповые тренировки', 5),
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Максим Р.', 'Максим Романов', 'HIIT',                 7),
+(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='bikefitter'), 'Игорь Б.', 'Игорь Белов', 'Байкфит, настройка посадки', 6);
 
 INSERT INTO subscription_plans (location_id, name, sessions, price, validity, color, sort_order) VALUES
 (1, 'Старт',   4, 4200, 30, '#6b7280', 1),

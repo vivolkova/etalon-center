@@ -89,7 +89,7 @@ CREATE TABLE users (
     CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES dictionaries(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Тренеры ─────────────────────────────────────────────────
+-- ── Специалисты (тренеры, байкфиттеры, мастера) ────────────
 CREATE TABLE specialists (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     type_id     INT NOT NULL,                    -- dictionaries.specialist_type (тренер/байкфиттер/мастер)
@@ -97,7 +97,6 @@ CREATE TABLE specialists (
     full_name   VARCHAR(255) NOT NULL,
     speciality  VARCHAR(255),
     experience  INT DEFAULT 0,
-    rating      DECIMAL(3,1) DEFAULT 5.0,
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

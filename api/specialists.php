@@ -39,12 +39,12 @@ if ($method === 'GET' && $action === 'list') {
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'full_name', 'category']);
+    require_fields($d, ['name', 'full_name', 'category', 'location_id']);
     $db = getDB();
     $typeId = specTypeId($db, $d['category']);
-    $stmt = $db->prepare('INSERT INTO specialists (type_id,name,full_name,speciality,experience,active) VALUES (?,?,?,?,?,?)');
+    $stmt = $db->prepare('INSERT INTO specialists (location_id,type_id,name,full_name,speciality,experience,active) VALUES (?,?,?,?,?,?,?)');
     $stmt->execute([
-        $typeId, $d['name'], $d['full_name'],
+        (int)$d['location_id'], $typeId, $d['name'], $d['full_name'],
         $d['speciality'] ?? '', $d['experience'] ?? 0,
         isset($d['active']) ? (int)(bool)$d['active'] : 1,
     ]);
@@ -55,12 +55,12 @@ if ($method === 'POST' && $action === 'create') {
 if ($method === 'PUT' && $action === 'update') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'full_name', 'category']);
+    require_fields($d, ['name', 'full_name', 'category', 'location_id']);
     $db = getDB();
     $typeId = specTypeId($db, $d['category']);
-    $db->prepare('UPDATE specialists SET type_id=?,name=?,full_name=?,speciality=?,experience=?,active=? WHERE id=?')
+    $db->prepare('UPDATE specialists SET location_id=?,type_id=?,name=?,full_name=?,speciality=?,experience=?,active=? WHERE id=?')
        ->execute([
-           $typeId, $d['name'], $d['full_name'],
+           (int)$d['location_id'], $typeId, $d['name'], $d['full_name'],
            $d['speciality'] ?? '', $d['experience'] ?? 0,
            isset($d['active']) ? (int)(bool)$d['active'] : 1,
            (int)$d['id'],

@@ -3528,67 +3528,6 @@
       color: #ef4444;
     }
 
-    /* Тренеры */
-    .adm-specialists-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 16px;
-    }
-
-    .specialist-card {
-      background: #fff;
-      border: 1.5px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      text-align: center;
-      transition: .15s;
-    }
-
-    .specialist-card:hover {
-      border-color: var(--green);
-      box-shadow: 0 4px 16px rgba(0, 186, 179, .1);
-    }
-
-    .specialist-avatar {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      margin: 0 auto 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      font-weight: 700;
-    }
-
-    .specialist-name {
-      font-size: 14px;
-      font-weight: 700;
-    }
-
-    .specialist-spec {
-      font-size: 12px;
-      color: var(--ink-60);
-      margin-top: 3px;
-    }
-
-    .specialist-stats {
-      display: flex;
-      justify-content: center;
-      gap: 16px;
-      margin: 12px 0;
-    }
-
-    .specialist-stat-val {
-      font-size: 16px;
-      font-weight: 700;
-    }
-
-    .specialist-stat-label {
-      font-size: 10px;
-      color: var(--ink-60);
-    }
-
     /* Абонементы */
     .sub-plan-card {
       background: #fff;
@@ -4487,7 +4426,16 @@
             <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openTrainerModal(null)">+
               Добавить специалиста</button>
           </div>
-          <div class="adm-specialists-grid" id="adm-specialists-grid"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+            <input class="form-input" id="spec-search" placeholder="Поиск..."
+              style="max-width:280px;height:36px;font-size:13px" oninput="renderSpecialists()">
+            <select class="form-input" id="spec-loc-filter" style="max-width:220px;height:36px;font-size:13px" onchange="renderSpecialists()"></select>
+            <select class="form-input" id="spec-active-filter" style="max-width:200px;height:36px;font-size:13px" onchange="renderSpecialists()">
+              <option value="all">Все</option>
+              <option value="active">Только активные</option>
+            </select>
+          </div>
+          <div class="lib-grid" id="adm-specialists-grid"></div>
         </div>
 
         <!-- БИБЛИОТЕКА -->
@@ -7878,7 +7826,8 @@
 
     // ═══ ADMIN DATA ══════════════════════════════════════════════════════
 
-    let SPECIALISTS_DATA = [];
+    let SPECIALISTS_DATA = [];   // активные (для выпадающих списков)
+    let SPECIALISTS_ALL = [];    // все, включая неактивных (панель «Специалисты»)
     const SPEC_TYPE_LABEL = { trainer: 'Тренер', bikefitter: 'Байкфиттер', mechanic: 'Мастер' };
 
     let SUB_PLANS = [];
@@ -7930,7 +7879,7 @@
         bookings: loadAdminBookings,
         clients: loadClients,
         subscriptions: loadSubPlans,
-        specialists: loadSpecialists,
+        specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll()]); },
         promos: loadPromos,
         notif: loadNotifications,
         chat: loadChatDialogs,
@@ -8059,33 +8008,64 @@
 
     // ═══ TRAINERS ════════════════════════════════════════════════════════
 
+    // Панель «Специалисты» — карточки в формате библиотеки; неактивные — серым
     function renderSpecialists() {
+      const q = (document.getElementById('spec-search') ? document.getElementById('spec-search').value : '').toLowerCase();
+      const locSel = document.getElementById('spec-loc-filter');
+      let locFilter = null;
+      if (locSel) {
+        const cur = locSel.value;
+        locSel.innerHTML = '<option value="">Все филиалы</option>' +
+          LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
+        locSel.value = cur;
+        locFilter = locSel.value ? parseInt(locSel.value) : null;
+      }
+      const actSel = document.getElementById('spec-active-filter');
+      const activeOnly = actSel && actSel.value === 'active';
+      const items = SPECIALISTS_ALL.filter(function (t) {
+        const okQ = !q || t.full.toLowerCase().includes(q) || (t.spec || '').toLowerCase().includes(q);
+        const okLoc = !locFilter || t.location_id === locFilter;
+        const okAct = !activeOnly || t.active;
+        return okQ && okLoc && okAct;
+      });
       const grid = document.getElementById('adm-specialists-grid');
       if (!grid) return;
-      grid.innerHTML = SPECIALISTS_DATA.map(t => {
-        const init = t.name.split(' ').map(w => w[0]).join('');
-        const slotCount = SLOTS.filter(s => s.specialist === t.name).length;
-        return '<div class="trainer-card">' +
-          '<div class="trainer-avatar" style="background:var(--green-light);color:var(--green-dark)">' + init + '</div>' +
-          '<div class="trainer-name">' + t.full + '</div>' +
-          '<div class="lib-meta-tag" style="display:inline-block;margin:4px 0">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
-          '<div class="trainer-spec" style="color:var(--ink-60)">' + t.spec + '</div>' +
-          '<div class="trainer-stats" style="margin:14px 0">' +
-          '<div style="text-align:center"><div class="trainer-stat-val">' + t.exp + '</div><div class="trainer-stat-label">лет опыта</div></div>' +
-          '<div style="text-align:center"><div class="trainer-stat-val">' + t.sessions + '</div><div class="trainer-stat-label">сессий</div></div>' +
-          '<div style="text-align:center"><div class="trainer-stat-val">' + slotCount + '</div><div class="trainer-stat-label">слотов</div></div>' +
+      if (!items.length) {
+        grid.innerHTML = '<div class="lib-empty"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Ничего не найдено</div><button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
+        return;
+      }
+      grid.innerHTML = items.map(function (t) {
+        // Цвет плашки типа — как у связанной категории активности (trainer -> training и т.д.)
+        const cat = ACTIVITY_CATS.find(function (c) { return c.spec_type === t.category; });
+        const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === t.location_id; });
+        const locName = locObj ? locObj.name : '';
+        const inactive = !t.active;
+        const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
+        const badge = inactive ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Неактивен</span>' : '';
+        const actionsHtml =
+          '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
+        return '<div class="lib-card"' + cardStyle + '>' +
+          '<div class="lib-card-header"><div>' +
+          '<div class="lib-card-cat ' + (cat ? cat.code : '') + '">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
+          '<div class="lib-card-title">' + t.full + '</div>' +
+          '</div></div>' +
+          '<div class="lib-card-desc">' + (t.spec || '') + '</div>' +
+          '<div class="lib-card-meta">' + badge +
+          (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') +
+          '<span class="lib-meta-tag">Опыт: ' + t.exp + ' лет</span>' +
           '</div>' +
-          '<div style="font-size:12px;font-weight:700;color:var(--green)">★ ' + t.rating + '</div>' +
-          '<div style="display:flex;gap:6px;margin-top:14px;justify-content:center">' +
-          '<button class="action-btn confirm" style="font-size:11px;padding:4px 10px" onclick="openTrainerModal(' + t.id + ')">Редактировать</button>' +
-          '<button class="action-btn" style="font-size:11px;padding:4px 10px;background:var(--green-light);color:var(--green)" onclick="openChatWith(\'' + t.full + '@etalon.ru\',\'' + t.full + '\')">Написать</button>' +
+          '<div class="lib-card-footer">' +
+          '<div></div>' +
+          '<div class="lib-card-actions">' + actionsHtml + '</div>' +
           '</div>' +
           '</div>';
       }).join('');
     }
 
     function openTrainerModal(id) {
-      var t = id ? SPECIALISTS_DATA.find(function (x) { return x.id === id; }) : null;
+      var t = id ? SPECIALISTS_ALL.find(function (x) { return x.id === id; }) : null;
+      var locOpts = (LOCATIONS.length === 1 ? '' : '<option value="">— Выберите филиал —</option>') +
+        LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
       var el = document.createElement('div');
       el.className = 'admin-modal-overlay show';
       el.id = 'trainer-tmp-modal';
@@ -8093,14 +8073,17 @@
       el.innerHTML =
         '<div class="admin-modal" style="max-width:420px">' +
         '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
+        '<div class="form-field"><label class="form-label">Филиал</label><select class="form-input" id="trm-location">' + locOpts + '</select></div>' +
         '<div class="form-field"><label class="form-label">Категория</label><select class="form-input" id="trm-cat">' +
         ['trainer','bikefitter','mechanic'].map(function(c){return '<option value="'+c+'"'+((t?t.category:'trainer')===c?' selected':'')+'>'+SPEC_TYPE_LABEL[c]+'</option>';}).join('') +
         '</select></div>' +
         '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
         '<div class="form-row">' +
-        '<div class="form-field"><label class="form-label">Специализация</label><input class="form-input" id="trm-spec" value="' + (t ? t.spec : '') + '" placeholder="Групповые тренировки"></div>' +
+        '<div class="form-field"><label class="form-label">Специализация</label><input class="form-input" id="trm-spec" value="' + (t ? t.spec : '') + '"></div>' +
         '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
         '</div>' +
+        '<div class="form-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">' +
+        '<input type="checkbox" id="trm-active"' + (!t || t.active ? ' checked' : '') + '> Активен</label></div>' +
         '<div class="admin-modal-actions">' +
         '<button class="btn-ghost" id="trm-cancel">Отмена</button>' +
         '<button class="btn-primary" id="trm-save">Сохранить</button>' +
@@ -8108,13 +8091,20 @@
       document.body.appendChild(el);
       document.getElementById('trm-cancel').onclick = function () { el.remove(); };
       document.getElementById('trm-save').onclick = function () { saveTrainer(t ? t.id : null); };
+      var locSel = document.getElementById('trm-location');
+      if (t && t.location_id) locSel.value = t.location_id;
+      else if (LOCATIONS.length === 1) locSel.value = LOCATIONS[0].id;
     }
 
     async function saveTrainer(id) {
       const fullName = document.getElementById('trm-name').value.trim();
       if (!fullName) { showToast('Введите имя', 'error'); return; }
       const shortName = fullName.split(' ').map((w, i) => i === 0 ? w : w[0] + '.').join(' ');
+      const location_id = parseInt(document.getElementById('trm-location').value) || null;
+      if (!location_id) { showToast('Выберите филиал', 'error'); return; }
       const apiData = {
+        location_id,
+        active: document.getElementById('trm-active').checked ? 1 : 0,
         full_name: fullName,
         name: shortName,
         category: document.getElementById('trm-cat').value,
@@ -8130,7 +8120,7 @@
           showToast('Специалист добавлен', 'success');
         }
         var ttm = document.getElementById('trainer-tmp-modal'); if (ttm) ttm.remove();
-        await loadSpecialists();
+        await Promise.allSettled([loadSpecialists(), loadSpecialistsAll()]);
         renderSpecialists();
       } catch (e) {
         showToast('Ошибка сохранения специалиста', 'error');
@@ -8705,11 +8695,29 @@
           return {
             id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
             exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-            rating: parseFloat(t.rating) || 5.0,
-            category: t.category || 'trainer'
+            category: t.category || 'trainer',
+            location_id: t.location_id != null ? parseInt(t.location_id) : null,
+            active: parseInt(t.active) ? 1 : 0
           };
         });
         fillSpecialistSelects();
+      } catch (e) { /* сервер недоступен */ }
+    }
+
+    // Все специалисты, включая неактивных — только для панели «Специалисты» (admin).
+    // SPECIALISTS_DATA остаётся списком активных для выпадающих списков.
+    async function loadSpecialistsAll() {
+      try {
+        const res = await apiRequest('/specialists.php?action=list&all=1');
+        SPECIALISTS_ALL = (res || []).map(function (t) {
+          return {
+            id: t.id, name: t.name, full: t.full_name, spec: t.speciality || '',
+            exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
+            category: t.category || 'trainer',
+            location_id: t.location_id != null ? parseInt(t.location_id) : null,
+            active: parseInt(t.active) ? 1 : 0
+          };
+        });
       } catch (e) { /* сервер недоступен */ }
     }
 
