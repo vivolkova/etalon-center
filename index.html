@@ -6321,11 +6321,16 @@
           let cellHtml = "<div class='adm-time-cell' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
 
           // Рисуем слоты
-          daySlots.forEach(function (s) {
+          const nn = daySlots.length;
+          daySlots.forEach(function (s, si) {
             const topMin = parseInt(s.time.split(':')[1]);
             const topPx = Math.round(topMin * ADM_ROW_H / 60);
             const heightPx = Math.max(Math.round(s.dur * ADM_ROW_H / 60), 24);
-            cellHtml += '<div class="adm-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
+            // Несколько занятий на одно время — раскладываем по колонкам, чтобы были видны все
+            const colStyle = nn > 1
+              ? 'left:calc(' + (si * 100 / nn) + '% + 2px);width:calc(' + (100 / nn) + '% - 4px);right:auto;'
+              : '';
+            cellHtml += '<div class="adm-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
             cellHtml += '<div class="adm-slot-time">' + s.time + '</div>';
             cellHtml += '<div class="adm-slot-name">' + s.name + '</div>';
             cellHtml += '<div class="adm-slot-info">' + s.trainer + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
