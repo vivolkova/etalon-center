@@ -15,6 +15,21 @@ function dictId($db, $group, $code) {
     return (int)$id;
 }
 
+// Физическая вместимость локации = число активных станков.
+// max_people слота не может её превышать (иначе «мест» больше, чем станков в зале).
+function locationStationCount($db, $locId) {
+    $st = $db->prepare('SELECT COUNT(*) FROM stations WHERE location_id = ? AND active = 1');
+    $st->execute([$locId]);
+    return (int)$st->fetchColumn();
+}
+function clampMaxPeople($db, $locId, $requested) {
+    $cap = locationStationCount($db, $locId);
+    $val = (int)($requested ?? ($cap ?: 12));
+    if ($cap > 0 && $val > $cap) $val = $cap;   // обрезаем по числу станков
+    if ($val < 1) $val = 1;
+    return $val;
+}
+
 // GET — список слотов
 if ($method === 'GET' && $action === 'list') {
     $db    = getDB();
@@ -74,10 +89,13 @@ if ($method === 'POST' && $action === 'create') {
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
     $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
+    $locId      = (int)($d['location_id'] ?? 1);
+    $maxPeople  = clampMaxPeople($db, $locId, $d['max_people'] ?? null);
 
-    $stmt = $db->prepare('INSERT INTO slots (library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price,max_people)
-                          VALUES (?,?,?,?,?,?,?,?,?,?)');
+    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,trainer_id,price,max_people)
+                          VALUES (?,?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
+        $locId,
         $d['library_id']  ?? null,
         $d['name'],
         $categoryId,
@@ -87,7 +105,7 @@ if ($method === 'POST' && $action === 'create') {
         $d['duration']    ?? 60,
         $d['trainer_id']  ?? null,
         $d['price'],
-        $d['max_people']  ?? 12,
+        $maxPeople,
     ]);
     ok(['id' => $db->lastInsertId()], 'Слот создан');
 }
@@ -106,6 +124,11 @@ if ($method === 'PUT' && $action === 'update') {
 
     $db = getDB();
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
+    // локация слота -> обрезка max_people по числу станков
+    $ls = $db->prepare('SELECT location_id FROM slots WHERE id=?');
+    $ls->execute([$id]);
+    $locId = (int)($ls->fetchColumn() ?: 1);
+    $maxPeople = clampMaxPeople($db, $locId, $d['max_people'] ?? null);
 
     $stmt = $db->prepare('UPDATE slots SET library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,trainer_id=?,price=?,max_people=? WHERE id=?');
     $stmt->execute([
@@ -113,7 +136,7 @@ if ($method === 'PUT' && $action === 'update') {
         $d['name'], $categoryId, $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
         $d['trainer_id'] ?? null, $d['price'],
-        $d['max_people'] ?? 12, $id,
+        $maxPeople, $id,
     ]);
     ok(null, 'Слот обновлён');
 }

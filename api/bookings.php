@@ -102,6 +102,16 @@ if ($method === 'POST' && $action === 'create') {
 
     $db->beginTransaction();
     try {
+        // Лочим строку слота и проверяем вместимость. FOR UPDATE сериализует все брони
+        // этого слота -> без гонки: даже одновременные запросы не превысят max_people.
+        $cap = $db->prepare('SELECT max_people, taken FROM slots WHERE id=? FOR UPDATE');
+        $cap->execute([$slotId]);
+        $capRow = $cap->fetch();
+        if ($capRow && (int)$capRow['taken'] >= (int)$capRow['max_people']) {
+            $db->rollBack();
+            err('Свободных мест нет');
+        }
+
         $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,\'booked\')');
         $stmt->execute([$user['id'], $slotId, $stationId, $notes]);
         $bookingId = $db->lastInsertId();
