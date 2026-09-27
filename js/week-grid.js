@@ -20,6 +20,39 @@ function weekHourRange(weekSlots) {
   return { start: Math.floor(from / 60), end: Math.min(24, Math.ceil(to / 60)) };
 }
 
+// Раскладка слотов дня по колонкам: пересекающиеся по времени занятия ставятся рядом, а не друг на друга.
+// Группа — цепочка пересекающихся слотов; внутри неё каждый слот получает первую свободную колонку,
+// ширина колонки = 100% / число колонок группы. Возвращает Map: id слота -> { lane, lanes }.
+function wgLayoutDay(daySlots) {
+  const items = daySlots.map(function (s) {
+    const start = timeToMin(s.time);
+    return { id: s.id, start: start, end: start + (parseInt(s.dur) || 0) };
+  }).sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+
+  const layout = new Map();
+  let group = [], laneEnds = [], groupEnd = -1;
+  function closeGroup() {
+    group.forEach(function (it) { layout.set(it.id, { lane: it.lane, lanes: laneEnds.length }); });
+    group = []; laneEnds = []; groupEnd = -1;
+  }
+  items.forEach(function (it) {
+    if (group.length && it.start >= groupEnd) closeGroup();
+    let lane = laneEnds.findIndex(function (end) { return end <= it.start; });
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end); } else laneEnds[lane] = it.end;
+    it.lane = lane;
+    group.push(it);
+    groupEnd = Math.max(groupEnd, it.end);
+  });
+  closeGroup();
+  return layout;
+}
+
+// Inline-стиль позиции слота по колонке (пусто — слот один, на всю ширину дня)
+function wgLaneStyle(pos) {
+  if (!pos || pos.lanes < 2) return '';
+  return 'left:calc(' + (pos.lane * 100 / pos.lanes) + '% + 2px);width:calc(' + (100 / pos.lanes) + '% - 4px);right:auto;';
+}
+
 // Высота одного часа в px — из CSS-переменной --wg-row-h сетки (единый источник с css/week-grid.css)
 function wgRowHeight(grid) {
   return parseFloat(getComputedStyle(grid).getPropertyValue('--wg-row-h')) || 60;

@@ -67,6 +67,10 @@ function renderAdminSchedule() {
   // Временная шкала + ячейки
   ADM_ROW_H = wgRowHeight(grid);
   const hrRange = weekHourRange(weekSlots);
+  // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
+  const dayLayouts = days.map(function (d) {
+    return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));
+  });
   for (let hr = hrRange.start; hr < hrRange.end; hr++) {
     const timeStr = String(hr).padStart(2, '0') + ':00';
     h += '<div class="wg-time-col"><div class="wg-time-row">' + timeStr + '</div></div>';
@@ -83,15 +87,12 @@ function renderAdminSchedule() {
       let cellHtml = "<div class='wg-cell' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
 
       // Рисуем слоты
-      const nn = daySlots.length;
-      daySlots.forEach(function (s, si) {
+      daySlots.forEach(function (s) {
         const topMin = parseInt(s.time.split(':')[1]);
         const topPx = Math.round(topMin * ADM_ROW_H / 60);
         const heightPx = Math.max(Math.round(s.dur * ADM_ROW_H / 60), 24);
-        // Несколько занятий на одно время — раскладываем по колонкам, чтобы были видны все
-        const colStyle = nn > 1
-          ? 'left:calc(' + (si * 100 / nn) + '% + 2px);width:calc(' + (100 / nn) + '% - 4px);right:auto;'
-          : '';
+        // Пересекающиеся занятия — рядом по колонкам, чтобы были видны все
+        const colStyle = wgLaneStyle(dayLayouts[di].get(s.id));
         cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';

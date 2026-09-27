@@ -78,6 +78,10 @@ function renderWeekCal() {
   // ── Строки часов ──
   // Часы — по режиму работы филиалов (как в админке)
   const hrRange = weekHourRange(weekSlots);
+  // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
+  const dayLayouts = days.map(function (d) {
+    return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));
+  });
   for (var hr = hrRange.start; hr < hrRange.end; hr++) {
     const timeStr = String(hr).padStart(2, '0') + ':00';
 
@@ -121,13 +125,12 @@ function renderWeekCal() {
 
         var feats = [];
         if (s.features) { try { feats = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { } }
-        var tipAttr = '';
-        if (s.description || (feats && feats.length)) {
-          tipAttr = ' data-name="' + escAttr(s.name) + '"';
-          if (s.description) tipAttr += ' data-desc="' + escAttr(s.description) + '"';
-          if (feats && feats.length) tipAttr += ' data-feat="' + escAttr(JSON.stringify(feats)) + '"';
-        }
-        cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
+        // Подсказка при наведении — всегда время и название (узкий слот при нескольких занятиях
+        // в одно время не вмещает текст), плюс описание и особенности, если есть
+        var tipAttr = ' data-name="' + escAttr(s.time + ' · ' + s.name) + '"';
+        if (s.description) tipAttr += ' data-desc="' + escAttr(s.description) + '"';
+        if (feats && feats.length) tipAttr += ' data-feat="' + escAttr(JSON.stringify(feats)) + '"';
+        cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + wgLaneStyle(dayLayouts[di].get(s.id)) + '"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
         if (heightPx >= 28) {
           cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         }
@@ -179,7 +182,7 @@ function wcBindTip(grid) {
     if (!slot || !grid.contains(slot)) return;
     const desc = slot.getAttribute('data-desc');
     const featRaw = slot.getAttribute('data-feat');
-    if (!desc && !featRaw) { t.classList.remove('show'); return; }
+    if (!slot.getAttribute('data-name')) { t.classList.remove('show'); return; }
     let html = '<div class="wc-tip-title">' + escAttr(slot.getAttribute('data-name') || '') + '</div>';
     if (desc) html += '<div class="wc-tip-body">' + escAttr(desc) + '</div>';
     if (featRaw) {
