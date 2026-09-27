@@ -12,6 +12,9 @@ let schWeekStart = (function () {
 })();
 
 function renderSchedule() {
+  currentCat = validCat(currentCat);
+  const f = document.getElementById('sch-cat-filter'); if (f) f.innerHTML = catChipsHtml(currentCat, 'filterCat');
+  const lg = document.getElementById('sch-legend'); if (lg) lg.innerHTML = catLegendHtml();
   renderWeekCal();
 }
 
@@ -106,11 +109,11 @@ function renderWeekCal() {
         const mins = parseInt(s.time.split(':')[1]) || 0;
         const topPx = Math.round(mins * ROW_H / 60);
         const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
-        const full = (s.max - s.taken) <= 0;
+        const full = slotFree(s) <= 0;
         const booked = alreadyBooked.has(s.id);
         const spotsText = booked ? '✓ Записан'
           : full ? 'Мест нет'
-            : (s.max - s.taken) + '/' + s.max + ' мест';
+            : slotFree(s) + '/' + slotCap(s) + ' мест';
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
@@ -156,9 +159,6 @@ function renderWeekCal() {
 }
 
 // ── Всплывающее описание тренировки над слотом расписания ──
-function escAttr(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
 function wcEnsureTip() {
   let t = document.getElementById('wc-tip');
   if (!t) { t = document.createElement('div'); t.id = 'wc-tip'; t.className = 'wc-tip'; document.body.appendChild(t); }
@@ -207,7 +207,7 @@ function wcBindTip(grid) {
 
 function filterCat(cat, btn) {
   currentCat = cat;
-  document.querySelectorAll('#page-schedule .chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#sch-cat-filter .chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   renderWeekCal();
 }

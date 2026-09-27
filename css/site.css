@@ -282,9 +282,16 @@
   border-color: var(--amber);
 }
 
-.chip.purple.active {
-  background: var(--purple);
-  border-color: var(--purple);
+/* Кнопка-фильтр категории: цвет — от класса .cat-<код> (css/base.css) */
+.chip.cat-chip:hover {
+  border-color: var(--cat, var(--green));
+  color: var(--cat, var(--green));
+}
+
+.chip.cat-chip.active {
+  background: var(--cat, var(--green));
+  border-color: var(--cat, var(--green));
+  color: #fff;
 }
 
 /* ─── SERVICES ─── */
@@ -489,12 +496,16 @@
   text-transform: uppercase;
 }
 
+/* Поля ввода — два состояния на весь сайт:
+   изменяемое — белое (рамка бирюзовая при фокусе);
+   неизменяемое — серое: disabled, readonly, .is-locked (поле, которое нельзя менять в этом режиме)
+   и .form-view (значение только для показа, <div class="form-input form-view">). */
 .form-input {
   width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: #fff;
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink);
@@ -504,7 +515,23 @@
 
 .form-input:focus {
   border-color: var(--green);
-  background: #fff;
+}
+
+.form-input:disabled,
+.form-input[readonly],
+.form-input.is-locked,
+.form-input.form-view {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+.form-input.form-view {
+  cursor: default;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
 }
 
 .form-row {

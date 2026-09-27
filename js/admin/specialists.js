@@ -40,7 +40,7 @@ function renderSpecialists() {
       '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
     return '<div class="lib-card"' + cardStyle + '>' +
       '<div class="lib-card-header"><div>' +
-      '<div class="lib-card-cat' + (cat ? ' cat-' + cat.code : '') + '">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
+      '<div class="lib-card-cat' + (cat ? ' cat-' + cat.code : '') + '">' + specTypeName(t.category) + '</div>' +
       '<div class="lib-card-title">' + t.full + '</div>' +
       '</div></div>' +
       '<div class="lib-card-desc">' + (t.spec || '') + '</div>' +
@@ -69,7 +69,6 @@ function openTrainerModal(id) {
     '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
     '<div class="form-field"><label class="form-label">Филиал</label><select class="form-input" id="trm-location">' + locOpts + '</select></div>' +
     '<div class="form-field"><label class="form-label">Категория</label><select class="form-input" id="trm-cat">' +
-    ['trainer','bikefitter','mechanic'].map(function(c){return '<option value="'+c+'"'+((t?t.category:'trainer')===c?' selected':'')+'>'+SPEC_TYPE_LABEL[c]+'</option>';}).join('') +
     '</select></div>' +
     '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
     '<div class="form-row">' +
@@ -88,6 +87,20 @@ function openTrainerModal(id) {
   var locSel = document.getElementById('trm-location');
   if (t && t.location_id) locSel.value = t.location_id;
   else if (LOCATIONS.length === 1) locSel.value = LOCATIONS[0].id;
+  // Типы специалистов — из справочника, только доступные в выбранном филиале
+  locSel.onchange = function () { trmFillTypes(t); };
+  trmFillTypes(t);
+}
+
+function trmFillTypes(t) {
+  var sel = document.getElementById('trm-cat');
+  var locId = parseInt(document.getElementById('trm-location').value) || null;
+  var cur = sel.value || (t ? t.category : 'trainer');
+  var list = specTypesAt(locId);
+  // текущий тип специалиста показываем, даже если он отключён в филиале — чтобы не потерять
+  if (t && !list.some(function (x) { return x.code === t.category; })) list = list.concat([{ code: t.category, name: specTypeName(t.category) + ' (отключён в филиале)' }]);
+  sel.innerHTML = list.map(function (x) { return '<option value="' + x.code + '">' + escAttr(x.name) + '</option>'; }).join('');
+  sel.value = list.some(function (x) { return x.code === cur; }) ? cur : (list[0] ? list[0].code : '');
 }
 
 async function saveTrainer(id) {

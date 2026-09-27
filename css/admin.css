@@ -458,6 +458,14 @@
   border-color: #ddd
 }
 
+/* Заблокирован администратором на это занятие (класс собирается из статуса станка: station ${state}) */
+.station.blocked {
+  background: #fdecec;
+  color: #c0392b;
+  cursor: not-allowed;
+  border-color: #f3c2c2
+}
+
 .station.selected {
   background: #00BAB3;
   color: #fff;
@@ -476,7 +484,164 @@
   max-width: 600px
 }
 
-/* Форма слота: редактируемые / заблокированные / только для чтения поля */
-.sm-editable { border-color: var(--green) !important; background:#fff !important; }
-.sm-locked   { background:#f3f4f6 !important; color:#6b7280 !important; cursor:not-allowed; }
-.sm-view     { background:#f3f4f6; color:#374151; min-height:38px; display:flex; align-items:center; }
+
+/* ── Настройки: вкладки «по филиалу», станки, типы станков, справочники ── */
+.set-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.set-loc-select {
+  max-width: 260px;
+  height: 36px;
+  font-size: 13px;
+}
+
+.set-hint {
+  font-size: 12px;
+  color: var(--ink-60);
+  font-weight: 400;
+}
+
+.set-warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 13px;
+}
+
+/* Редактор схемы зала: пустая клетка — добавить станок, станки можно перетаскивать */
+.hall-edit .cell-empty {
+  cursor: pointer;
+  position: relative;
+  transition: .15s;
+}
+
+.hall-edit .cell-empty:hover {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+
+.hall-edit .cell-empty:hover::after {
+  content: '+';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--green);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.hall-edit .station {
+  cursor: grab;
+}
+
+.hall-edit .drag-over {
+  outline: 2px dashed var(--green);
+  outline-offset: 2px;
+}
+
+.station.inactive {
+  opacity: .45;
+  border-style: dashed;
+}
+
+/* Типы станков */
+.st-type-ico {
+  line-height: 0;
+  color: var(--ink);
+}
+
+.st-type-ico svg {
+  width: 40px;
+  height: 40px;
+}
+
+.card-inactive {
+  background: #f3f4f6;
+  opacity: .65;
+}
+
+.tag-muted {
+  background: #e5e7eb;
+  color: #6b7280;
+}
+
+/* Справочники */
+.dict-group + .dict-group {
+  margin-top: 22px;
+}
+
+.dict-group-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.dict-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dict-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-60);
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  padding: 6px 8px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.dict-table td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dict-code {
+  font-family: monospace;
+  color: var(--ink-60);
+}
+
+.row-muted td {
+  color: #9ca3af;
+}
+
+/* Схема зала в окне слота: станки сжимаются под ширину окна (без горизонтальной прокрутки) */
+#sm-hall .station,
+#sm-hall .cell-empty {
+  width: 100%;
+  min-width: 0;
+}
+
+#sm-hall .station {
+  padding: 8px 4px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+#sm-hall .station .station-ico svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* «Заблокировать станки» в окне слота: заблокированный станок можно снять кликом;
+   отмеченные, но ещё не сохранённые изменения — пунктирной рамкой */
+#sm-hall .station.blocked {
+  cursor: pointer;
+}
+
+#sm-hall .station.pending {
+  border-style: dashed;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, .04);
+}

@@ -185,6 +185,7 @@ async function loadSlots(fromDate, toDate) {
         price: Number(s.price),
         max: parseInt(s.max_people),
         taken: parseInt(s.taken),
+        blocked: parseInt(s.blocked) || 0,   // заблокированные на занятие станки
         location_id: s.location_id || null,
         description: s.summary || '',
         features: s.details || null,

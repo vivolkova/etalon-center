@@ -72,7 +72,7 @@ function renderLibrary() {
     const delBadge = inactive ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Удалена</span>' : '';
     const actionsHtml = inactive
       ? '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
-      : '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' +
+      : (libCanSchedule(item) ? '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
         '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
         '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
     return '<div class="lib-card"' + cardStyle + '>' +
@@ -83,7 +83,7 @@ function renderLibrary() {
       '</div></div>' +
       '<div class="lib-card-desc">' + item.desc + '</div>' +
       featuresHtml +
-      '<div class="lib-card-meta">' + delBadge + (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') + '<span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
+      '<div class="lib-card-meta">' + delBadge + (locName ? '<span class="lib-meta-tag">' + locName + '</span>' : '') + (item.type ? '<span class="lib-meta-tag">' + escAttr(slotTypeName(item.type)) + '</span>' : '') + '<span class="lib-meta-tag">' + item.dur + ' мин</span>' + maxHtml + '</div>' +
       '<div class="lib-card-footer">' +
       '<div class="lib-card-price">' + Number(item.price).toLocaleString('ru') + ' ₽</div>' +
       '<div class="lib-card-actions">' + actionsHtml + '</div>' +
@@ -98,9 +98,16 @@ let ltsLibId = null;
 let ltsWeekStart = new Date(admWeekStart);
 let ltsSelectedDays = new Set();
 
+// Из библиотеки в расписание можно ставить групповые тренировки (training + slot_type group)
+// и услуги байкфита (bikefit); сервер проверяет то же самое (api/slots.php).
+function libCanSchedule(item) {
+  return !!item && ((item.cat === 'training' && item.type === 'group') || item.cat === 'bikefit');
+}
+
 function addToScheduleFromLib(id) {
   const item = LIBRARY[libCurrentType].find(x => x.id === id);
   if (!item) return;
+  if (!libCanSchedule(item)) { showToast('В расписание можно добавлять только групповые тренировки и байкфит', 'error'); return; }
   ltsLibId = id;
   ltsWeekStart = new Date(admWeekStart);
   ltsSelectedDays = new Set();
@@ -257,6 +264,30 @@ async function confirmAddToSchedule() {
 
 // kind: 'trainings' | 'services' — какая кнопка нажата («+ Тренировка» / «+ Услуга»).
 // При редактировании вид определяется категорией записи.
+// Категория в форме библиотеки: тренировка — фиксированно training (поле скрыто);
+// услуга — категории activity_category без training, доступные в выбранном филиале.
+// Категорию редактируемой записи показываем, даже если она отключена в филиале.
+// Тип занятия (dictionaries.slot_type) в форме библиотеки
+function lmFillFormat(code) {
+  const sel = document.getElementById('lm-format');
+  sel.innerHTML = SLOT_TYPES.map(function (t) { return '<option value="' + t.code + '">' + escAttr(t.name) + '</option>'; }).join('');
+  sel.value = SLOT_TYPES.some(function (t) { return t.code === code; }) ? code : (SLOT_TYPES[0] ? SLOT_TYPES[0].code : '');
+}
+
+function lmFillCats(isTraining, keepCode) {
+  const catEl = document.getElementById('lm-cat');
+  const locId = parseInt(document.getElementById('lm-location').value) || null;
+  if (isTraining) { catEl.innerHTML = '<option value="training">' + catName('training') + '</option>'; return; }
+  let list = catsAt(locId).filter(function (c) { return c.code !== 'training'; });
+  if (keepCode && !list.some(function (c) { return c.code === keepCode; }))
+    list = list.concat([{ code: keepCode, name: catName(keepCode) + ' (отключена в филиале)' }]);
+  const cur = keepCode || catEl.value;
+  catEl.innerHTML = list.length
+    ? list.map(function (c) { return '<option value="' + c.code + '">' + escAttr(c.name) + '</option>'; }).join('')
+    : '<option value="">— в филиале нет доступных категорий услуг —</option>';
+  catEl.value = list.some(function (c) { return c.code === cur; }) ? cur : (list[0] ? list[0].code : '');
+}
+
 function openLibItemModal(id, kind) {
   let item = null;
   if (id !== null) {
@@ -268,14 +299,10 @@ function openLibItemModal(id, kind) {
   const isTraining = kind === 'trainings';
   const modal = document.getElementById('lib-modal');
 
-  // Категория: тренировка — фиксированно training (поле скрыто);
-  // услуга — выпадающий список activity_category без training
   const catEl = document.getElementById('lm-cat');
-  catEl.innerHTML = isTraining
-    ? '<option value="training">' + catName('training') + '</option>'
-    : ACTIVITY_CATS.filter(function (c) { return c.code !== 'training'; })
-        .map(function (c) { return '<option value="' + c.code + '">' + c.name + '</option>'; }).join('');
   document.getElementById('lm-cat-wrap').style.display = isTraining ? 'none' : '';
+  // Тип занятия (групповая / индивидуальная) — только у тренировок
+  document.getElementById('lm-format-wrap').style.display = isTraining ? '' : 'none';
   const diffWrap = document.getElementById('lm-difficulty-wrap');
   diffWrap.style.display = isTraining ? '' : 'none';
   const capWrap = document.getElementById('lm-cap-wrap');
@@ -297,10 +324,10 @@ function openLibItemModal(id, kind) {
     document.getElementById('lm-id').value = id;
     if (locSel) locSel.value = item.location_id || '';
     document.getElementById('lm-name').value = item.name;
-    document.getElementById('lm-cat').value = item.cat;
     document.getElementById('lm-dur').value = item.dur;
     document.getElementById('lm-price').value = item.price;
     document.getElementById('lm-difficulty').value = item.difficulty || 'any';
+    lmFillFormat(item.type);
     document.getElementById('lm-desc').value = item.desc || '';
     document.getElementById('lm-features').value = (item.features || []).join('\n');
     document.getElementById('lm-active').checked = !!Number(item.active);
@@ -309,18 +336,19 @@ function openLibItemModal(id, kind) {
     document.getElementById('lm-id').value = '';
     if (locSel) locSel.value = LOCATIONS.length === 1 ? LOCATIONS[0].id : '';
     document.getElementById('lm-name').value = '';
-    catEl.selectedIndex = 0;
     document.getElementById('lm-dur').value = 60;
     document.getElementById('lm-price').value = isTraining ? 1200 : 3000;
     document.getElementById('lm-difficulty').value = 'any';
+    lmFillFormat('group');
     document.getElementById('lm-desc').value = '';
     document.getElementById('lm-features').value = '';
     document.getElementById('lm-active').checked = true;
   }
+  // Категории — доступные в выбранном филиале (Настройки → Справочники)
+  lmFillCats(isTraining, item ? item.cat : null);
+  if (locSel) locSel.onchange = function () { lmFillCats(isTraining, item ? item.cat : null); };
   // Категорию можно задать только при создании; при редактировании — только чтение
-  catEl.disabled = (id !== null);
-  catEl.classList.toggle('sm-locked', id !== null);
-  catEl.classList.toggle('sm-editable', id === null);
+  catEl.disabled = (id !== null);   // disabled → серый стиль неизменяемого поля (css/site.css)
   modal.classList.add('show');
 }
 
@@ -339,6 +367,9 @@ async function saveLibItem() {
 
   const cat = type === 'trainings' ? 'training' : document.getElementById('lm-cat').value;
   if (type === 'services' && (!cat || cat === 'training')) { showToast('Выберите категорию услуги', 'error'); return; }
+  if (!idVal && !catsAt(location_id).some(function (c) { return c.code === cat; })) {
+    showToast('«' + catName(cat) + '» отключена в этом филиале (Настройки → Справочники)', 'error'); return;
+  }
 
   const data = {
     location_id,
@@ -348,6 +379,7 @@ async function saveLibItem() {
     dur: parseInt(document.getElementById('lm-dur').value),
     price: parseInt(document.getElementById('lm-price').value),
     difficulty: document.getElementById('lm-difficulty').value,   // код
+    type: cat === 'training' ? (document.getElementById('lm-format').value || 'group') : null,  // slot_type — только у тренировок
     desc: document.getElementById('lm-desc').value.trim(),
     features,
   };

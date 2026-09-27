@@ -110,6 +110,14 @@ if ($method === 'POST' && $action === 'create') {
         $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
         $lc->execute([(int)($capRow['location_id'] ?? 0)]);
         $maxPeople = (int)$lc->fetchColumn();
+        // Заблокированные на занятие станки (ремонт и т.п.) уменьшают число мест;
+        // станок, занятый записью, не считаем второй раз
+        $bl = $db->prepare('SELECT COUNT(*) FROM slot_station_blocks b
+                             JOIN stations st ON st.id = b.station_id AND st.active = 1
+                            WHERE b.slot_id = ?
+                              AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = b.slot_id AND bk.station_id = b.station_id AND bk.status <> "cancelled")');
+        $bl->execute([$slotId]);
+        $maxPeople -= (int)$bl->fetchColumn();
         if ($capRow && (int)$capRow['taken'] >= $maxPeople) {
             $db->rollBack();
             err('Свободных мест нет');

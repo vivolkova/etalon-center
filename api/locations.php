@@ -6,6 +6,15 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
+// Вместимость — не больше числа мест на схеме зала (колонки × ряды): каждому месту нужна клетка
+function checkCapacity(array $d): void {
+    $cells = (int)$d['hall_cols'] * (int)$d['hall_rows'];
+    if ((int)$d['max_people'] < 1) err('Вместимость должна быть не меньше 1');
+    if ((int)$d['max_people'] > $cells) {
+        err('Вместимость (' . (int)$d['max_people'] . ') больше числа мест на схеме зала (' . (int)$d['hall_cols'] . '×' . (int)$d['hall_rows'] . ' = ' . $cells . ')');
+    }
+}
+
 // GET ?action=list — филиалы. По умолчанию только активные; ?all=1 (admin) — все.
 if ($method === 'GET' && $action === 'list') {
     $all = !empty($_GET['all']);
@@ -34,6 +43,7 @@ if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
     require_fields($d, ['name', 'address', 'email', 'phone', 'hall_cols', 'hall_rows', 'max_people']);
+    checkCapacity($d);
     $db = getDB();
     $workHours = isset($d['work_hours']) && is_array($d['work_hours'])
         ? json_encode(array_values($d['work_hours']), JSON_UNESCAPED_UNICODE)
@@ -62,7 +72,19 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
     require_fields($d, ['name', 'address', 'email', 'phone', 'hall_cols', 'hall_rows', 'max_people']);
+    checkCapacity($d);
     $db = getDB();
+    // Вместимость нельзя уменьшить ниже числа активных станков филиала.
+    // Проверяем только при уменьшении — чтобы при уже превышенном лимите можно было править остальные поля.
+    $cnt = $db->prepare('SELECT (SELECT COUNT(*) FROM stations WHERE location_id = l.id AND active = 1) AS active_cnt, l.max_people
+                         FROM locations l WHERE l.id = ?');
+    $cnt->execute([$id]);
+    $cur = $cnt->fetch();
+    if (!$cur) err('Филиал не найден', 404);
+    $activeStations = (int)$cur['active_cnt'];
+    if ((int)$d['max_people'] < (int)$cur['max_people'] && (int)$d['max_people'] < $activeStations) {
+        err('В филиале ' . $activeStations . ' активных станков — вместимость не может быть меньше. Сначала выключите лишние станки (Настройки → Станки и зал).');
+    }
     $workHours = isset($d['work_hours']) && is_array($d['work_hours'])
         ? json_encode(array_values($d['work_hours']), JSON_UNESCAPED_UNICODE)
         : null;

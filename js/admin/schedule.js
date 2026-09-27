@@ -96,7 +96,7 @@ function renderAdminSchedule() {
         cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
-        cellHtml += '<div class="wg-slot-meta">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
+        cellHtml += '<div class="wg-slot-meta">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + slotFree(s) + '/' + slotCap(s) + '</div>';
         cellHtml += '<div class="wg-slot-btns">';
         cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
         cellHtml += '<button class="wg-slot-btn" style="color:#dc2626" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
@@ -264,7 +264,8 @@ let smSelectedLibId = null;   // id выбранной строки библио
 function smFillLibSelect() {
   const sel = document.getElementById('sm-lib-select');
   if (!sel) return;
-  const allItems = [...(LIBRARY.trainings || []), ...(LIBRARY.services || [])];
+  // Из библиотеки в расписание — только то, что разрешает libCanSchedule (проверяет и сервер)
+  const allItems = [...(LIBRARY.trainings || []), ...(LIBRARY.services || [])].filter(libCanSchedule);
   sel.innerHTML = '<option value="">— Выбрать из библиотеки —</option>' +
     allItems.map(function (item) {
       return '<option value="' + item.id + '__' + (LIBRARY.trainings.includes(item) ? 'trainings' : 'services') + '">' +
@@ -375,9 +376,108 @@ function openSlotModal(slotId) {
     document.getElementById('sm-price').value = '1200';
     smSetSlotMode(false);
   }
+  // Схема зала с блокировками — только у сохранённого слота (блокировка привязана к занятию)
+  smHallSlotId = slotId || null;
+  document.getElementById('sm-hall-wrap').style.display = slotId ? '' : 'none';
+  if (slotId) smRenderHall();
   modal.classList.add('show');
 }
 function closeSlotModal() { document.getElementById('slot-modal').classList.remove('show'); }
+
+// ── Заблокировать станки: блокировка станков на занятие (slot_station_blocks) ──
+// Клик по станку отмечает / снимает отметку (можно несколько); одна «Причина блокировки»
+// для всех новых блокировок. Изменения применяются по кнопке «Сохранить» слота.
+let smHallSlotId = null;
+let smHallOrig = new Map();   // id станка -> состояние на сервере: free | taken | blocked
+let smHallWant = new Set();   // id станков, которые должны быть заблокированы
+
+async function smRenderHall() {
+  const slotId = smHallSlotId;
+  const hall = document.getElementById('sm-hall');
+  const hint = document.getElementById('sm-hall-hint');
+  hall.innerHTML = ''; hint.textContent = 'Загрузка схемы зала…';
+  document.getElementById('sm-block-reason').value = '';
+  let data;
+  try { data = await StationsAPI.availability(slotId); } catch (e) { hint.textContent = 'Не удалось загрузить схему зала'; return; }
+  if (slotId !== smHallSlotId) return;   // окно успели переключить на другой слот
+  smHallData = data;
+  smHallOrig = new Map((data.stations || []).map(function (st) { return [Number(st.id), st.state]; }));
+  smHallWant = new Set((data.stations || []).filter(function (st) { return st.state === 'blocked'; }).map(function (st) { return Number(st.id); }));
+  smDrawHall();
+}
+let smHallData = null;
+
+function smDrawHall() {
+  const data = smHallData;
+  const hall = document.getElementById('sm-hall');
+  const cols = data.cols || 6, rows = data.rows || 2;
+  const byPos = {};
+  (data.stations || []).forEach(function (st) { byPos[st.pos_x + ',' + st.pos_y] = st; });
+  hall.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+  let html = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const st = byPos[x + ',' + y];
+      if (!st) { html += '<div class="cell-empty"></div>'; continue; }
+      const id = Number(st.id);
+      if (st.state === 'taken') {
+        html += '<button type="button" class="station taken" disabled title="Занят записью клиента">' +
+          '<span class="station-ico">' + (st.icon || '') + '</span><span>' + escAttr(st.label) + '</span></button>';
+        continue;
+      }
+      const want = smHallWant.has(id);
+      const changed = want !== (st.state === 'blocked');
+      const title = want
+        ? (st.state === 'blocked' ? 'Заблокирован' + (st.block_reason ? ': ' + st.block_reason : '') : 'Будет заблокирован') + ' — клик, чтобы снять'
+        : (st.state === 'blocked' ? 'Блокировка будет снята' : 'Свободен') + ' — клик, чтобы заблокировать';
+      html += '<button type="button" class="station ' + (want ? 'blocked' : 'free') + (changed ? ' pending' : '') + '" onclick="smToggleBlock(' + id + ')" title="' + escAttr(title) + '">' +
+        '<span class="station-ico">' + (st.icon || '') + '</span><span>' + escAttr(st.label) + '</span></button>';
+    }
+  }
+  hall.innerHTML = html;
+  const d = smBlockDiff();
+  const taken = [...smHallOrig.values()].filter(function (v) { return v === 'taken'; }).length;
+  document.getElementById('sm-hall-hint').textContent =
+    'Заблокировано: ' + smHallWant.size + (taken ? ' · занято клиентами: ' + taken : '') +
+    (d.block.length || d.unblock.length
+      ? ' · изменения (' + (d.block.length ? '+' + d.block.length : '') + (d.block.length && d.unblock.length ? ' / ' : '') + (d.unblock.length ? '−' + d.unblock.length : '') + ') применятся по кнопке «Сохранить»'
+      : ' · клик по станку — отметить для блокировки или снять отметку');
+}
+
+function smToggleBlock(stationId) {
+  if (smHallWant.has(stationId)) smHallWant.delete(stationId); else smHallWant.add(stationId);
+  smDrawHall();
+}
+
+// Что изменилось относительно сервера
+function smBlockDiff() {
+  const block = [], unblock = [];
+  smHallOrig.forEach(function (state, id) {
+    if (state === 'taken') return;
+    const want = smHallWant.has(id);
+    if (want && state !== 'blocked') block.push(id);
+    if (!want && state === 'blocked') unblock.push(id);
+  });
+  return { block: block, unblock: unblock };
+}
+
+// Применить блокировки (вызывается из saveSlot после сохранения слота). Возвращает текст для уведомления.
+async function smApplyBlocks(slotId) {
+  if (slotId !== smHallSlotId) return '';
+  const d = smBlockDiff();
+  if (!d.block.length && !d.unblock.length) return '';
+  const reason = document.getElementById('sm-block-reason').value.trim() || null;
+  const results = await Promise.allSettled(
+    d.block.map(function (id) { return StationsAPI.block(slotId, id, reason); })
+      .concat(d.unblock.map(function (id) { return StationsAPI.unblock(slotId, id); }))
+  );
+  const failed = results.filter(function (r) { return r.status === 'rejected'; }).length;
+  // Число заблокированных станков у слота — для «свободно» в сетке без перезагрузки
+  const slot = SLOTS.find(function (x) { return x.id === slotId; });
+  if (slot && !failed) slot.blocked = smHallWant.size;
+  return failed ? ' (блокировки: ошибок — ' + failed + ')'
+    : ' · станков заблокировано: ' + d.block.length + (d.unblock.length ? ', разблокировано: ' + d.unblock.length : '');
+}
 
 async function saveSlot() {
   const name = document.getElementById('sm-name').value.trim();
@@ -441,7 +541,9 @@ async function saveSlot() {
       await SlotsAPI.update({ id: parseInt(sid), ...apiData });
       const s = SLOTS.find(x => x.id === parseInt(sid));
       if (s) Object.assign(s, localData);
-      showToast('Слот обновлён', 'success');
+      // Блокировки станков применяются вместе с сохранением слота
+      const blk = await smApplyBlocks(parseInt(sid));
+      showToast('Слот обновлён' + blk, 'success');
     } else {
       const res = await SlotsAPI.create(apiData);
       const newId = res && res.id ? res.id : Date.now();

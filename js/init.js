@@ -19,6 +19,8 @@ renderSchedule();
     loadSubPlans(),
     loadLibrary(),
     loadActivityCats(),
+    loadDictValues(),
+    loadDictAvailability(),
     loadServices(),
   ]);
   renderServices();   // перерисовываем карточки услуг данными из БД

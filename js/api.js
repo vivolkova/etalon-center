@@ -155,6 +155,28 @@ const StationsAPI = {
   async availability(slotId) {
     return apiRequest(`/stations.php?action=availability&slot_id=${slotId}`);
   },
+  async listAll(locationId) { return apiRequest(`/stations.php?action=list&all=1&location_id=${locationId}`); },
+  async create(data) { return apiRequest('/stations.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/stations.php?action=update', 'PUT', data); },
+  async move(id, pos_x, pos_y) { return apiRequest('/stations.php?action=move', 'PUT', { id, pos_x, pos_y }); },
+  async delete(id) { return apiRequest(`/stations.php?action=delete&id=${id}`, 'DELETE'); },
+  // Блокировка станка на занятие (slot_station_blocks)
+  async block(slot_id, station_id, reason) { return apiRequest('/stations.php?action=block', 'POST', { slot_id, station_id, reason }); },
+  async unblock(slotId, stationId) { return apiRequest(`/stations.php?action=unblock&slot_id=${slotId}&station_id=${stationId}`, 'DELETE'); },
+  // Типы станков (общие для всех филиалов)
+  async types() { return apiRequest('/stations.php?action=types'); },
+  async typeCreate(data) { return apiRequest('/stations.php?action=type_create', 'POST', data); },
+  async typeUpdate(data) { return apiRequest('/stations.php?action=type_update', 'PUT', data); },
+  async typeDelete(id) { return apiRequest(`/stations.php?action=type_delete&id=${id}`, 'DELETE'); },
+};
+
+// ── DICTIONARIES (общие справочники + доступность по филиалам) ──
+const DictionariesAPI = {
+  async list(locationId) { return apiRequest('/dictionaries.php?action=list' + (locationId ? '&location_id=' + locationId : '')); },
+  async availability() { return apiRequest('/dictionaries.php?action=availability'); },
+  async create(data) { return apiRequest('/dictionaries.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/dictionaries.php?action=update', 'PUT', data); },
+  async setLocation(location_id, dictionary_id, active) { return apiRequest('/dictionaries.php?action=location', 'PUT', { location_id, dictionary_id, active }); },
 };
 
 // ── LOCATIONS ──────────────────────────────────────────────

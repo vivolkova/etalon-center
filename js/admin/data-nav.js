@@ -4,7 +4,6 @@
 
 let SPECIALISTS_DATA = [];   // активные (для выпадающих списков)
 let SPECIALISTS_ALL = [];    // все, включая неактивных (панель «Специалисты»)
-const SPEC_TYPE_LABEL = { trainer: 'Тренер', bikefitter: 'Байкфиттер', mechanic: 'Мастер' };
 
 let SUB_PLANS = [];
 
@@ -42,11 +41,11 @@ async function admNav(name, el) {
     bookings: loadAdminBookings,
     clients: loadClients,
     subscriptions: loadSubPlans,
-    specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll()]); },
+    specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll(), loadDictValues(), loadDictAvailability()]); },
     promos: loadPromos,
     notif: loadNotifications,
     chat: loadChatDialogs,
-    library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats()]); },
+    library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats(), loadDictAvailability(), loadDictValues()]); },
     settings: loadLocationsAll,
     finance: loadAdminBookings,
     dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients(), loadNotifications()]); },

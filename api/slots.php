@@ -47,6 +47,21 @@ function checkWorkHours($db, $locId, $date, $startTime, $duration) {
     }
 }
 
+// Из библиотеки в расписание можно ставить групповые тренировки (training + slot_type group)
+// и услуги байкфита (bikefit). Слот без записи библиотеки не ограничиваем.
+function checkLibraryForSlot(PDO $db, $libraryId): void {
+    if (empty($libraryId)) return;
+    $st = $db->prepare('SELECT dc.code AS cat, dt.code AS type FROM library l
+                        JOIN dictionaries dc ON dc.id = l.category_id
+                        LEFT JOIN dictionaries dt ON dt.id = l.type_id
+                        WHERE l.id = ?');
+    $st->execute([(int)$libraryId]);
+    $lib = $st->fetch();
+    if (!$lib) err('Запись библиотеки не найдена', 404);
+    $allowed = ($lib['cat'] === 'training' && $lib['type'] === 'group') || $lib['cat'] === 'bikefit';
+    if (!$allowed) err('В расписание из библиотеки можно добавлять только групповые тренировки и байкфит');
+}
+
 // GET — список слотов
 if ($method === 'GET' && $action === 'list') {
     $db    = getDB();
@@ -58,13 +73,17 @@ if ($method === 'GET' && $action === 'list') {
                    dt.code AS type, dt.name AS type_name,
                    t.name AS specialist_name, t.full_name AS specialist_full,
                    l.summary, l.details,
-                   loc.max_people
+                   loc.max_people,
+                   (SELECT COUNT(*) FROM slot_station_blocks b
+                                        JOIN stations st ON st.id = b.station_id AND st.active = 1
+                                       WHERE b.slot_id = s.id
+                                         AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked
             FROM slots s
             LEFT JOIN specialists t   ON s.specialist_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
-            JOIN dictionaries dt ON s.type_id = dt.id
+            LEFT JOIN dictionaries dt ON l.type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
     $params = [$from, $to];
     if ($cat) { $sql .= ' AND dc.code = ?'; $params[] = $cat; }
@@ -83,13 +102,17 @@ if ($method === 'GET' && $action === 'get') {
     $stmt = $db->prepare('SELECT s.*, dc.code AS category, dc.name AS category_name,
                                  dt.code AS type, dt.name AS type_name, t.name AS specialist_name,
                                  l.summary, l.details,
-                                 loc.max_people
+                                 loc.max_people,
+                   (SELECT COUNT(*) FROM slot_station_blocks b
+                                        JOIN stations st ON st.id = b.station_id AND st.active = 1
+                                       WHERE b.slot_id = s.id
+                                         AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked
                           FROM slots s
                           LEFT JOIN specialists t   ON s.specialist_id = t.id
                           LEFT JOIN library  l   ON s.library_id = l.id
                           JOIN locations   loc ON s.location_id = loc.id
                           JOIN dictionaries dc ON s.category_id = dc.id
-                          JOIN dictionaries dt ON s.type_id = dt.id
+                          LEFT JOIN dictionaries dt ON l.type_id = dt.id
                           WHERE s.id = ?');
     $stmt->execute([$id]);
     $slot = $stmt->fetch();
@@ -106,19 +129,18 @@ if ($method === 'POST' && $action === 'create') {
     $db = getDB();
     // Время занятия — в пределах режима работы филиала
     checkWorkHours($db, $d['location_id'], $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
+    checkLibraryForSlot($db, $d['library_id'] ?? null);
     $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
-    $typeId     = dictId($db, 'slot_type', $d['type'] ?? 'group');
     $locId      = (int)$d['location_id'];   // филиал выбирается на форме
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
-    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,type_id,slot_date,start_time,duration,specialist_id,price)
-                          VALUES (?,?,?,?,?,?,?,?,?,?)');
+    $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,slot_date,start_time,duration,specialist_id,price)
+                          VALUES (?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId,
         $d['library_id']  ?? null,
         $d['name'],
         $categoryId,
-        $typeId,
         $d['slot_date'],
         $d['start_time'],
         $d['duration']    ?? 60,

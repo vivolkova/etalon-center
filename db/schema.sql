@@ -57,6 +57,22 @@ BEGIN
 END$$
 DELIMITER ;
 
+-- ── Доступность значений справочника по филиалам ────────────
+-- Справочник общий; здесь — доступно ли значение в конкретном филиале (например, в филиале нет
+-- мастерской: active = 0). Нет строки — значение доступно (новые значения сразу доступны везде).
+-- Используется для прикладных групп: activity_category, specialist_type.
+CREATE TABLE location_dictionaries (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    location_id   INT NOT NULL,
+    dictionary_id INT NOT NULL,
+    active        TINYINT(1) NOT NULL DEFAULT 1,   -- 0 — отключено в филиале
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_loc_dict (location_id, dictionary_id),
+    KEY fk_locdict_dict (dictionary_id),
+    CONSTRAINT fk_locdict_location FOREIGN KEY (location_id)   REFERENCES locations(id)    ON DELETE CASCADE,
+    CONSTRAINT fk_locdict_dict     FOREIGN KEY (dictionary_id) REFERENCES dictionaries(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Типы станков ────────────────────────────────────────────
 -- Отдельный справочник (раньше был группой station_type в dictionaries).
 -- icon — SVG-иконка типа станка для схемы зала.
@@ -67,7 +83,8 @@ CREATE TABLE station_type (
     icon       TEXT NULL,
     active     TINYINT DEFAULT 1,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_station_type_code (code)
+    UNIQUE KEY uq_station_type_code (code),
+    UNIQUE KEY uq_station_type_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Пользователи ────────────────────────────────────────────
@@ -100,7 +117,7 @@ CREATE TABLE specialists (
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT,
+    location_id INT NOT NULL,
     KEY fk_specialists_location (location_id),
     KEY fk_specialists_type (type_id),
     CONSTRAINT fk_specialists_location FOREIGN KEY (location_id) REFERENCES locations(id),
@@ -114,6 +131,7 @@ CREATE TABLE library (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(255) NOT NULL,
     category_id INT NOT NULL,                    -- dictionaries.activity_category
+    type_id     INT NULL,                        -- dictionaries.slot_type: group / individual — только у тренировок; у услуг NULL
     duration    INT NOT NULL DEFAULT 60,
     price       INT NOT NULL,
     difficulty  VARCHAR(32) DEFAULT 'any',       -- код; подпись на фронте
@@ -122,10 +140,12 @@ CREATE TABLE library (
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT,
+    location_id INT NOT NULL,
     KEY fk_library_location (location_id),
     KEY fk_library_category (category_id),
+    KEY fk_library_type (type_id),
     CONSTRAINT fk_library_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
+    CONSTRAINT fk_library_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
     CONSTRAINT fk_library_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -135,7 +155,6 @@ CREATE TABLE slots (
     library_id  INT,                             -- источник описания (nullable)
     name        VARCHAR(255) NOT NULL,
     category_id INT NOT NULL,                    -- dictionaries.activity_category
-    type_id     INT NOT NULL,                    -- dictionaries.slot_type
     slot_date   DATE NOT NULL,
     start_time  TIME NOT NULL,
     duration    INT NOT NULL DEFAULT 60,
@@ -145,15 +164,13 @@ CREATE TABLE slots (
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT,
+    location_id INT NOT NULL,
     KEY idx_active_date (active, slot_date),
     KEY specialist_id (specialist_id),
     KEY library_id (library_id),
     KEY fk_slots_location (location_id),
-    KEY fk_slots_type (type_id),
     KEY fk_slots_category (category_id),
     CONSTRAINT fk_slots_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
-    CONSTRAINT fk_slots_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
     CONSTRAINT fk_slots_location FOREIGN KEY (location_id) REFERENCES locations(id),
     CONSTRAINT fk_slots_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id) ON DELETE SET NULL,
     CONSTRAINT fk_slots_library  FOREIGN KEY (library_id)  REFERENCES library(id)   ON DELETE RESTRICT
@@ -229,7 +246,7 @@ CREATE TABLE subscription_plans (
     sort_order  INT DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT,
+    location_id INT NOT NULL,
     KEY fk_plans_location (location_id),
     CONSTRAINT fk_plans_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

@@ -2,8 +2,56 @@
 
 // ═══ SETTINGS ════════════════════════════════════════════════════════
 
+// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники
+let settingsTab = 'locations';
+
 function renderSettings() {
-  renderLocations();
+  switchSettingsTab(settingsTab);
+}
+
+function switchSettingsTab(tab) {
+  settingsTab = tab;
+  document.querySelectorAll('[data-set-tab]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-set-tab') === tab); });
+  document.querySelectorAll('#adm-settings .set-tab').forEach(function (el) { el.style.display = el.id === 'set-tab-' + tab ? '' : 'none'; });
+  if (tab === 'locations') renderLocations();
+  if (tab === 'stations') renderStationsTab();
+  if (tab === 'types') renderStationTypesTab();
+  if (tab === 'dicts') renderDictsTab();
+}
+
+// Выпадающий список филиалов для вкладок «по филиалу»; выбранный филиал общий для вкладок
+let settingsLocId = null;
+function fillSettingsLocSelect(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return null;
+  const list = LOCATIONS_ALL.length ? LOCATIONS_ALL : LOCATIONS;
+  if (!settingsLocId || !list.some(function (l) { return Number(l.id) === Number(settingsLocId); }))
+    settingsLocId = list.length ? Number(list[0].id) : null;
+  sel.innerHTML = list.map(function (l) {
+    return '<option value="' + l.id + '">' + escAttr(l.name) + (Number(l.active) ? '' : ' (недействующий)') + '</option>';
+  }).join('');
+  sel.value = settingsLocId || '';
+  return settingsLocId;
+}
+
+// Простая модалка-форма: body — HTML полей, onSave — async () => true, если можно закрыть
+function openFormModal(id, title, body, onSave, extraButtons) {
+  const old = document.getElementById(id); if (old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'admin-modal-overlay show';
+  el.id = id;
+  el.addEventListener('click', function (e) { if (e.target === el) el.remove(); });
+  el.innerHTML = '<div class="admin-modal" style="max-width:460px">' +
+    '<div class="admin-modal-title">' + title + '</div>' + body +
+    '<div class="admin-modal-actions">' + (extraButtons || '') +
+    '<button class="btn-ghost" data-act="cancel">Отмена</button>' +
+    '<button class="btn-primary" data-act="save">Сохранить</button></div></div>';
+  document.body.appendChild(el);
+  el.querySelector('[data-act="cancel"]').onclick = function () { el.remove(); };
+  el.querySelector('[data-act="save"]').onclick = async function () {
+    try { if (await onSave()) el.remove(); } catch (e) { /* ошибка показана в apiRequest */ }
+  };
+  return el;
 }
 
 // ── Филиалы (locations) ───────────────────────────────────────

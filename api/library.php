@@ -25,6 +25,7 @@ function libRow($r) {
         'location_id' => (int)$r['location_id'],
         'name'       => $r['name'],
         'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop | …
+        'type'       => $r['type'],                 // slot_type: group | individual; у услуг null
         'dur'        => (int)$r['duration'],
         'price'      => (int)$r['price'],
         'max'        => $r['max_people'] !== null ? (int)$r['max_people'] : null,
@@ -37,9 +38,10 @@ function libRow($r) {
 
 $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_people, l.difficulty,
                     l.summary, l.details, l.active,
-                    dc.code AS cat
+                    dc.code AS cat, dt.code AS type
              FROM library l
              JOIN dictionaries dc ON l.category_id = dc.id
+             LEFT JOIN dictionaries dt ON l.type_id = dt.id
              JOIN locations   loc ON l.location_id = loc.id';
 
 // GET — список (публичный; нужен и форме слота, и экрану «Библиотека»)
@@ -62,7 +64,7 @@ if ($method === 'GET' && $action === 'list') {
 // spec_type / spec_name — тип специалиста, который ведёт категорию (dictionaries.ref_id).
 if ($method === 'GET' && $action === 'categories') {
     $db   = getDB();
-    $stmt = $db->prepare("SELECT d.code, d.name, st.code AS spec_type, st.name AS spec_name
+    $stmt = $db->prepare("SELECT d.id, d.code, d.name, st.code AS spec_type, st.name AS spec_name
                           FROM dictionaries d
                           LEFT JOIN dictionaries st ON st.id = d.ref_id AND st.group_code = 'specialist_type'
                           WHERE d.group_code = 'activity_category' AND d.active = 1 ORDER BY d.id");
@@ -90,6 +92,8 @@ if ($method === 'POST' && $action === 'create') {
 
     $db     = getDB();
     $catId  = libDictId($db, 'activity_category', $d['cat']  ?? 'training');
+    // Тип занятия (групповая / индивидуальная) — только у тренировок; у услуг пусто
+    $typeId = ($d['cat'] ?? 'training') === 'training' ? libDictId($db, 'slot_type', $d['type'] ?? 'group') : null;
     $features = isset($d['features']) && is_array($d['features'])
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
         : null;
@@ -97,10 +101,10 @@ if ($method === 'POST' && $action === 'create') {
     // Вместимость не хранится в библиотеке — она задаётся в locations.max_people.
     $locId = (int)$d['location_id'];   // филиал записи выбирается на форме
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, name, category_id, duration, price, difficulty, summary, details, active)
-        VALUES (?,?,?,?,?,?,?,?,?)');
+        (location_id, name, category_id, type_id, duration, price, difficulty, summary, details, active)
+        VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
-        $locId, $d['name'], $catId,
+        $locId, $d['name'], $catId, $typeId,
         $d['dur']   ?? 60,
         $d['price'],
         $d['difficulty'] ?? 'any',
@@ -120,16 +124,18 @@ if ($method === 'PUT' && $action === 'update') {
 
     $db     = getDB();
     $catId  = libDictId($db, 'activity_category', $d['cat']  ?? 'training');
+    // Тип занятия (групповая / индивидуальная) — только у тренировок; у услуг пусто
+    $typeId = ($d['cat'] ?? 'training') === 'training' ? libDictId($db, 'slot_type', $d['type'] ?? 'group') : null;
     $features = isset($d['features']) && is_array($d['features'])
         ? json_encode(array_values($d['features']), JSON_UNESCAPED_UNICODE)
         : null;
 
     require_fields($d, ['location_id']);
     $stmt = $db->prepare('UPDATE library SET
-        location_id=?, name=?, category_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
+        location_id=?, name=?, category_id=?, type_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
         WHERE id=?');
     $stmt->execute([
-        (int)$d['location_id'], $d['name'], $catId,
+        (int)$d['location_id'], $d['name'], $catId, $typeId,
         $d['dur']   ?? 60,
         $d['price'],
         $d['difficulty'] ?? 'any',

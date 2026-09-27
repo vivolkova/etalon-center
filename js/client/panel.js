@@ -61,14 +61,14 @@ function renderClientFeed() {
   }
   // Upcoming slots (today's dayOfWeek)
   const todayDow = (new Date().getDay() + 6) % 7;
-  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && s.max - s.taken > 0).slice(0, 4);
+  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && slotFree(s) > 0).slice(0, 4);
   const feedSlots = document.getElementById('feed-slots');
   feedSlots.innerHTML = upcoming.length
     ? upcoming.map(s => `<div class="cp-slot-row" style="cursor:pointer" onclick="openSlotDetail(${s.id})">
     <div class="cp-slot-time">${s.time}</div>
     <div class="cp-slot-info">
       <div class="cp-slot-name">${s.name}</div>
-      <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${s.dur} мин · ${s.max - s.taken} мест</div>
+      <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${s.dur} мин · ${slotFree(s)} мест</div>
     </div>
     <div style="font-weight:700;color:var(--green);font-size:13px">${s.price.toLocaleString('ru')} ₽</div>
     <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>
@@ -78,6 +78,9 @@ function renderClientFeed() {
 
 // ── CLIENT SCHEDULE ───────────────────────────────────────────────
 function renderCpSchedule() {
+  // Фильтр по категориям — из справочника
+  cpCat = validCat(cpCat);
+  const catF = document.getElementById('cp-cat-filter'); if (catF) catF.innerHTML = catChipsHtml(cpCat, 'cpFilterCat');
   // Week chips
   const chips = document.getElementById('cp-week-chips');
   chips.innerHTML = DAYS_FULL.map((d, i) => {
@@ -96,7 +99,7 @@ function cpSelectDay(idx, btn) {
 
 function cpFilterCat(cat, btn) {
   cpCat = cat;
-  document.querySelectorAll('#cp-schedule .chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#cp-cat-filter .chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   renderCpSchedule();
 }
@@ -110,14 +113,14 @@ function renderCpSlots() {
     return;
   }
   list.innerHTML = filtered.map(s => {
-    const left = s.max - s.taken;
+    const left = slotFree(s);
     const full = left <= 0;
     const booked = alreadyBooked.has(s.id);
     return `<div class="cp-slot-row" style="border-left:4px solid ${catColor(s.cat)};cursor:pointer" onclick="openSlotDetail(${s.id})">
   <div class="cp-slot-time">${s.time}<div style="font-size:10px;color:var(--ink-60);font-weight:400">${s.dur}мин</div></div>
   <div class="cp-slot-info">
     <div class="cp-slot-name">${s.name}</div>
-    <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${left} / ${s.max} мест · ${s.price.toLocaleString('ru')} ₽</div>
+    <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${left} / ${slotCap(s)} мест · ${s.price.toLocaleString('ru')} ₽</div>
   </div>
   ${booked ? `<span class="status-badge status-confirmed">✓ Записан</span>`
         : full ? `<span style="font-size:12px;color:#dc2626;font-weight:600">Мест нет</span>`

@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20260927-4">
-  <link rel="stylesheet" href="css/site.css?v=20260927-4">
-  <link rel="stylesheet" href="css/panels.css?v=20260927-4">
-  <link rel="stylesheet" href="css/library.css?v=20260927-4">
-  <link rel="stylesheet" href="css/week-grid.css?v=20260927-4">
-  <link rel="stylesheet" href="css/admin.css?v=20260927-4">
+  <link rel="stylesheet" href="css/base.css?v=20260927-15">
+  <link rel="stylesheet" href="css/site.css?v=20260927-15">
+  <link rel="stylesheet" href="css/panels.css?v=20260927-15">
+  <link rel="stylesheet" href="css/library.css?v=20260927-15">
+  <link rel="stylesheet" href="css/week-grid.css?v=20260927-15">
+  <link rel="stylesheet" href="css/admin.css?v=20260927-15">
 </head>
 
 <body>
@@ -109,12 +109,8 @@
           </button>
           <button class="wg-today-btn" onclick="schGoToday()">Сегодня</button>
         </div>
-        <div class="filter-chips" style="margin:0">
-          <button class="chip active" onclick="filterCat('all',this)">Все</button>
-          <button class="chip" onclick="filterCat('training',this)">Тренировки</button>
-          <button class="chip amber" onclick="filterCat('bikefit',this)">Байкфит</button>
-          <button class="chip purple" onclick="filterCat('workshop',this)">Мастерская</button>
-        </div>
+        <!-- Фильтр по категориям — строится из справочника (renderSchedule) -->
+        <div class="filter-chips" id="sch-cat-filter" style="margin:0"></div>
       </div>
 
       <!-- Недельная сетка -->
@@ -123,17 +119,7 @@
       </div>
 
       <!-- Легенда -->
-      <div class="sch-legend" style="margin-top:14px">
-        <div class="sch-legend-item">
-          <div class="sch-legend-dot cat-training"></div>Тренировки
-        </div>
-        <div class="sch-legend-item">
-          <div class="sch-legend-dot cat-bikefit"></div>Байкфит
-        </div>
-        <div class="sch-legend-item">
-          <div class="sch-legend-dot cat-workshop"></div>Мастерская
-        </div>
-      </div>
+      <div class="sch-legend" id="sch-legend" style="margin-top:14px"></div>
 
     </div>
   </div>
@@ -220,12 +206,7 @@
         <!-- SCHEDULE -->
         <div class="cp-panel" id="cp-schedule">
           <div class="cp-section-title">Расписание</div>
-          <div class="filter-chips" style="margin-bottom:16px">
-            <button class="chip active" onclick="cpFilterCat('all',this)">Все</button>
-            <button class="chip" onclick="cpFilterCat('training',this)">Тренировки</button>
-            <button class="chip amber" onclick="cpFilterCat('bikefit',this)">Байкфит</button>
-            <button class="chip purple" onclick="cpFilterCat('workshop',this)">Мастерская</button>
-          </div>
+          <div class="filter-chips" id="cp-cat-filter" style="margin-bottom:16px"></div>
           <div class="filter-chips" id="cp-week-chips" style="margin-bottom:20px;flex-wrap:wrap;gap:6px"></div>
           <div class="cp-slots-grid" id="cp-slots-list"></div>
         </div>
@@ -288,7 +269,7 @@
             </div>
             <div class="form-field">
               <label class="form-label">Email</label>
-              <input class="form-input" id="pf-email" type="email" disabled style="background:var(--surface)">
+              <input class="form-input" id="pf-email" type="email" disabled>
             </div>
             <div class="form-row">
               <div class="form-field">
@@ -359,7 +340,7 @@
             </svg>
             Аналитика
           </div>
-          <div class="adm-nav-section">Расписание</div>
+          <div class="adm-nav-section">Планирование</div>
           <div class="adm-nav-item" onclick="admNav('schedule',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -869,13 +850,50 @@
         <div class="adm-panel" id="adm-settings">
           <div class="adm-panel-header">
             <h2 class="adm-panel-title">Настройки студии</h2>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="chip active" data-set-tab="locations" onclick="switchSettingsTab('locations')">Филиалы</button>
+              <button class="chip" data-set-tab="stations" onclick="switchSettingsTab('stations')">Станки и зал</button>
+              <button class="chip" data-set-tab="types" onclick="switchSettingsTab('types')">Типы станков</button>
+              <button class="chip" data-set-tab="dicts" onclick="switchSettingsTab('dicts')">Справочники</button>
+            </div>
           </div>
-          <div class="adm-card">
+
+          <!-- Филиалы -->
+          <div class="adm-card set-tab" id="set-tab-locations">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
               <div class="adm-card-title">Филиалы</div>
               <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openLocationModal(null)">+ Добавить филиал</button>
             </div>
             <div id="settings-locations" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px"></div>
+          </div>
+
+          <!-- Станки и схема зала (по филиалу) -->
+          <div class="adm-card set-tab" id="set-tab-stations" style="display:none">
+            <div class="set-bar">
+              <select class="form-input set-loc-select" id="st-loc" onchange="settingsLocId = Number(this.value); renderStationsTab()"></select>
+              <span class="set-hint" id="st-hint"></span>
+            </div>
+            <div class="hall-scheme hall-edit" id="st-hall"></div>
+            <div class="set-hint">Пустая клетка — добавить станок. Станок — изменить. Перетащите станок, чтобы переставить (на занятую клетку — поменяются местами). Размер зала задаётся в филиале.</div>
+            <div id="st-outside"></div>
+          </div>
+
+          <!-- Типы станков (общие) -->
+          <div class="adm-card set-tab" id="set-tab-types" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+              <div class="adm-card-title">Типы станков <span class="set-hint">— общие для всех филиалов</span></div>
+              <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openStationTypeModal(null)">+ Тип станка</button>
+            </div>
+            <div class="lib-grid" id="st-types"></div>
+          </div>
+
+          <!-- Справочники (общие + доступность в филиале) -->
+          <div class="adm-card set-tab" id="set-tab-dicts" style="display:none">
+            <div class="set-bar">
+              <select class="form-input set-loc-select" id="dict-loc" onchange="settingsLocId = Number(this.value); renderDictsTab()"></select>
+              <span class="set-hint">Названия и связи — общие для всех филиалов; галочка «В филиале» — только для выбранного.</span>
+            </div>
+            <div id="dict-groups"></div>
           </div>
         </div>
 
@@ -1002,31 +1020,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20260927-4"></script>
-  <script src="js/core.js?v=20260927-4"></script>
-  <script src="js/week-grid.js?v=20260927-4"></script>
-  <script src="js/auth.js?v=20260927-4"></script>
-  <script src="js/site/schedule.js?v=20260927-4"></script>
-  <script src="js/site/booking.js?v=20260927-4"></script>
-  <script src="js/site/services-bookings.js?v=20260927-4"></script>
-  <script src="js/admin/admin.js?v=20260927-4"></script>
-  <script src="js/admin/schedule.js?v=20260927-4"></script>
-  <script src="js/admin/services.js?v=20260927-4"></script>
-  <script src="js/admin/chat.js?v=20260927-4"></script>
-  <script src="js/admin/notifications.js?v=20260927-4"></script>
-  <script src="js/client/panel.js?v=20260927-4"></script>
-  <script src="js/client/payment.js?v=20260927-4"></script>
-  <script src="js/client/chat-profile.js?v=20260927-4"></script>
-  <script src="js/site/detail-modals.js?v=20260927-4"></script>
-  <script src="js/admin/library.js?v=20260927-4"></script>
-  <script src="js/admin/data-nav.js?v=20260927-4"></script>
-  <script src="js/admin/dashboard.js?v=20260927-4"></script>
-  <script src="js/admin/specialists.js?v=20260927-4"></script>
-  <script src="js/admin/sales.js?v=20260927-4"></script>
-  <script src="js/admin/settings.js?v=20260927-4"></script>
-  <script src="js/ui.js?v=20260927-4"></script>
-  <script src="js/loaders.js?v=20260927-4"></script>
-  <script src="js/init.js?v=20260927-4"></script>
+  <script src="js/api.js?v=20260927-15"></script>
+  <script src="js/core.js?v=20260927-15"></script>
+  <script src="js/week-grid.js?v=20260927-15"></script>
+  <script src="js/auth.js?v=20260927-15"></script>
+  <script src="js/site/schedule.js?v=20260927-15"></script>
+  <script src="js/site/booking.js?v=20260927-15"></script>
+  <script src="js/site/services-bookings.js?v=20260927-15"></script>
+  <script src="js/admin/admin.js?v=20260927-15"></script>
+  <script src="js/admin/schedule.js?v=20260927-15"></script>
+  <script src="js/admin/services.js?v=20260927-15"></script>
+  <script src="js/admin/chat.js?v=20260927-15"></script>
+  <script src="js/admin/notifications.js?v=20260927-15"></script>
+  <script src="js/client/panel.js?v=20260927-15"></script>
+  <script src="js/client/payment.js?v=20260927-15"></script>
+  <script src="js/client/chat-profile.js?v=20260927-15"></script>
+  <script src="js/site/detail-modals.js?v=20260927-15"></script>
+  <script src="js/admin/library.js?v=20260927-15"></script>
+  <script src="js/admin/data-nav.js?v=20260927-15"></script>
+  <script src="js/admin/dashboard.js?v=20260927-15"></script>
+  <script src="js/admin/specialists.js?v=20260927-15"></script>
+  <script src="js/admin/sales.js?v=20260927-15"></script>
+  <script src="js/admin/settings.js?v=20260927-15"></script>
+  <script src="js/admin/stations.js?v=20260927-15"></script>
+  <script src="js/admin/dictionaries.js?v=20260927-15"></script>
+  <script src="js/ui.js?v=20260927-15"></script>
+  <script src="js/loaders.js?v=20260927-15"></script>
+  <script src="js/init.js?v=20260927-15"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1036,26 +1056,26 @@
 
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input sm-editable" id="sm-location" onchange="smRenderTimes()"></select>
-        <div class="form-input sm-view" id="sm-location-view" style="display:none"></div>
+        <select class="form-input" id="sm-location" onchange="smRenderTimes()"></select>
+        <div class="form-input form-view" id="sm-location-view" style="display:none"></div>
       </div>
 
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название занятия</label>
-          <input class="form-input sm-editable" id="sm-name" placeholder="Интервальный сайкл">
-          <div class="form-input sm-view" id="sm-name-view" style="display:none"></div>
+          <input class="form-input" id="sm-name" placeholder="Интервальный сайкл">
+          <div class="form-input form-view" id="sm-name-view" style="display:none"></div>
         </div>
         <div class="form-field">
           <label class="form-label">Категория</label>
           <input type="hidden" id="sm-cat">
-          <div class="form-input sm-view" id="sm-cat-view" title="Категория берётся из выбранной записи библиотеки"></div>
+          <div class="form-input form-view" id="sm-cat-view" title="Категория берётся из выбранной записи библиотеки"></div>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">День недели</label>
-          <select class="form-input sm-editable" id="sm-day" onchange="smRenderTimes()">
+          <select class="form-input" id="sm-day" onchange="smRenderTimes()">
             <option value="0">Понедельник</option>
             <option value="1">Вторник</option>
             <option value="2">Среда</option>
@@ -1067,31 +1087,40 @@
         </div>
         <div class="form-field">
           <label class="form-label">Время начала</label>
-          <select class="form-input sm-editable" id="sm-time"></select>
+          <select class="form-input" id="sm-time"></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input sm-editable" id="sm-dur" type="number" value="60" min="15" max="480" step="15" onchange="smRenderTimes()">
+          <input class="form-input" id="sm-dur" type="number" value="60" min="15" max="480" step="15" onchange="smRenderTimes()">
         </div>
         <div class="form-field">
           <label class="form-label">Мест в зале</label>
-          <input class="form-input sm-locked" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации">
+          <input class="form-input is-locked" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации">
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label" id="sm-specialist-label">Специалист</label>
-          <select class="form-input sm-editable" id="sm-specialist">
+          <select class="form-input" id="sm-specialist">
             <option value="">— Специалист —</option>
           </select>
-          <div class="form-input sm-view" id="sm-specialist-view" style="display:none"></div>
+          <div class="form-input form-view" id="sm-specialist-view" style="display:none"></div>
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>
-          <input class="form-input sm-editable" id="sm-price" type="number" value="1200" min="0">
+          <input class="form-input" id="sm-price" type="number" value="1200" min="0">
         </div>
+      </div>
+      <!-- Заблокировать станки на это занятие (slot_station_blocks); только для сохранённого слота.
+           Отмеченные станки блокируются по кнопке «Сохранить» -->
+      <div class="form-field" id="sm-hall-wrap" style="display:none">
+        <label class="form-label">Заблокировать станки</label>
+        <div class="hall-scheme" id="sm-hall"></div>
+        <div class="station-hint" id="sm-hall-hint"></div>
+        <label class="form-label" for="sm-block-reason" style="margin-top:10px">Причина блокировки</label>
+        <input class="form-input" id="sm-block-reason" placeholder="Например: ремонт, сломан ремень" maxlength="255">
       </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeSlotModal()">Отмена</button>
@@ -1336,35 +1365,40 @@
       <input type="hidden" id="lm-id">
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input sm-editable" id="lm-location"></select>
+        <select class="form-input" id="lm-location"></select>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название</label>
-          <input class="form-input sm-editable" id="lm-name" placeholder="Название тренировки / услуги">
+          <input class="form-input" id="lm-name" placeholder="Название тренировки / услуги">
         </div>
         <div class="form-field" id="lm-cat-wrap">
           <label class="form-label">Категория</label>
-          <select class="form-input sm-editable" id="lm-cat"></select>
+          <select class="form-input" id="lm-cat"></select>
+        </div>
+        <div class="form-field" id="lm-format-wrap">
+          <label class="form-label">Тип занятия</label>
+          <!-- dictionaries.slot_type: групповая / индивидуальная — только для тренировок -->
+          <select class="form-input" id="lm-format"></select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Длительность (мин)</label>
-          <input class="form-input sm-editable" id="lm-dur" type="number" value="60" min="15" step="15">
+          <input class="form-input" id="lm-dur" type="number" value="60" min="15" step="15">
         </div>
         <div class="form-field">
           <label class="form-label">Цена (₽)</label>
-          <input class="form-input sm-editable" id="lm-price" type="number" value="1200" min="0">
+          <input class="form-input" id="lm-price" type="number" value="1200" min="0">
         </div>
       </div>
       <div class="form-field" id="lm-cap-wrap">
         <label class="form-label">Мест в зале (из локации)</label>
-        <input class="form-input sm-locked" id="lm-cap" type="number" readonly title="Вместимость зала задаётся в локации">
+        <input class="form-input is-locked" id="lm-cap" type="number" readonly title="Вместимость зала задаётся в локации">
       </div>
       <div class="form-field" id="lm-difficulty-wrap">
         <label class="form-label">Уровень сложности</label>
-        <select class="form-input sm-editable" id="lm-difficulty">
+        <select class="form-input" id="lm-difficulty">
           <option value="beginner">Начинающий</option>
           <option value="intermediate">Средний</option>
           <option value="advanced">Продвинутый</option>
@@ -1373,12 +1407,12 @@
       </div>
       <div class="form-field">
         <label class="form-label">Описание</label>
-        <textarea class="form-input sm-editable" id="lm-desc" rows="3" style="height:auto;resize:vertical"
+        <textarea class="form-input" id="lm-desc" rows="3" style="height:auto;resize:vertical"
           placeholder="Краткое описание для клиентов..."></textarea>
       </div>
       <div class="form-field">
         <label class="form-label">Особенности</label>
-        <textarea class="form-input sm-editable" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Каждая особенность — с новой строки"></textarea>
+        <textarea class="form-input" id="lm-features" rows="4" style="height:auto;resize:vertical" placeholder="Каждая особенность — с новой строки"></textarea>
       </div>
       <div class="form-field">
         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">

@@ -43,7 +43,7 @@ async function renderHall(slotId) {
   const free = stations.filter(x => x.state === 'free').length;
   // «Свободно» в шапке — из слота (всего мест − занято), как и в деталях слота
   const fe = document.getElementById('bm-free');
-  if (fe && selectedSlot) fe.textContent = Math.max(selectedSlot.max - selectedSlot.taken, 0);
+  if (fe && selectedSlot) fe.textContent = slotFree(selectedSlot);
 
   // Станки по координатам сетки: ключ "x,y" (pos_x = колонка, pos_y = ряд)
   const byPos = {};
