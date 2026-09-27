@@ -1,0 +1,176 @@
+// Кабинет клиента: лента, расписание, мои записи
+
+// ═══ CLIENT PANEL ══════════════════════════════════════════════════
+
+let cpCat = 'all';
+let cpDayIdx = 0;
+let cpBookingFilter_val = 'all';
+
+function renderClientPanel() {
+  if (!currentUser) return;
+  if (!document.getElementById('cp-user-avatar')) return;
+  // Sidebar user info
+  const av = clientAvatarColor(currentUser.name);
+  const init = currentUser.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const el = document.getElementById('cp-user-avatar');
+  el.style.background = av + '20'; el.style.color = av; el.textContent = init;
+  document.getElementById('cp-user-name').textContent = currentUser.name;
+  document.getElementById('cp-user-email').textContent = currentUser.email;
+  const cData = CLIENTS.find(c => c.email === currentUser.email);
+  const badge = document.getElementById('cp-user-badge');
+  badge.className = 'cp-user-badge c-badge ' + (cData?.type || 'new');
+  badge.textContent = { new: 'Новый', vip: 'VIP' }[cData?.type || 'new'] || 'Новый';
+
+  // Chat badge
+  const myMsgs = chatMessages[currentUser.email] || [];
+  const lastMsg = myMsgs[myMsgs.length - 1];
+  const chatBadge = document.getElementById('client-chat-badge');
+  chatBadge.style.display = (lastMsg && lastMsg.from === 'admin') ? '' : 'none';
+
+  renderClientFeed();
+}
+
+function switchClientTab(name, el) {
+  document.querySelectorAll('.cp-nav-item').forEach(i => i.classList.remove('active'));
+  document.querySelectorAll('.cp-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('cp-' + name).classList.add('active');
+  if (name === 'schedule') renderCpSchedule();
+  if (name === 'mybookings') renderCpBookings();
+  if (name === 'chat') renderClientChat();
+  if (name === 'profile') renderProfileForm();
+}
+
+// ── FEED ──────────────────────────────────────────────────────────
+function renderClientFeed() {
+  // Announcements
+  const grid = document.getElementById('client-ann-grid');
+  const typeIcon = { announce: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>`, info: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`, promo: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>` };
+  const typeLabel = { announce: 'Анонс', info: 'Информация', promo: 'Акция' };
+  const anns = notifications.filter(n => ['announce', 'info', 'promo'].includes(n.type)).slice(0, 6);
+  if (!anns.length) {
+    grid.innerHTML = `<div style="color:var(--ink-60);font-size:13px;padding:10px 0">Нет анонсов</div>`;
+  } else {
+    grid.innerHTML = anns.map(n => `
+  <div class="ann-card ${n.type}">
+    <div class="ann-card-tag" style="display:flex;align-items:center;gap:6px">${typeIcon[n.type] || ''} ${typeLabel[n.type] || 'Анонс'}</div>
+    <div class="ann-card-title">${n.title}</div>
+    <div class="ann-card-text">${n.text}</div>
+    <div class="ann-card-time">${n.time}</div>
+  </div>`).join('');
+  }
+  // Upcoming slots (today's dayOfWeek)
+  const todayDow = (new Date().getDay() + 6) % 7;
+  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && s.max - s.taken > 0).slice(0, 4);
+  const feedSlots = document.getElementById('feed-slots');
+  feedSlots.innerHTML = upcoming.length
+    ? upcoming.map(s => `<div class="cp-slot-row" style="cursor:pointer" onclick="openSlotDetail(${s.id})">
+    <div class="cp-slot-time">${s.time}</div>
+    <div class="cp-slot-info">
+      <div class="cp-slot-name">${s.name}</div>
+      <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${s.dur} мин · ${s.max - s.taken} мест</div>
+    </div>
+    <div style="font-weight:700;color:var(--green);font-size:13px">${s.price.toLocaleString('ru')} ₽</div>
+    <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>
+  </div>`).join('')
+    : `<div style="color:var(--ink-60);font-size:13px;padding:16px 0">Сегодня занятий нет</div>`;
+}
+
+// ── CLIENT SCHEDULE ───────────────────────────────────────────────
+function renderCpSchedule() {
+  // Week chips
+  const chips = document.getElementById('cp-week-chips');
+  chips.innerHTML = DAYS_FULL.map((d, i) => {
+    const cnt = SLOTS.filter(s => s.dayOfWeek === i && (cpCat === 'all' || s.cat === cpCat)).length;
+    return `<button class="chip${i === cpDayIdx ? ' active' : ''}" onclick="cpSelectDay(${i},this)">${d} ${cnt ? `<span style='font-size:10px;opacity:.7'>(${cnt})</span>` : ''}</button>`;
+  }).join('');
+  renderCpSlots();
+}
+
+function cpSelectDay(idx, btn) {
+  cpDayIdx = idx;
+  document.querySelectorAll('#cp-week-chips .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderCpSlots();
+}
+
+function cpFilterCat(cat, btn) {
+  cpCat = cat;
+  document.querySelectorAll('#cp-schedule .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderCpSchedule();
+}
+
+function renderCpSlots() {
+  const list = document.getElementById('cp-slots-list');
+  const filtered = SLOTS.filter(s => s.dayOfWeek === cpDayIdx && (cpCat === 'all' || s.cat === cpCat));
+  const alreadyBooked = new Set(bookings.filter(b => b.status !== 'cancelled').map(b => b.slotId));
+  if (!filtered.length) {
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-60)">Нет занятий в этот день</div>`;
+    return;
+  }
+  const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
+  list.innerHTML = filtered.map(s => {
+    const left = s.max - s.taken;
+    const full = left <= 0;
+    const booked = alreadyBooked.has(s.id);
+    return `<div class="cp-slot-row" style="border-left:4px solid ${catCol[s.cat]};cursor:pointer" onclick="openSlotDetail(${s.id})">
+  <div class="cp-slot-time">${s.time}<div style="font-size:10px;color:var(--ink-60);font-weight:400">${s.dur}мин</div></div>
+  <div class="cp-slot-info">
+    <div class="cp-slot-name">${s.name}</div>
+    <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${left} / ${s.max} мест · ${s.price.toLocaleString('ru')} ₽</div>
+  </div>
+  ${booked ? `<span class="status-badge status-confirmed">✓ Записан</span>`
+        : full ? `<span style="font-size:12px;color:#dc2626;font-weight:600">Мест нет</span>`
+          : `<button class="btn-primary" style="padding:8px 16px;font-size:12px;white-space:nowrap" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>`}
+</div>`;
+  }).join('');
+}
+
+// ── MY BOOKINGS ───────────────────────────────────────────────────
+function cpBookingFilter(val, btn) {
+  cpBookingFilter_val = val;
+  document.querySelectorAll('#cp-booking-filters .chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  renderCpBookings();
+}
+
+function renderCpBookings() {
+  const list = document.getElementById('cp-bookings-list');
+  let mine = bookings.filter(b => b.clientId === currentUser?.email);
+  if (cpBookingFilter_val !== 'all') mine = mine.filter(b => b.status === cpBookingFilter_val);
+  if (!mine.length) {
+    list.innerHTML = `<div style="text-align:center;padding:60px;color:var(--ink-60)">
+  <div style="margin-bottom:12px;opacity:.35"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+  <div style="font-size:15px;font-weight:600">Нет записей</div>
+  <button class="btn-primary" style="margin-top:18px" onclick="(function(){const el=document.querySelector('.cp-nav-item:nth-child(2)');if(el)switchClientTab('schedule',el);})()">Перейти к расписанию</button>
+</div>`;
+    return;
+  }
+  const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
+  const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
+  list.innerHTML = [...mine].reverse().map(b => {
+    const d = new Date(b.date);
+    return `<div class="booking-row">
+  <div class="booking-date-block">
+    <div class="booking-date-day">${d.getDate()}</div>
+    <div class="booking-date-mon">${MONTHS_RU[d.getMonth()]}</div>
+  </div>
+  <div class="booking-info">
+    <div class="booking-name">${b.service}</div>
+    <div class="booking-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${b.time} · <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${b.specialist} · ${b.price.toLocaleString('ru')} ₽</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span>
+    ${b.paymentStatus === 'paid' ? `<span class="pay-badge paid"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Оплачено</span>` : b.status === 'booked' ? `<span class="pay-badge unpaid">Не оплачено</span>` : ''}
+  </div>
+  <div style="display:flex;gap:6px;flex-shrink:0">
+    ${b.status === 'booked' && b.paymentStatus !== 'paid' ? `<button class="btn-pay" onclick="openPaymentModal(${b.id})">Оплатить</button>` : ''}
+    ${b.status !== 'cancelled' ? `<button class="btn-cancel" onclick="cpCancelBooking(${b.id})">Отменить</button>` : ''}
+  </div>
+</div>`;
+  }).join('');
+}
+
+
+

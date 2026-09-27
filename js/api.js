@@ -1,0 +1,260 @@
+// API-клиент: токен, apiRequest, объекты *API для всех эндпоинтов
+
+// ═══════════════════════════════════════════════════════════
+
+const API_BASE = '/api'; // Замените на полный URL если нужно: 'https://ваш-домен.ru/api'
+
+// ── Хранение токена ────────────────────────────────────────
+const Auth = {
+  getToken() {
+    return localStorage.getItem('ec_token');
+  },
+  setToken(t) {
+    localStorage.setItem('ec_token', t);
+    // Дублируем в cookie для REG.RU (shared hosting не всегда передаёт Authorization header)
+    const expires = new Date(Date.now() + 7 * 86400 * 1000).toUTCString();
+    document.cookie = 'ec_token=' + encodeURIComponent(t) + '; expires=' + expires + '; path=/; SameSite=Lax';
+  },
+  removeToken() {
+    localStorage.removeItem('ec_token');
+    document.cookie = 'ec_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+  },
+  isLoggedIn() {
+    return !!localStorage.getItem('ec_token');
+  },
+};
+
+// ── Базовый запрос ─────────────────────────────────────────
+async function apiRequest(endpoint, method = 'GET', body = null) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = Auth.getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+
+  // offline = сервер недоступен (можно откатиться на локальные данные);
+  // без флага — сервер осознанно отклонил запрос, подменять результат нельзя
+  const fail = function (message, offline) {
+    const e = new Error(message);
+    e.offline = !!offline;
+    showToast(message, 'error');
+    throw e;
+  };
+
+  let res;
+  try {
+    res = await fetch(API_BASE + endpoint, opts);
+  } catch (e) {
+    fail('Ошибка соединения', true);
+  }
+
+  let data;
+  try {
+    data = await res.json();
+  } catch (e) {
+    fail('Сервер вернул некорректный ответ', true);
+  }
+
+  if (!data.success) fail(data.message || 'Ошибка сервера', false);
+  return data.data;
+}
+
+// ── AUTH ───────────────────────────────────────────────────
+const AuthAPI = {
+  async register(email, password, name, phone) {
+    const res = await apiRequest('/auth.php?action=register', 'POST', { email, password, name, phone });
+    Auth.setToken(res.token);
+    return res.user;
+  },
+  async login(email, password) {
+    const res = await apiRequest('/auth.php?action=login', 'POST', { email, password });
+    Auth.setToken(res.token);
+    return res.user;
+  },
+  logout() {
+    Auth.removeToken();
+  },
+  async me() {
+    return apiRequest('/auth.php?action=me');
+  },
+  async update(data) {
+    return apiRequest('/auth.php?action=update', 'PUT', data);
+  },
+};
+
+// ── SLOTS ──────────────────────────────────────────────────
+const SlotsAPI = {
+  async list(from, to, cat) {
+    let url = `/slots.php?action=list&from=${from}&to=${to}`;
+    if (cat && cat !== 'all') url += `&cat=${cat}`;
+    return apiRequest(url);
+  },
+  async get(id) {
+    return apiRequest(`/slots.php?action=get&id=${id}`);
+  },
+  async create(data) {
+    return apiRequest('/slots.php?action=create', 'POST', data);
+  },
+  async update(data) {
+    return apiRequest('/slots.php?action=update', 'PUT', data);
+  },
+  async delete(id) {
+    return apiRequest(`/slots.php?action=delete&id=${id}`, 'DELETE');
+  },
+};
+
+// ── LIBRARY (библиотека тренировок/услуг — источник описаний слотов) ──
+const LibraryAPI = {
+  async list(kind) {   // kind: training | service (по activity_category)
+    let url = '/library.php?action=list';
+    if (kind) url += `&kind=${kind}`;
+    return apiRequest(url);
+  },
+  async categories() { return apiRequest('/library.php?action=categories'); },
+  async listAll() { return apiRequest('/library.php?action=list&all=1'); },
+  async get(id) { return apiRequest(`/library.php?action=get&id=${id}`); },
+  async create(data) { return apiRequest('/library.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/library.php?action=update', 'PUT', data); },
+  async delete(id) { return apiRequest(`/library.php?action=delete&id=${id}`, 'DELETE'); },
+};
+
+// ── SERVICES (карточки услуг на главной) ──
+const ServicesAPI = {
+  async list() { return apiRequest('/services.php?action=list'); },
+  async get(id) { return apiRequest(`/services.php?action=get&id=${id}`); },
+  async create(data) { return apiRequest('/services.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/services.php?action=update', 'PUT', data); },
+  async delete(id) { return apiRequest(`/services.php?action=delete&id=${id}`, 'DELETE'); },
+};
+
+// ── BOOKINGS ───────────────────────────────────────────────
+const BookingsAPI = {
+  async my() {
+    return apiRequest('/bookings.php?action=my');
+  },
+  async all(status, search) {
+    let url = '/bookings.php?action=all';
+    if (status) url += `&status=${status}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return apiRequest(url);
+  },
+  async create(slotId, stationId, notes) {
+    return apiRequest('/bookings.php?action=create', 'POST', { slot_id: slotId, station_id: stationId, notes: notes || '' });
+  },
+  async setStatus(id, status) {
+    return apiRequest('/bookings.php?action=status', 'PUT', { id, status });
+  },
+  async setPayment(id, paymentStatus, paymentId) {
+    return apiRequest('/bookings.php?action=payment', 'PUT', { id, payment_status: paymentStatus, payment_id: paymentId });
+  },
+};
+
+// ── STATIONS ───────────────────────────────────────────────
+const StationsAPI = {
+  async availability(slotId) {
+    return apiRequest(`/stations.php?action=availability&slot_id=${slotId}`);
+  },
+};
+
+// ── LOCATIONS ──────────────────────────────────────────────
+const LocationsAPI = {
+  async list() { return apiRequest('/locations.php?action=list'); },
+  async listAll() { return apiRequest('/locations.php?action=list&all=1'); },
+  async create(data) { return apiRequest('/locations.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/locations.php?action=update', 'PUT', data); },
+};
+
+// ── CLIENTS ────────────────────────────────────────────────
+const ClientsAPI = {
+  async list(status, search) {
+    let url = '/clients.php?action=list';
+    if (status) url += `&status=${status}`;
+    if (search) url += `&search=${encodeURIComponent(search)}`;
+    return apiRequest(url);
+  },
+  async get(id) {
+    return apiRequest(`/clients.php?action=get&id=${id}`);
+  },
+  async create(data) {
+    return apiRequest('/clients.php?action=create', 'POST', data);
+  },
+  async update(data) {
+    return apiRequest('/clients.php?action=update', 'PUT', data);
+  },
+  async delete(id) {
+    return apiRequest(`/clients.php?action=delete&id=${id}`, 'DELETE');
+  },
+};
+
+// ── TRAINERS ───────────────────────────────────────────────
+const SpecialistsAPI = {
+  async create(data) { return apiRequest('/specialists.php?action=create', 'POST', data); },
+  async update(data) { return apiRequest('/specialists.php?action=update', 'PUT', data); },
+  async delete(id) { return apiRequest(`/specialists.php?action=delete&id=${id}`, 'DELETE'); },
+};
+
+// ── CHAT ───────────────────────────────────────────────────
+const ChatAPI = {
+  async messages(userId) {
+    let url = '/chat.php?action=messages';
+    if (userId) url += `&user_id=${userId}`;
+    return apiRequest(url);
+  },
+  async dialogs() {
+    return apiRequest('/chat.php?action=dialogs');
+  },
+  async unread() {
+    return apiRequest('/chat.php?action=unread');
+  },
+  async send(message, toUser) {
+    return apiRequest('/chat.php?action=send', 'POST', { message, to_user: toUser });
+  },
+};
+
+// ── SUBSCRIPTIONS ──────────────────────────────────────────
+const SubsAPI = {
+  async plans() {
+    return apiRequest('/subscriptions.php?action=plans');
+  },
+  async my() {
+    return apiRequest('/subscriptions.php?action=my');
+  },
+  async all() {
+    return apiRequest('/subscriptions.php?action=all');
+  },
+  async createPlan(data) {
+    return apiRequest('/subscriptions.php?action=create_plan', 'POST', data);
+  },
+  async sell(userId, planId, paymentId) {
+    return apiRequest('/subscriptions.php?action=sell', 'POST', { user_id: userId, plan_id: planId, payment_id: paymentId });
+  },
+  async updatePlan(data) {
+    return apiRequest('/subscriptions.php?action=update_plan', 'PUT', data);
+  },
+  async deletePlan(id) {
+    return apiRequest(`/subscriptions.php?action=delete_plan&id=${id}`, 'DELETE');
+  },
+};
+
+// ── NOTIFICATIONS ──────────────────────────────────────────
+const NotifAPI = {
+  async list() {
+    return apiRequest('/notifications.php?action=list');
+  },
+  async unread() {
+    return apiRequest('/notifications.php?action=unread');
+  },
+  async create(type, title, message, targetUser) {
+    return apiRequest('/notifications.php?action=create', 'POST', { type, title, message, target_user: targetUser });
+  },
+  async markRead(id) {
+    return apiRequest('/notifications.php?action=read', 'PUT', { id });
+  },
+  async delete(id) {
+    return apiRequest(`/notifications.php?action=delete&id=${id}`, 'DELETE');
+  },
+};
+
+// ═══ END API CLIENT ════════════════════════════════════════════
+

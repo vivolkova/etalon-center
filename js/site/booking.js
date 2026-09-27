@@ -1,0 +1,105 @@
+// Сайт: модалка записи на занятие
+
+// ═══ BOOKING MODAL ════════════════════════════════════════════════
+
+function openBookingModal(slotId) {
+  if (!currentUser) { openAuth('login'); showToast('Войдите, чтобы записаться'); return; }
+  selectedSlot = SLOTS.find(s => s.id === slotId);
+  if (!selectedSlot) return;
+  const s = selectedSlot;
+  document.getElementById('bm-title').textContent = s.name;
+  document.getElementById('bm-sub').textContent = `${s.date.getDate()} ${MONTHS_FULL[s.date.getMonth()]} · ${s.time} · ${s.specialist}`;
+  document.getElementById('bm-details').innerHTML = `
+<div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg></div><div class="detail-val">${s.dur} мин</div><div class="detail-label">Продолжительность</div></div>
+<div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg></div><div class="detail-val"><span id="bm-free">—</span> мест</div><div class="detail-label">Свободно</div></div>
+<div class="detail-item"><div class="detail-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg></div><div class="detail-val">${s.price.toLocaleString('ru')} ₽</div><div class="detail-label">Стоимость</div></div>`;
+  document.getElementById('f-comment').value = '';
+  document.getElementById('booking-modal').classList.add('show');
+  selectedStation = null;
+
+  // Состояние кнопки отправки: если уже записан на этот слот — «Записаться» неактивна
+  const submitBtn = document.querySelector('#booking-modal .modal-actions .btn-primary');
+  if (submitBtn) {
+    const already = bookings.some(b => b.slotId === slotId && b.status !== 'cancelled');
+    submitBtn.disabled = already;
+    submitBtn.textContent = 'Записаться →';
+    submitBtn.style.opacity = '';
+    submitBtn.style.cursor = '';
+    submitBtn.title = already ? 'Вы уже записаны на это занятие' : '';
+  }
+
+  renderHall(slotId);
+}
+
+async function renderHall(slotId) {
+  const hall = document.getElementById('bm-hall');
+  const hint = document.getElementById('bm-station-hint');
+  hall.innerHTML = ''; hint.textContent = 'Загрузка схемы зала…';
+  let data;
+  try { data = await StationsAPI.availability(slotId); }
+  catch (e) { hint.textContent = 'Не удалось загрузить схему зала'; return; }
+  const cols = data.cols || 6, rows = data.rows || 2;
+  const stations = data.stations || [];
+  const free = stations.filter(x => x.state === 'free').length;
+  // «Свободно» в шапке — из слота (всего мест − занято), как и в деталях слота
+  const fe = document.getElementById('bm-free');
+  if (fe && selectedSlot) fe.textContent = Math.max(selectedSlot.max - selectedSlot.taken, 0);
+
+  // Станки по координатам сетки: ключ "x,y" (pos_x = колонка, pos_y = ряд)
+  const byPos = {};
+  stations.forEach(st => { byPos[st.pos_x + ',' + st.pos_y] = st; });
+
+  hall.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
+  let html = '';
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const st = byPos[x + ',' + y];
+      if (!st) { html += '<div class="cell-empty"></div>'; continue; }
+      const sel = (st.id === selectedStation) ? ' selected' : '';
+      const ico = st.icon || '';
+      const on = st.state === 'free' ? `onclick="selectStation(${st.id})"` : 'disabled';
+      html += `<button type="button" class="station ${st.state}${sel}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
+    }
+  }
+  hall.innerHTML = html;
+  hint.textContent = free > 0 ? ('Свободно: ' + free + '. Кликните место.') : 'Свободных мест нет';
+}
+function selectStation(id) {
+  selectedStation = id;
+  document.querySelectorAll('#bm-hall .station').forEach(b => b.classList.remove('selected'));
+  const el = [...document.querySelectorAll('#bm-hall .station')].find(b => (b.getAttribute('onclick') || '') === 'selectStation(' + id + ')');
+  if (el) el.classList.add('selected');
+  document.getElementById('bm-station-hint').textContent = 'Место выбрано ✓';
+}
+
+function closeBookingModal() {
+  document.getElementById('booking-modal').classList.remove('show');
+  selectedSlot = null;
+}
+
+async function confirmBooking() {
+  if (!selectedStation) { showToast('Выберите место на схеме зала', 'error'); return; }
+  const s = selectedSlot;
+
+  const btn = document.querySelector('.modal-actions .btn-primary');
+  if (btn) { btn.textContent = 'Записываем...'; btn.disabled = true; }
+
+  try {
+    // API-запрос
+    const notes = document.getElementById('f-comment').value.trim();
+    const res = await BookingsAPI.create(s.id, selectedStation, notes);
+    // Обновляем локальный массив слотов
+    s.taken++;
+    // Подгружаем актуальные записи
+    await loadMyBookings();
+    closeBookingModal();
+    renderWeekCal();
+    renderHeroCalendar();
+    showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
+  } catch (e) {
+    // Ошибка/недоступность сервера уже показана в apiRequest; локально запись не подделываем
+  } finally {
+    if (btn) { btn.textContent = 'Записаться →'; btn.disabled = false; }
+  }
+}
+

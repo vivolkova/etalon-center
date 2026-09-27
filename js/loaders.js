@@ -1,0 +1,188 @@
+// Загрузка данных с сервера (специалисты, клиенты, абонементы, промокоды, уведомления, чат, записи)
+
+// ── Загрузка тренеров с сервера ───────────────────────────────
+async function loadSpecialists() {
+  try {
+    const res = await apiRequest('/specialists.php?action=list');
+    SPECIALISTS_DATA = (res || []).map(function (t) {
+      return {
+        id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
+        exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
+        category: t.category || 'trainer',
+        location_id: t.location_id != null ? parseInt(t.location_id) : null,
+        active: parseInt(t.active) ? 1 : 0
+      };
+    });
+    fillSpecialistSelects();
+  } catch (e) { /* сервер недоступен */ }
+}
+
+// Все специалисты, включая неактивных — только для панели «Специалисты» (admin).
+// SPECIALISTS_DATA остаётся списком активных для выпадающих списков.
+async function loadSpecialistsAll() {
+  try {
+    const res = await apiRequest('/specialists.php?action=list&all=1');
+    SPECIALISTS_ALL = (res || []).map(function (t) {
+      return {
+        id: t.id, name: t.name, full: t.full_name, spec: t.speciality || '',
+        exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
+        category: t.category || 'trainer',
+        location_id: t.location_id != null ? parseInt(t.location_id) : null,
+        active: parseInt(t.active) ? 1 : 0
+      };
+    });
+  } catch (e) { /* сервер недоступен */ }
+}
+
+// Перезаполнить выпадающие списки специалистов после загрузки данных из БД
+function fillSpecialistSelects() {
+  var cat = document.getElementById('sm-cat');
+  smApplySpecialistFilter(cat ? cat.value : '');
+  var libItem = ltsLibId ? [...LIBRARY.trainings, ...LIBRARY.services].find(function (x) { return x.id === ltsLibId; }) : null;
+  applySpecialistFilter('lts-specialist', 'lts-specialist-label', libItem ? libItem.cat : '');
+}
+
+// Список специалистов по категории активности: тип специалиста берётся из справочника
+// (activity_category.ref_id -> specialist_type: training -> trainer, bikefit -> bikefitter,
+// workshop -> mechanic). Подпись поля — название типа («Тренер», «Байкфиттер», «Мастер»).
+// Если у категории связи нет — поле «Специалист» и все специалисты.
+function applySpecialistFilter(selectId, labelId, cat) {
+  var sel = document.getElementById(selectId);
+  if (!sel) return;
+  var c = ACTIVITY_CATS.find(function (x) { return x.code === cat; });
+  var specType = c && c.spec_type;
+  var title = specType ? c.spec_name : 'Специалист';
+  var list = specType
+    ? SPECIALISTS_DATA.filter(function (t) { return t.category === specType; })
+    : SPECIALISTS_DATA;
+  var label = document.getElementById(labelId);
+  if (label) label.textContent = title;
+  var cur = sel.value;
+  sel.innerHTML = '<option value="">— ' + title + ' —</option>' +
+    list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
+  sel.value = cur;
+  if (sel.value !== cur) sel.value = '';
+}
+
+// Форма слота в расписании
+function smApplySpecialistFilter(cat) {
+  applySpecialistFilter('sm-specialist', 'sm-specialist-label', cat);
+}
+
+// ── Загрузка клиентов с сервера ───────────────────────────────
+async function loadClients() {
+  try {
+    const res = await apiRequest('/clients.php?action=list');
+    if (res && res.length) {
+      CLIENTS = res.map(function (c) {
+        return {
+          id: parseInt(c.id) || 0, email: c.email, name: c.name, phone: c.phone || '',
+          type: c.type || 'new', bike: c.bike || '',
+          birth: c.birth_date || '', notes: c.notes || '',
+          regDate: c.created_at ? c.created_at.slice(0, 10) : '',
+          totalBookings: parseInt(c.total_bookings) || 0,
+          totalSpent: parseInt(c.total_spent) || 0,
+          lastVisit: c.last_visit || ''
+        };
+      });
+    }
+  } catch (e) { /* используем встроенных клиентов */ }
+}
+
+// ── Загрузка абонементов с сервера ───────────────────────────
+async function loadSubPlans() {
+  try {
+    const res = await apiRequest('/subscriptions.php?action=plans');
+    if (res && res.length) {
+      SUB_PLANS = res.map(function (p) {
+        var features = p.features;
+        if (typeof features === 'string') {
+          try { features = JSON.parse(features); } catch (e) { features = []; }
+        }
+        return {
+          id: p.id, name: p.name, sessions: parseInt(p.sessions),
+          price: parseInt(p.price), validity: parseInt(p.validity),
+          color: p.color || '#00BAB3', features: features || []
+        };
+      });
+    }
+  } catch (e) { /* используем встроенные планы */ }
+}
+
+// ── Загрузка промокодов с сервера ────────────────────────────
+async function loadPromos() {
+  try {
+    const res = await apiRequest('/promos.php?action=list');
+    if (res && res.length) {
+      PROMOS = res.map(function (p) {
+        return {
+          id: p.id, code: p.code, type: p.type, value: parseInt(p.value),
+          maxUses: parseInt(p.max_uses), uses: parseInt(p.used_count) || 0,
+          expires: p.expires_at || '', desc: p.description || '',
+          active: p.active == 1
+        };
+      });
+    }
+  } catch (e) { /* используем встроенные промокоды */ }
+}
+
+// ── Загрузка уведомлений с сервера ───────────────────────────
+async function loadNotifications() {
+  try {
+    const res = await apiRequest('/notifications.php?action=list');
+    if (res && res.length) {
+      notifications = res.map(function (n) {
+        return {
+          id: n.id, type: n.type || 'info',
+          icon: '', title: n.title, text: n.message || '',
+          time: n.created_at ? n.created_at.slice(11, 16) : '',
+          read: n.is_read == 1
+        };
+      });
+    }
+  } catch (e) { /* используем встроенные уведомления */ }
+}
+
+// ── Загрузка чата с сервера ──────────────────────────────────
+async function loadChatDialogs() {
+  if (!currentUser) return;
+  try {
+    if (currentUser.role === 'admin') {
+      const dialogs = await ChatAPI.dialogs();
+      dialogs.forEach(function (d) {
+        if (!chatMessages[d.email]) chatMessages[d.email] = [];
+      });
+    } else {
+      const msgs = await ChatAPI.messages();
+      if (msgs && msgs.length) {
+        chatMessages[currentUser.email] = msgs.map(function (m) {
+          return {
+            from: m.from_role === 'admin' ? 'admin' : 'client',
+            text: m.message,
+            time: m.created_at ? m.created_at.slice(11, 16) : ''
+          };
+        });
+      }
+    }
+  } catch (e) { /* используем встроенные данные */ }
+}
+
+// ── Загрузка всех записей для администратора ─────────────────
+async function loadAdminBookings() {
+  try {
+    const data = await BookingsAPI.all();
+    bookings = data.map(function (b) {
+      return {
+        id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email,
+        service: b.slot_name, cat: b.category,
+        date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
+        specialist: b.specialist_name || '', price: Number(b.price),
+        status: b.status, paymentStatus: b.payment_status,
+        clientId: b.user_email
+      };
+    });
+  } catch (e) {
+    // Сервер недоступен — без локального кэша
+  }
+}
+
