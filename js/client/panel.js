@@ -109,12 +109,11 @@ function renderCpSlots() {
     list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-60)">Нет занятий в этот день</div>`;
     return;
   }
-  const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
   list.innerHTML = filtered.map(s => {
     const left = s.max - s.taken;
     const full = left <= 0;
     const booked = alreadyBooked.has(s.id);
-    return `<div class="cp-slot-row" style="border-left:4px solid ${catCol[s.cat]};cursor:pointer" onclick="openSlotDetail(${s.id})">
+    return `<div class="cp-slot-row" style="border-left:4px solid ${catColor(s.cat)};cursor:pointer" onclick="openSlotDetail(${s.id})">
   <div class="cp-slot-time">${s.time}<div style="font-size:10px;color:var(--ink-60);font-weight:400">${s.dur}мин</div></div>
   <div class="cp-slot-info">
     <div class="cp-slot-name">${s.name}</div>

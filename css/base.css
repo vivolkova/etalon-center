@@ -22,7 +22,27 @@
   --font-body: 'Golos Text', sans-serif;
   --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
   --shadow-lg: 0 8px 32px rgba(0, 0, 0, .12);
+
+  /* Цвета категорий активностей (activity_category.code):
+     основной (полоска, точка), фон, текст на фоне */
+  --cat-training: #00BAB3;
+  --cat-training-bg: #e0f7f6;
+  --cat-training-ink: #006E6A;
+  --cat-bikefit: #c07a10;
+  --cat-bikefit-bg: #fef3c7;
+  --cat-bikefit-ink: #92400e;
+  --cat-workshop: #4e42b5;
+  --cat-workshop-bg: #ede9fe;
+  --cat-workshop-ink: #4c1d95;
 }
+
+/* Класс категории .cat-<код> задаёт элементу цвета --cat / --cat-bg / --cat-ink,
+   их используют слоты, плашки, теги, точки. Неизвестная категория — нейтральный серый
+   (значения по умолчанию в компонентах). Новая категория (например, massage) —
+   три переменные выше + одна строка здесь. */
+.cat-training { --cat: var(--cat-training); --cat-bg: var(--cat-training-bg); --cat-ink: var(--cat-training-ink); }
+.cat-bikefit  { --cat: var(--cat-bikefit);  --cat-bg: var(--cat-bikefit-bg);  --cat-ink: var(--cat-bikefit-ink); }
+.cat-workshop { --cat: var(--cat-workshop); --cat-bg: var(--cat-workshop-bg); --cat-ink: var(--cat-workshop-ink); }
 
 *,
 *::before,

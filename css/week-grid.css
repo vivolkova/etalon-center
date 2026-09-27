@@ -1,0 +1,422 @@
+/* Недельная сетка расписания — общая для сайта (запись клиента) и админки.
+   Разметку строят js/site/schedule.js (renderWeekCal) и js/admin/schedule.js (renderAdminSchedule).
+   Структура: .wg — CSS-grid из 8 колонок (время + 7 дней); первая строка — угол и шапки дней,
+   дальше на каждый час: .wg-time-col + 7 × .wg-day-col > .wg-cell. Слоты .wg-slot
+   позиционируются внутри ячейки своего часа (top/height считает JS по --wg-row-h).
+   Размеры — переменными, различия — модификаторами .wg--site / .wg--admin.
+   Цвета слота — от класса категории .cat-<код> (css/base.css). */
+
+/* ── Панель над сеткой: неделя назад/вперёд, подпись, «Сегодня» ── */
+.wg-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.wg-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wg-nav-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-60);
+  transition: .15s;
+}
+
+.wg-nav-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.wg-label {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 170px;
+  text-align: center;
+}
+
+.wg-today-btn {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-60);
+  cursor: pointer;
+  transition: .15s;
+}
+
+.wg-today-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* ── Сетка ── */
+.wg-wrap {
+  overflow-x: auto;
+}
+
+.wg {
+  --wg-time-w: 52px;     /* колонка времени */
+  --wg-row-h: 60px;      /* высота одного часа — JS читает её для расчёта позиций слотов */
+  --wg-min-w: 820px;     /* меньше — горизонтальная прокрутка */
+  display: grid;
+  grid-template-columns: var(--wg-time-w) repeat(7, 1fr);
+  min-width: var(--wg-min-w);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.wg--site {
+  --wg-time-w: 48px;
+  --wg-row-h: 80px;      /* на сайте крупнее: в слоте есть кнопка «Записаться» */
+  --wg-min-w: 760px;
+}
+
+/* Последняя колонка каждой строки (8 элементов в строке) — без правой границы */
+.wg > :nth-child(8n) {
+  border-right: none;
+}
+
+/* Последняя строка часов — без нижней линии (её даёт рамка сетки) */
+.wg > :nth-last-child(-n+8) > .wg-time-row,
+.wg > :nth-last-child(-n+8) > .wg-cell {
+  border-bottom: none;
+}
+
+/* Угол и шапки дней */
+.wg-corner,
+.wg-day-hdr {
+  background: var(--surface);
+  border-bottom: 1.5px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.wg-day-hdr {
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.wg-day-hdr.today {
+  background: var(--green);
+}
+
+.wg-day-hdr.past {
+  opacity: .5;
+}
+
+.wg-dow {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  color: var(--ink-60);
+}
+
+.wg-date {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.wg-day-sub {
+  font-size: 10px;
+  color: var(--ink-60);
+  margin-top: 2px;
+}
+
+.wg-day-hdr.today .wg-dow,
+.wg-day-hdr.today .wg-date {
+  color: #fff;
+}
+
+.wg-day-hdr.today .wg-day-sub {
+  color: rgba(255, 255, 255, .75);
+}
+
+/* Колонка времени: метка у верхней границы часа */
+.wg-time-col {
+  border-right: 1px solid var(--border);
+}
+
+.wg-time-row {
+  height: var(--wg-row-h);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 3px;
+  font-size: 10px;
+  color: var(--ink-60);
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* Колонки дней и ячейки часа */
+.wg-day-col {
+  border-right: 1px solid var(--border);
+  position: relative;
+}
+
+.wg-day-col.today-col {
+  background: rgba(0, 186, 179, .03);
+}
+
+.wg-day-col.past-col {
+  background: rgba(0, 0, 0, .01);
+}
+
+.wg-cell {
+  height: var(--wg-row-h);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+/* Пунктир на половине часа */
+.wg-cell::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgba(0, 0, 0, .08);
+  pointer-events: none;
+}
+
+/* Слот */
+.wg-slot {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  border-radius: 6px;
+  padding: 4px 6px;
+  overflow: hidden;
+  cursor: pointer;
+  z-index: 2;
+  border-left: 3px solid var(--cat, #888);
+  background: var(--cat-bg, #f3f4f6);
+  transition: box-shadow .15s, opacity .15s;
+}
+
+.wg-slot:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .15);
+  opacity: .9;
+}
+
+.wg-slot-time {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ink-60);
+  white-space: nowrap;
+}
+
+.wg-slot-name {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.wg-slot-meta {
+  font-size: 9px;
+  color: var(--ink-60);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Сайт: запись на занятие ── */
+.wg-slot.booked {
+  opacity: .75;
+}
+
+.wg-slot.full {
+  opacity: .45;
+}
+
+.wg-slot.booked .wg-slot-meta {
+  color: var(--green-dark);
+  font-weight: 700;
+}
+
+.wg-slot-book {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 3px 0;
+  border-radius: 4px;
+  border: none;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  letter-spacing: .2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wg-slot-book:hover {
+  background: var(--green-dark);
+}
+
+.wg-slot.full .wg-slot-book {
+  background: #9ca3af;
+  cursor: default;
+}
+
+.wg-slot.booked .wg-slot-book {
+  background: transparent;
+  color: var(--green-dark);
+  border: 1px solid var(--green);
+  font-size: 8px;
+  cursor: default;
+}
+
+/* Кнопка по размеру слота: xs — полоска, sm — мелкий текст, md/lg — полная */
+.wg-slot.slot-xs .wg-slot-book {
+  font-size: 0;
+  padding: 0;
+  height: 6px;
+  border-radius: 2px;
+  margin-top: 2px;
+}
+
+.wg-slot.slot-sm .wg-slot-book {
+  font-size: 8px;
+  padding: 2px 0;
+}
+
+/* Легенда категорий */
+.sch-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sch-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-60);
+}
+
+.sch-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--cat, #888);
+}
+
+/* ── Админка: добавление по клику, кнопки слота, перетаскивание ── */
+.wg--admin .wg-cell {
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.wg--admin .wg-cell:hover {
+  background: var(--green-light);
+}
+
+.wg--admin .wg-cell:hover::after {
+  content: '+';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16px;
+  color: var(--green);
+  font-weight: 700;
+}
+
+.wg--admin .wg-slot {
+  cursor: grab;
+}
+
+.wg--admin .wg-slot:active {
+  cursor: grabbing;
+}
+
+.wg-slot-btns {
+  display: none;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.wg-slot:hover .wg-slot-btns {
+  display: flex;
+}
+
+.wg-slot-btn {
+  font-size: 9px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, .15);
+  background: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.wg-slot.dragging {
+  opacity: .45;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+.wg-cell.drag-over {
+  background: var(--green-light) !important;
+  outline: 2px dashed var(--green);
+  outline-offset: -2px;
+}
+
+.wg-cell.drag-over::after {
+  display: none;
+}
+
+/* Метка «куда встанет слот» при перетаскивании */
+.wg-drop-marker {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  height: 0;
+  border-top: 2px dashed var(--green);
+  pointer-events: none;
+  z-index: 5;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+@media (max-width: 600px) {
+  .wg-toolbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

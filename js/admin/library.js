@@ -52,9 +52,8 @@ function renderLibrary() {
       (libCurrentType === 'trainings' ? 'Добавить тренировку' : 'Добавить услугу') + '</button></div>';
     return;
   }
-  const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
   grid.innerHTML = items.map(function (item) {
-    const col = catCol[item.cat] || '#888';
+    const col = catColor(item.cat);
     const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
     const locName = locObj ? locObj.name : '';
     const features = (item.features || []).slice(0, 3);
@@ -79,7 +78,7 @@ function renderLibrary() {
     return '<div class="lib-card"' + cardStyle + '>' +
       difficultyHtml +
       '<div class="lib-card-header"><div>' +
-      '<div class="lib-card-cat ' + item.cat + '">' + catName(item.cat) + '</div>' +
+      '<div class="lib-card-cat cat-' + item.cat + '">' + catName(item.cat) + '</div>' +
       '<div class="lib-card-title">' + item.name + '</div>' +
       '</div></div>' +
       '<div class="lib-card-desc">' + item.desc + '</div>' +
@@ -107,8 +106,7 @@ function addToScheduleFromLib(id) {
   ltsSelectedDays = new Set();
 
   // Превью
-  const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
-  document.getElementById('lts-cat-dot').style.background = catCol[item.cat] || '#888';
+  document.getElementById('lts-cat-dot').style.background = catColor(item.cat);
   document.getElementById('lts-name').textContent = item.name;
   document.getElementById('lts-meta').textContent =
     catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';

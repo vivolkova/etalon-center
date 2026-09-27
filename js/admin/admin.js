@@ -229,7 +229,7 @@ function openClientProfile(email) {
     histEl.innerHTML = history.map(b => {
       const d = new Date(b.date);
       const sMap = { confirmed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', pending: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M6 3v4l6 5-6 5v4M18 3v4l-6 5 6 5v4"/></svg>', cancelled: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' };
-      const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' }[b.cat] || '#888';
+      const catCol = catColor(b.cat);
       return `<div class="cp-history-row">
     <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status] || sMap.confirmed || '•'}</div>
     <div style="flex:1">

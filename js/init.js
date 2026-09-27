@@ -6,7 +6,6 @@
 // при загрузке все функции должны быть уже подключены.
 checkPaymentReturn();
 
-renderHeroCalendar();
 renderServices();
 renderSchedule();
 
@@ -38,7 +37,6 @@ renderSchedule();
   }
 
   // 4. Перерисовываем с актуальными данными
-  renderHeroCalendar();
   renderSchedule();
   renderServices();
 })();

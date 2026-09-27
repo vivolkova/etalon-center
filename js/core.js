@@ -62,6 +62,11 @@ function catName(code) {
   const c = ACTIVITY_CATS.find(function (x) { return x.code === code; });
   return c ? c.name : (code || '—');
 }
+// Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); неизвестная — серый
+function catColor(code) {
+  const v = code ? getComputedStyle(document.documentElement).getPropertyValue('--cat-' + code).trim() : '';
+  return v || '#888';
+}
 async function loadActivityCats() {
   try {
     const res = await LibraryAPI.categories();
@@ -130,7 +135,6 @@ function showPage(name) {
   if (name === 'bookings') renderBookings();
   if (name === 'client') renderClientPanel();
   if (name === 'admin') { renderAdmin(); admNav('dashboard', document.querySelector('.adm-nav-item')); }
-  if (name === 'home') renderHeroCalendar();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

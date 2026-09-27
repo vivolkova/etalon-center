@@ -40,7 +40,7 @@ function renderSpecialists() {
       '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
     return '<div class="lib-card"' + cardStyle + '>' +
       '<div class="lib-card-header"><div>' +
-      '<div class="lib-card-cat ' + (cat ? cat.code : '') + '">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
+      '<div class="lib-card-cat' + (cat ? ' cat-' + cat.code : '') + '">' + (SPEC_TYPE_LABEL[t.category] || t.category) + '</div>' +
       '<div class="lib-card-title">' + t.full + '</div>' +
       '</div></div>' +
       '<div class="lib-card-desc">' + (t.spec || '') + '</div>' +

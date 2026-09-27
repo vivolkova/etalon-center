@@ -94,7 +94,6 @@ async function confirmBooking() {
     await loadMyBookings();
     closeBookingModal();
     renderWeekCal();
-    renderHeroCalendar();
     showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
   } catch (e) {
     // Ошибка/недоступность сервера уже показана в apiRequest; локально запись не подделываем

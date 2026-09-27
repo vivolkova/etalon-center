@@ -14,7 +14,7 @@ function openSlotDetail(slotId) {
   }
   const catLabel = catName(s.cat);
   const tagEl = document.getElementById('sdm-tag');
-  tagEl.textContent = catLabel; tagEl.className = 'dm-tag ' + s.cat;
+  tagEl.textContent = catLabel; tagEl.className = 'dm-tag cat-' + s.cat;
   document.getElementById('sdm-title').textContent = s.name;
   document.getElementById('sdm-subtitle').textContent = DAYS_FULL[s.dayOfWeek] + ' · ' + s.time + ' · ' + s.specialist;
   const left = s.max - s.taken;
@@ -50,7 +50,7 @@ function openServiceDetail(idx) {
   if (s.features) { try { svcFeats = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { } }
   document.getElementById('svcm-icon-big').innerHTML = s.icon;
   const tagEl = document.getElementById('svcm-tag');
-  tagEl.textContent = 'Услуга'; tagEl.className = 'dm-tag training';
+  tagEl.textContent = 'Услуга'; tagEl.className = 'dm-tag cat-training';
   document.getElementById('svcm-title').textContent = s.name;
   document.getElementById('svcm-subtitle').textContent = s.price;
   document.getElementById('svcm-desc-full').textContent = s.desc || '';

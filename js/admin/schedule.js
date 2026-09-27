@@ -3,26 +3,7 @@
 // ── SCHEDULE MANAGEMENT ────────────────────────────────────────────
 
 // ── ADMIN WEEK SCHEDULE ───────────────────────────────────────────
-const ADM_ROW_H = 60;  // px на час
-
-// Диапазон часов сетки: от самого раннего открытия до самого позднего закрытия
-// среди активных филиалов (режим работы — Панель → Настройки → Филиалы),
-// расширенный так, чтобы были видны все слоты недели. Без режима работы — 08–22.
-function admHourRange(weekSlots) {
-  let from = Infinity, to = -Infinity;
-  LOCATIONS.forEach(function (l) {
-    for (let i = 0; i < 7; i++) {
-      const h = locDayHours(l.id, i);
-      if (h) { from = Math.min(from, h.from); to = Math.max(to, h.to); }
-    }
-  });
-  (weekSlots || []).forEach(function (s) {
-    const st = timeToMin(s.time);
-    from = Math.min(from, st); to = Math.max(to, st + (parseInt(s.dur) || 0));
-  });
-  if (from === Infinity) return { start: 8, end: 22 };
-  return { start: Math.floor(from / 60), end: Math.min(24, Math.ceil(to / 60)) };
-}
+let ADM_ROW_H = 60;  // px на час — берётся из --wg-row-h сетки при отрисовке (css/week-grid.css)
 
 let admWeekStart = (function () {
   const d = new Date(today);
@@ -73,22 +54,22 @@ function renderAdminSchedule() {
   });
 
   // Шапка: угол + заголовки дней
-  let h = '<div class="adm-wg-corner"></div>';
+  let h = '<div class="wg-corner"></div>';
   days.forEach(function (d, di) {
     const isTod = d.getTime() === today.getTime();
-    h += '<div class="adm-wg-day-hdr' + (isTod ? ' today' : '') + '">' +
-      '<div class="adm-wg-dow">' + DAYS_SHORT[di] + '</div>' +
-      '<div class="adm-wg-dnum">' + d.getDate() + '</div>' +
-      '<div class="adm-wg-ddate">' + MONTHS_SHORT[d.getMonth()] + '</div>' +
+    h += '<div class="wg-day-hdr' + (isTod ? ' today' : '') + '">' +
+      '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>' +
+      '<div class="wg-date">' + d.getDate() + '</div>' +
+      '<div class="wg-day-sub">' + MONTHS_SHORT[d.getMonth()] + '</div>' +
       '</div>';
   });
 
   // Временная шкала + ячейки
-  const hrRange = admHourRange(weekSlots);
+  ADM_ROW_H = wgRowHeight(grid);
+  const hrRange = weekHourRange(weekSlots);
   for (let hr = hrRange.start; hr < hrRange.end; hr++) {
     const timeStr = String(hr).padStart(2, '0') + ':00';
-    const isLast = hr === hrRange.end - 1;
-    h += '<div class="adm-time-col"><div class="adm-time-row' + (isLast ? ' style="border-bottom:none"' : '') + '">' + timeStr + '</div></div>';
+    h += '<div class="wg-time-col"><div class="wg-time-row">' + timeStr + '</div></div>';
 
     days.forEach(function (d, di) {
       const isTod = d.getTime() === today.getTime();
@@ -99,7 +80,7 @@ function renderAdminSchedule() {
           parseInt(s.time.split(':')[0]) === hr;
       });
 
-      let cellHtml = "<div class='adm-time-cell' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
+      let cellHtml = "<div class='wg-cell' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
 
       // Рисуем слоты
       const nn = daySlots.length;
@@ -111,19 +92,19 @@ function renderAdminSchedule() {
         const colStyle = nn > 1
           ? 'left:calc(' + (si * 100 / nn) + '% + 2px);width:calc(' + (100 / nn) + '% - 4px);right:auto;'
           : '';
-        cellHtml += '<div class="adm-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
-        cellHtml += '<div class="adm-slot-time">' + s.time + '</div>';
-        cellHtml += '<div class="adm-slot-name">' + s.name + '</div>';
-        cellHtml += '<div class="adm-slot-info">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
-        cellHtml += '<div class="adm-slot-btns">';
-        cellHtml += '<button class="adm-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
-        cellHtml += '<button class="adm-slot-btn" style="color:#dc2626" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
+        cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
+        cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
+        cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
+        cellHtml += '<div class="wg-slot-meta">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + (s.max - s.taken) + '/' + s.max + '</div>';
+        cellHtml += '<div class="wg-slot-btns">';
+        cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
+        cellHtml += '<button class="wg-slot-btn" style="color:#dc2626" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
         cellHtml += '</div>';
         cellHtml += '</div>';
       });
 
       cellHtml += '</div>';
-      h += '<div class="adm-day-col' + (isTod ? ' today-col' : '') + '">' + cellHtml + '</div>';
+      h += '<div class="wg-day-col' + (isTod ? ' today-col' : '') + '">' + cellHtml + '</div>';
     });
   }
 
@@ -148,12 +129,10 @@ function admInitDragDrop(grid) {
 
   // Метка времени, показывающая, куда встанет слот
   function showDropMarker(cell, minutes) {
-    var marker = grid.querySelector('.adm-drop-marker');
+    var marker = grid.querySelector('.wg-drop-marker');
     if (!marker) {
       marker = document.createElement('div');
-      marker.className = 'adm-drop-marker';
-      marker.style.cssText = 'position:absolute;left:2px;right:2px;height:0;border-top:2px dashed var(--green);' +
-        'pointer-events:none;z-index:5;font-size:10px;font-weight:700;color:var(--green)';
+      marker.className = 'wg-drop-marker';   // стиль — css/week-grid.css
     }
     if (marker.parentNode !== cell) cell.appendChild(marker);
     var hr = parseInt(cell.getAttribute('data-hr'));
@@ -174,7 +153,7 @@ function admInitDragDrop(grid) {
 
   // Drag over — подсвечиваем ячейку-цель
   grid.addEventListener('dragover', function (e) {
-    var cell = e.target.closest('.adm-time-cell');
+    var cell = e.target.closest('.wg-cell');
     if (!cell || !dragSlotId) return;
     e.preventDefault();
     grid.querySelectorAll('.drag-over').forEach(function (c) { c.classList.remove('drag-over'); });
@@ -183,7 +162,7 @@ function admInitDragDrop(grid) {
   });
 
   grid.addEventListener('dragleave', function (e) {
-    var cell = e.target.closest('.adm-time-cell');
+    var cell = e.target.closest('.wg-cell');
     if (cell) cell.classList.remove('drag-over');
   });
 
@@ -191,7 +170,7 @@ function admInitDragDrop(grid) {
   grid.addEventListener('drop', function (e) {
     e.preventDefault();
     if (!dragSlotId) return;
-    var cell = e.target.closest('.adm-time-cell');
+    var cell = e.target.closest('.wg-cell');
     if (!cell) return;
 
     var dayIdx = parseInt(cell.getAttribute('data-day'));
@@ -237,7 +216,7 @@ function admInitDragDrop(grid) {
   function cleanup() {
     dragSlotId = null;
     grabOffsetPx = 0;
-    var marker = grid.querySelector('.adm-drop-marker'); if (marker) marker.remove();
+    var marker = grid.querySelector('.wg-drop-marker'); if (marker) marker.remove();
     grid.querySelectorAll('.dragging').forEach(function (el) { el.classList.remove('dragging'); });
     grid.querySelectorAll('.drag-over').forEach(function (c) { c.classList.remove('drag-over'); });
   }
@@ -317,12 +296,11 @@ function smApplyLibItem(val) {
 
 // Превью выбранной записи библиотеки (без перезаписи полей формы)
 function smRenderLibPreview(item) {
-  const catCol = { training: '#00BAB3', bikefit: '#c07a10', workshop: '#4e42b5' };
   const prev = document.getElementById('sm-lib-preview');
   if (!prev) return;
   prev.style.display = '';
   prev.innerHTML =
-    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + (catCol[item.cat] || '#888') + ';margin-right:6px;vertical-align:middle"></span>' +
+    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(item.cat) + ';margin-right:6px;vertical-align:middle"></span>' +
     '<strong>' + item.name + '</strong> · ' + catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽' +
     (item.desc ? '<div style="color:var(--ink-60);margin-top:4px">' + item.desc + '</div>' : '');
 }

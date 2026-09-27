@@ -35,9 +35,7 @@ function renderWeekCal() {
 
   const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  const HOUR_START = 8;
-  const HOUR_END = 22;
-  const ROW_H = 80; // px на 1 час
+  const ROW_H = wgRowHeight(grid); // px на 1 час — из --wg-row-h (css/week-grid.css)
 
   // Заголовок недели
   const weekEnd = new Date(schWeekStart); weekEnd.setDate(schWeekStart.getDate() + 6);
@@ -63,27 +61,28 @@ function renderWeekCal() {
   });
 
   // ── Шапка: угол + заголовки дней ──
-  let h = '<div class="wc-corner"></div>';
+  let h = '<div class="wg-corner"></div>';
   days.forEach(function (d, di) {
     const isToday = d.getTime() === today.getTime();
     const isPast = d < today;
     const cnt = weekSlots.filter(function (s) {
       return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth();
     }).length;
-    h += '<div class="wc-day-hdr' + (isToday ? ' today' : '') + (isPast && !isToday ? ' past' : '') + '">'
-      + '<div class="wc-dow">' + DAYS_SHORT[di] + '</div>'
-      + '<div class="wc-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>'
-      + '<div class="wc-day-count">' + (cnt ? cnt + ' зан.' : '—') + '</div>'
+    h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (isPast && !isToday ? ' past' : '') + '">'
+      + '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>'
+      + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>'
+      + '<div class="wg-day-sub">' + (cnt ? cnt + ' зан.' : '—') + '</div>'
       + '</div>';
   });
 
   // ── Строки часов ──
-  for (var hr = HOUR_START; hr < HOUR_END; hr++) {
+  // Часы — по режиму работы филиалов (как в админке)
+  const hrRange = weekHourRange(weekSlots);
+  for (var hr = hrRange.start; hr < hrRange.end; hr++) {
     const timeStr = String(hr).padStart(2, '0') + ':00';
-    const isLast = hr === HOUR_END - 1;
 
     // Временна́я метка
-    h += '<div class="wc-time-col"><div class="wc-time-row' + (isLast ? ' style="border-bottom:none"' : '') + '">' + timeStr + '</div></div>';
+    h += '<div class="wg-time-col"><div class="wg-time-row">' + timeStr + '</div></div>';
 
     // Колонки дней
     days.forEach(function (d, di) {
@@ -97,7 +96,7 @@ function renderWeekCal() {
           parseInt(s.time.split(':')[0]) === hr;
       });
 
-      let cellHtml = '<div class="wc-cell">';
+      let cellHtml = '<div class="wg-cell">';
 
       dayHrSlots.forEach(function (s) {
         const mins = parseInt(s.time.split(':')[1]) || 0;
@@ -111,7 +110,7 @@ function renderWeekCal() {
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
-        let cls = 'wc-slot cat-' + s.cat + ' ' + sizeClass;
+        let cls = 'wg-slot cat-' + s.cat + ' ' + sizeClass;
         if (booked) cls += ' booked';
         else if (full) cls += ' full';
 
@@ -130,22 +129,22 @@ function renderWeekCal() {
         }
         cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
         if (heightPx >= 28) {
-          cellHtml += '<div class="wc-slot-time">' + s.time + '</div>';
+          cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         }
         if (heightPx >= 20) {
-          cellHtml += '<div class="wc-slot-name">' + s.name + '</div>';
+          cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
         }
         if (heightPx >= 44) {
-          cellHtml += '<div class="wc-slot-spots">' + spotsText + '</div>';
+          cellHtml += '<div class="wg-slot-meta">' + spotsText + '</div>';
         }
         // Кнопка всегда — адаптируется по размеру через CSS
-        cellHtml += '<button class="wc-slot-book" onclick="' + bookOnclick + '">' + bookLabel + '</button>';
+        cellHtml += '<button class="wg-slot-book" onclick="' + bookOnclick + '">' + bookLabel + '</button>';
         cellHtml += '</div>';
       });
 
       cellHtml += '</div>';
 
-      h += '<div class="wc-day-col' + (isToday ? ' today-col' : '') + (isPast && !isToday ? ' past-col' : '') + '">' + cellHtml + '</div>';
+      h += '<div class="wg-day-col' + (isToday ? ' today-col' : '') + (isPast && !isToday ? ' past-col' : '') + '">' + cellHtml + '</div>';
     });
   }
 
@@ -176,7 +175,7 @@ function wcBindTip(grid) {
   grid._tipBound = true;
   const t = wcEnsureTip();
   grid.addEventListener('mouseover', function (e) {
-    const slot = e.target.closest('.wc-slot');
+    const slot = e.target.closest('.wg-slot');
     if (!slot || !grid.contains(slot)) return;
     const desc = slot.getAttribute('data-desc');
     const featRaw = slot.getAttribute('data-feat');
@@ -196,7 +195,7 @@ function wcBindTip(grid) {
     if (t.classList.contains('show')) wcPositionTip(t, e);
   });
   grid.addEventListener('mouseout', function (e) {
-    const slot = e.target.closest('.wc-slot');
+    const slot = e.target.closest('.wg-slot');
     if (!slot) return;
     if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
     t.classList.remove('show');
@@ -208,55 +207,5 @@ function filterCat(cat, btn) {
   document.querySelectorAll('#page-schedule .chip').forEach(c => c.classList.remove('active'));
   btn.classList.add('active');
   renderWeekCal();
-}
-
-function renderSlots() {
-  const grid = document.getElementById('slots-grid');
-  // Фильтрация по точной выбранной дате
-  const filtered = SLOTS.filter(s => {
-    const matchDate = s.date.getFullYear() === schSelYear && s.date.getMonth() === schSelMonth && s.date.getDate() === schSelDate;
-    const matchCat = currentCat === 'all' || s.cat === currentCat;
-    return matchDate && matchCat;
-  }).sort((a, b) => a.time.localeCompare(b.time));
-  if (!filtered.length) {
-    grid.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--ink-60)">
-  <div style="margin-bottom:12px;opacity:.35"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M8.5 17.5h7m-3-10.5l2 4 2-1.5m-4 0l-3 4h5"/><circle cx="15" cy="6" r="1"/></svg></div>
-  <div style="font-size:15px;font-weight:600">Нет занятий в этот день</div>
-  <div style="font-size:13px;margin-top:6px">Выберите другой день или категорию</div>
-</div>`;
-    return;
-  }
-  const alreadyBooked = new Set(bookings.filter(b => b.status !== 'cancelled').map(b => b.slotId));
-  grid.innerHTML = filtered.map(s => {
-    const left = s.max - s.taken;
-    const full = left <= 0;
-    const isBooked = alreadyBooked.has(s.id);
-    const badgeClass = { training: 'badge-training', bikefit: 'badge-bikefit', workshop: 'badge-workshop' }[s.cat];
-    const badgeLabel = catName(s.cat);
-    const spotsHtml = isBooked
-      ? `<span class="slot-badge badge-training">✓ Записан</span>`
-      : full ? `<span class="spots-full">Мест нет</span>`
-        : left <= 2 ? `<span class="spots-low">Осталось ${left}</span>`
-          : `<span class="spots-ok">${left} / ${s.max} мест</span>`;
-    return `<div class="slot-card${full && !isBooked ? ' full' : ''}" onclick="openSlotDetail(${s.id})" style="cursor:pointer">
-  <div class="slot-time-block">
-    <div class="slot-time">${s.time}</div>
-    <div class="slot-dur">${s.dur} мин</div>
-  </div>
-  <div class="slot-divider"></div>
-  <div class="slot-info">
-    <div class="slot-name">${s.name}</div>
-    <div class="slot-meta">
-      <span class="slot-trainer"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist}</span>
-      <span class="slot-badge ${badgeClass}">${badgeLabel}</span>
-    </div>
-  </div>
-  <div class="slot-right">
-    <div class="slot-price">${s.price.toLocaleString('ru')} ₽</div>
-    ${spotsHtml}
-    ${!full && !isBooked ? `<button class="btn-book" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>` : ''}
-  </div>
-</div>`;
-  }).join('');
 }
 
