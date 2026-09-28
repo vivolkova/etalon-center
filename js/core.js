@@ -85,9 +85,14 @@ function validCat(cat) {
   return cat === 'all' || ACTIVITY_CATS.some(function (c) { return c.code === cat; }) ? cat : 'all';
 }
 
+// Занимает ли занятие места в зале (станки, вместимость, блокировки станков).
+// Байкфит — индивидуальная услуга без мест в зале.
+function slotUsesHall(cat) { return cat !== 'bikefit'; }
+
 // Места на занятии: вместимость филиала минус заблокированные на это занятие станки (ремонт и т.п.);
 // свободно = места минус записи. s.blocked приходит из api/slots.php.
-function slotCap(s) { return Math.max((s.max || 0) - (s.blocked || 0), 0); }
+// Занятие без зала (байкфит) — один клиент на слот.
+function slotCap(s) { return slotUsesHall(s.cat) ? Math.max((s.max || 0) - (s.blocked || 0), 0) : 1; }
 function slotFree(s) { return Math.max(slotCap(s) - (s.taken || 0), 0); }
 
 // Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); неизвестная — серый

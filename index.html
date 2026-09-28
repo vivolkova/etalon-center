@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20260927-15">
-  <link rel="stylesheet" href="css/site.css?v=20260927-15">
-  <link rel="stylesheet" href="css/panels.css?v=20260927-15">
-  <link rel="stylesheet" href="css/library.css?v=20260927-15">
-  <link rel="stylesheet" href="css/week-grid.css?v=20260927-15">
-  <link rel="stylesheet" href="css/admin.css?v=20260927-15">
+  <link rel="stylesheet" href="css/base.css?v=20260927-18">
+  <link rel="stylesheet" href="css/site.css?v=20260927-18">
+  <link rel="stylesheet" href="css/panels.css?v=20260927-18">
+  <link rel="stylesheet" href="css/library.css?v=20260927-18">
+  <link rel="stylesheet" href="css/week-grid.css?v=20260927-18">
+  <link rel="stylesheet" href="css/admin.css?v=20260927-18">
 </head>
 
 <body>
@@ -612,16 +612,22 @@
         <div class="adm-panel" id="adm-bookings">
           <div class="adm-panel-header">
             <h2 class="adm-panel-title">Записи</h2>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input class="form-input" id="bookings-search" placeholder="Поиск клиента..."
-                style="width:220px;height:36px;font-size:13px" oninput="filterBookingsSearch(this.value)">
-              <select class="form-input" id="bookings-status-filter" style="width:160px;height:36px;font-size:13px"
-                onchange="filterBookingsSearch(document.getElementById('bookings-search').value)">
-                <option value="all">Все статусы</option>
-                <option value="booked">Активна</option>
-                <option value="cancelled">Отменены</option>
-              </select>
-            </div>
+          </div>
+          <!-- Период (по дате занятия) и филиал — запрос к серверу; статус и поиск — по загруженному списку -->
+          <div class="set-bar">
+            <label class="set-hint" for="bookings-from">Занятия с</label>
+            <input class="form-input" id="bookings-from" type="date" style="width:150px;height:36px;font-size:13px" onchange="loadBookingsPanel().then(renderAdminBookings)">
+            <label class="set-hint" for="bookings-to">по</label>
+            <input class="form-input" id="bookings-to" type="date" style="width:150px;height:36px;font-size:13px" onchange="loadBookingsPanel().then(renderAdminBookings)">
+            <select class="form-input" id="bookings-loc" style="width:200px;height:36px;font-size:13px" onchange="loadBookingsPanel().then(renderAdminBookings)"></select>
+            <select class="form-input" id="bookings-status-filter" style="width:150px;height:36px;font-size:13px"
+              onchange="filterBookingsSearch(document.getElementById('bookings-search').value)">
+              <option value="all">Все статусы</option>
+              <option value="booked">Активна</option>
+              <option value="cancelled">Отменены</option>
+            </select>
+            <input class="form-input" id="bookings-search" placeholder="Поиск: клиент, телефон, занятие…"
+              style="width:240px;height:36px;font-size:13px" oninput="filterBookingsSearch(this.value)">
           </div>
           <div class="adm-kpi-grid" id="bookings-kpi" style="margin-bottom:16px"></div>
           <div class="admin-table">
@@ -629,7 +635,10 @@
               <thead>
                 <tr>
                   <th>Клиент</th>
-                  <th>Услуга</th>
+                  <th>Телефон</th>
+                  <th>Занятие</th>
+                  <th>Тренер</th>
+                  <th>Станок</th>
                   <th>Дата и время</th>
                   <th>Сумма</th>
                   <th>Статус</th>
@@ -911,7 +920,7 @@
         <button class="modal-close" onclick="closeBookingModal()">×</button>
       </div>
       <div class="modal-detail-row" id="bm-details"></div>
-      <div class="form-field">
+      <div class="form-field" id="bm-hall-wrap">
         <label class="form-label">Выберите место</label>
         <div id="bm-hall" class="hall-scheme"></div>
         <div id="bm-station-hint" class="station-hint"></div>
@@ -1020,33 +1029,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20260927-15"></script>
-  <script src="js/core.js?v=20260927-15"></script>
-  <script src="js/week-grid.js?v=20260927-15"></script>
-  <script src="js/auth.js?v=20260927-15"></script>
-  <script src="js/site/schedule.js?v=20260927-15"></script>
-  <script src="js/site/booking.js?v=20260927-15"></script>
-  <script src="js/site/services-bookings.js?v=20260927-15"></script>
-  <script src="js/admin/admin.js?v=20260927-15"></script>
-  <script src="js/admin/schedule.js?v=20260927-15"></script>
-  <script src="js/admin/services.js?v=20260927-15"></script>
-  <script src="js/admin/chat.js?v=20260927-15"></script>
-  <script src="js/admin/notifications.js?v=20260927-15"></script>
-  <script src="js/client/panel.js?v=20260927-15"></script>
-  <script src="js/client/payment.js?v=20260927-15"></script>
-  <script src="js/client/chat-profile.js?v=20260927-15"></script>
-  <script src="js/site/detail-modals.js?v=20260927-15"></script>
-  <script src="js/admin/library.js?v=20260927-15"></script>
-  <script src="js/admin/data-nav.js?v=20260927-15"></script>
-  <script src="js/admin/dashboard.js?v=20260927-15"></script>
-  <script src="js/admin/specialists.js?v=20260927-15"></script>
-  <script src="js/admin/sales.js?v=20260927-15"></script>
-  <script src="js/admin/settings.js?v=20260927-15"></script>
-  <script src="js/admin/stations.js?v=20260927-15"></script>
-  <script src="js/admin/dictionaries.js?v=20260927-15"></script>
-  <script src="js/ui.js?v=20260927-15"></script>
-  <script src="js/loaders.js?v=20260927-15"></script>
-  <script src="js/init.js?v=20260927-15"></script>
+  <script src="js/api.js?v=20260927-18"></script>
+  <script src="js/core.js?v=20260927-18"></script>
+  <script src="js/week-grid.js?v=20260927-18"></script>
+  <script src="js/auth.js?v=20260927-18"></script>
+  <script src="js/site/schedule.js?v=20260927-18"></script>
+  <script src="js/site/booking.js?v=20260927-18"></script>
+  <script src="js/site/services-bookings.js?v=20260927-18"></script>
+  <script src="js/admin/admin.js?v=20260927-18"></script>
+  <script src="js/admin/schedule.js?v=20260927-18"></script>
+  <script src="js/admin/services.js?v=20260927-18"></script>
+  <script src="js/admin/chat.js?v=20260927-18"></script>
+  <script src="js/admin/notifications.js?v=20260927-18"></script>
+  <script src="js/client/panel.js?v=20260927-18"></script>
+  <script src="js/client/payment.js?v=20260927-18"></script>
+  <script src="js/client/chat-profile.js?v=20260927-18"></script>
+  <script src="js/site/detail-modals.js?v=20260927-18"></script>
+  <script src="js/admin/library.js?v=20260927-18"></script>
+  <script src="js/admin/data-nav.js?v=20260927-18"></script>
+  <script src="js/admin/dashboard.js?v=20260927-18"></script>
+  <script src="js/admin/specialists.js?v=20260927-18"></script>
+  <script src="js/admin/sales.js?v=20260927-18"></script>
+  <script src="js/admin/settings.js?v=20260927-18"></script>
+  <script src="js/admin/stations.js?v=20260927-18"></script>
+  <script src="js/admin/dictionaries.js?v=20260927-18"></script>
+  <script src="js/ui.js?v=20260927-18"></script>
+  <script src="js/loaders.js?v=20260927-18"></script>
+  <script src="js/init.js?v=20260927-18"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1095,7 +1104,7 @@
           <label class="form-label">Длительность (мин)</label>
           <input class="form-input" id="sm-dur" type="number" value="60" min="15" max="480" step="15" onchange="smRenderTimes()">
         </div>
-        <div class="form-field">
+        <div class="form-field" id="sm-max-wrap">
           <label class="form-label">Мест в зале</label>
           <input class="form-input is-locked" id="sm-max" type="number" value="10" min="1" readonly title="Вместимость зала задаётся в локации">
         </div>

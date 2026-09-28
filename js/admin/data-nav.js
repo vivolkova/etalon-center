@@ -38,7 +38,7 @@ async function admNav(name, el) {
 
   // Подгружаем свежие данные с сервера при переключении раздела
   const loaders = {
-    bookings: loadAdminBookings,
+    bookings: loadBookingsPanel,   // с фильтрами раздела (период, филиал)
     clients: loadClients,
     subscriptions: loadSubPlans,
     specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll(), loadDictValues(), loadDictAvailability()]); },

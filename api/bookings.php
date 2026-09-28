@@ -31,21 +31,27 @@ if ($method === 'GET' && $action === 'all') {
     $db     = getDB();
     $status = $_GET['status'] ?? null;
     $search = $_GET['search'] ?? null;
-    // По умолчанию — окно вокруг сегодня (не «все за всё время»). from/to можно передать для истории.
-    $from   = $_GET['from'] ?? date('Y-m-d', strtotime('-7 days'));
-    $to     = $_GET['to']   ?? date('Y-m-d', strtotime('+30 days'));
+    // Период — по дате занятия. По умолчанию окно вокруг сегодня (−7 … +30 дней); from/to — для истории.
+    $isDate = fn($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v);
+    $from   = $isDate($_GET['from'] ?? null) ? $_GET['from'] : date('Y-m-d', strtotime('-7 days'));
+    $to     = $isDate($_GET['to'] ?? null)   ? $_GET['to']   : date('Y-m-d', strtotime('+30 days'));
+    $locId  = (int)($_GET['location_id'] ?? 0);   // 0 — все филиалы
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
-                   s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, dc.code AS category,
-                   t.name AS specialist_name, st.label AS station_label
+                   s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, s.location_id,
+                   dc.code AS category,
+                   t.name AS specialist_name, t.full_name AS specialist_full,
+                   st.label AS station_label, stt.code AS station_code
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
-            JOIN dictionaries dc ON s.category_id = dc.id
-            LEFT JOIN specialists t ON s.specialist_id = t.id
-            LEFT JOIN stations st ON b.station_id = st.id
+            JOIN dictionaries dc       ON s.category_id = dc.id
+            LEFT JOIN specialists t    ON s.specialist_id = t.id
+            LEFT JOIN stations st      ON b.station_id = st.id
+            LEFT JOIN station_type stt ON st.type_id = stt.id
             WHERE s.slot_date BETWEEN ? AND ?';
     $params = [$from, $to];
+    if ($locId) { $sql .= ' AND s.location_id = ?'; $params[] = $locId; }
 
     if ($status) { $sql .= ' AND b.status=?'; $params[] = $status; }
     if ($search) {
@@ -60,40 +66,51 @@ if ($method === 'GET' && $action === 'all') {
     ok($stmt->fetchAll());
 }
 
-// POST — создать запись (на конкретный станок)
+// POST — создать запись (на конкретный станок; байкфит — без станка)
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();
     $d    = input();
-    require_fields($d, ['slot_id', 'station_id']);
+    require_fields($d, ['slot_id']);
 
     $slotId    = (int)$d['slot_id'];
-    $stationId = (int)$d['station_id'];
     $notes     = trim($d['notes'] ?? '');
     if ($notes === '') $notes = null;
     $db        = getDB();
 
     // Слот существует и активен
-    $stmt = $db->prepare('SELECT * FROM slots WHERE id=? AND active=1');
+    $stmt = $db->prepare('SELECT s.*, dc.code AS category FROM slots s
+                            JOIN dictionaries dc ON s.category_id = dc.id
+                           WHERE s.id=? AND s.active=1');
     $stmt->execute([$slotId]);
     $slot = $stmt->fetch();
     if (!$slot) err('Слот не найден');
 
-    // Станок активен и принадлежит филиалу слота
-    $stmt = $db->prepare('SELECT * FROM stations WHERE id=? AND active=1 AND location_id=?');
-    $stmt->execute([$stationId, (int)$slot['location_id']]);
-    $station = $stmt->fetch();
-    if (!$station) err('Станок недоступен');
+    // Байкфит — индивидуальная услуга без мест в зале: станок не выбирается, один клиент на слот
+    $usesHall  = $slot['category'] !== 'bikefit';
+    $stationId = null;
+    $station   = null;
 
-    // Станок не заблокирован на это занятие (персоналка/ремонт)
-    $stmt = $db->prepare('SELECT id FROM slot_station_blocks WHERE slot_id=? AND station_id=?');
-    $stmt->execute([$slotId, $stationId]);
-    if ($stmt->fetch()) err('Станок недоступен на это занятие');
+    if ($usesHall) {
+        require_fields($d, ['station_id']);
+        $stationId = (int)$d['station_id'];
 
-    // Быстрая дружелюбная проверка «место свободно».
-    // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
-    $stmt->execute([$slotId, $stationId]);
-    if ($stmt->fetch()) err('Это место уже занято');
+        // Станок активен и принадлежит филиалу слота
+        $stmt = $db->prepare('SELECT * FROM stations WHERE id=? AND active=1 AND location_id=?');
+        $stmt->execute([$stationId, (int)$slot['location_id']]);
+        $station = $stmt->fetch();
+        if (!$station) err('Станок недоступен');
+
+        // Станок не заблокирован на это занятие (персоналка/ремонт)
+        $stmt = $db->prepare('SELECT id FROM slot_station_blocks WHERE slot_id=? AND station_id=?');
+        $stmt->execute([$slotId, $stationId]);
+        if ($stmt->fetch()) err('Станок недоступен на это занятие');
+
+        // Быстрая дружелюбная проверка «место свободно».
+        // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
+        $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
+        $stmt->execute([$slotId, $stationId]);
+        if ($stmt->fetch()) err('Это место уже занято');
+    }
 
     // Пользователь ещё не записан на этот слот
     $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
@@ -107,20 +124,24 @@ if ($method === 'POST' && $action === 'create') {
         $cap = $db->prepare('SELECT taken, location_id FROM slots WHERE id=? FOR UPDATE');
         $cap->execute([$slotId]);
         $capRow = $cap->fetch();
-        $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
-        $lc->execute([(int)($capRow['location_id'] ?? 0)]);
-        $maxPeople = (int)$lc->fetchColumn();
-        // Заблокированные на занятие станки (ремонт и т.п.) уменьшают число мест;
-        // станок, занятый записью, не считаем второй раз
-        $bl = $db->prepare('SELECT COUNT(*) FROM slot_station_blocks b
-                             JOIN stations st ON st.id = b.station_id AND st.active = 1
-                            WHERE b.slot_id = ?
-                              AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = b.slot_id AND bk.station_id = b.station_id AND bk.status <> "cancelled")');
-        $bl->execute([$slotId]);
-        $maxPeople -= (int)$bl->fetchColumn();
+        if ($usesHall) {
+            $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
+            $lc->execute([(int)($capRow['location_id'] ?? 0)]);
+            $maxPeople = (int)$lc->fetchColumn();
+            // Заблокированные на занятие станки (ремонт и т.п.) уменьшают число мест;
+            // станок, занятый записью, не считаем второй раз
+            $bl = $db->prepare('SELECT COUNT(*) FROM slot_station_blocks b
+                                 JOIN stations st ON st.id = b.station_id AND st.active = 1
+                                WHERE b.slot_id = ?
+                                  AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = b.slot_id AND bk.station_id = b.station_id AND bk.status <> "cancelled")');
+            $bl->execute([$slotId]);
+            $maxPeople -= (int)$bl->fetchColumn();
+        } else {
+            $maxPeople = 1;   // байкфит: один клиент на слот (строка слота залочена — без гонки)
+        }
         if ($capRow && (int)$capRow['taken'] >= $maxPeople) {
             $db->rollBack();
-            err('Свободных мест нет');
+            err($usesHall ? 'Свободных мест нет' : 'Это время уже занято');
         }
 
         $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,\'booked\')');
@@ -136,7 +157,7 @@ if ($method === 'POST' && $action === 'create') {
         $stmt->execute([
             'booking',
             'Новая запись',
-            $user['name'] . ' — ' . $slot['name'] . ' (' . $station['label'] . ') ' . $slot['slot_date'],
+            $user['name'] . ' — ' . $slot['name'] . ($station ? ' (' . $station['label'] . ')' : '') . ' ' . $slot['slot_date'],
         ]);
 
         $db->commit();

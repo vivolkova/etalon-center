@@ -294,22 +294,53 @@ function renderAdmin() {
 }
 
 // Совместимость: filterBookingsSearch
+// ── Панель → Записи ───────────────────────────────────────────────
+// Период (по дате занятия) и филиал уходят в запрос к серверу; статус и поиск фильтруют загруженный список.
+function bookingsPanelFilters() {
+  const fromEl = document.getElementById('bookings-from');
+  const toEl = document.getElementById('bookings-to');
+  // По умолчанию — как на сервере: −7 … +30 дней от сегодня
+  if (fromEl && !fromEl.value) { const d = new Date(today); d.setDate(d.getDate() - 7); fromEl.value = fmtLocalDate(d); }
+  if (toEl && !toEl.value) { const d = new Date(today); d.setDate(d.getDate() + 30); toEl.value = fmtLocalDate(d); }
+  const locSel = document.getElementById('bookings-loc');
+  if (locSel && !locSel.options.length) {
+    const list = LOCATIONS_ALL.length ? LOCATIONS_ALL : LOCATIONS;
+    locSel.innerHTML = '<option value="">Все филиалы</option>' +
+      list.map(function (l) { return '<option value="' + l.id + '">' + escAttr(l.name) + '</option>'; }).join('');
+  }
+  return {
+    from: fromEl ? fromEl.value : '',
+    to: toEl ? toEl.value : '',
+    location_id: locSel ? locSel.value : '',
+  };
+}
+
+async function loadBookingsPanel() {
+  const f = bookingsPanelFilters();
+  if (f.from && f.to && f.from > f.to) { showToast('Дата «с» позже даты «по»', 'error'); return; }
+  await loadAdminBookings(f);
+}
+
 function filterBookingsSearch(q) {
   const filter = document.getElementById('bookings-status-filter')?.value || 'all';
   let list = bookings;
   if (filter !== 'all') list = list.filter(b => b.status === filter);
-  if (q) { const lq = q.toLowerCase(); list = list.filter(b => b.name.toLowerCase().includes(lq) || b.email.toLowerCase().includes(lq) || (b.service || '').toLowerCase().includes(lq)); }
+  if (q) {
+    const lq = q.toLowerCase();
+    list = list.filter(b => [b.name, b.email, b.phone, b.service, b.specialistFull, b.station]
+      .some(v => (v || '').toLowerCase().includes(lq)));
+  }
   renderAdminBookingsFiltered(list);
 }
 
 function renderAdminBookings() {
-  renderAdminBookingsFiltered(bookings);
-  // KPI
+  bookingsPanelFilters();
+  filterBookingsSearch(document.getElementById('bookings-search')?.value || '');
+  // KPI — по загруженному периоду и филиалу
   const kpi = document.getElementById('bookings-kpi');
   if (kpi) {
     kpi.innerHTML = [
       { val: bookings.length, label: 'Всего', color: 'var(--ink)' },
-      { val: bookings.filter(b => b.status === 'pending').length, label: 'Ожидают', color: '#c07a10' },
       { val: bookings.filter(b => b.status === 'booked').length, label: 'Активные', color: 'var(--green)' },
       { val: bookings.filter(b => b.status === 'cancelled').length, label: 'Отменены', color: '#ef4444' },
     ].map(k => '<div class="adm-kpi" style="padding:12px"><div class="adm-kpi-val" style="color:' + k.color + ';font-size:20px">' + k.val + '</div><div class="adm-kpi-label">' + k.label + '</div></div>').join('');
@@ -319,16 +350,25 @@ function renderAdminBookings() {
 function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--ink-60)">Записей нет</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--ink-60)">Записей нет</td></tr>'; return; }
   const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
   const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
+  const muted = function (v) { return v ? escAttr(v) : '<span style="color:var(--ink-60)">—</span>'; };
   tbody.innerHTML = [...list].reverse().map(b => {
     const date = new Date(b.date);
+    // Станок: название + код типа станка
+    const station = b.station
+      ? escAttr(b.station) + (b.stationCode ? '<br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.stationCode) + '</span>' : '')
+      : muted('');
+    // Полоса слева — цвет категории занятия (тренировка / байкфит / мастерская)
     return '<tr>' +
-      '<td><strong>' + b.name + '</strong><br><span style="color:var(--ink-60);font-size:11px">' + b.email + '</span></td>' +
-      '<td>' + b.service + '</td>' +
-      '<td>' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +
-      '<td style="font-weight:600">' + b.price.toLocaleString('ru') + ' ₽</td>' +
+      '<td style="border-left:4px solid ' + catColor(b.cat) + '"><strong>' + escAttr(b.name) + '</strong><br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.email) + '</span></td>' +
+      '<td style="white-space:nowrap">' + muted(b.phone) + '</td>' +
+      '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(b.cat) + ';margin-right:6px;vertical-align:middle" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
+      '<td>' + muted(b.specialistFull) + '</td>' +
+      '<td>' + station + '</td>' +
+      '<td style="white-space:nowrap">' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +
+      '<td style="font-weight:600;white-space:nowrap">' + b.price.toLocaleString('ru') + ' ₽</td>' +
       '<td><span class="status-badge ' + statusMap[b.status] + '">' + statusLabel[b.status] + '</span></td>' +
       '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
 

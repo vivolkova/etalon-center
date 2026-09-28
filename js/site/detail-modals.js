@@ -23,10 +23,12 @@ function openSlotDetail(slotId) {
   const usersSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`;
   const starSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
+  const usesHall = slotUsesHall(s.cat);
+  // У байкфита мест в зале нет — показываем только длительность
   document.getElementById('sdm-stats').innerHTML = `
-<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${clockSvg}</div><div class="dm-stat-val">${s.dur}</div><div class="dm-stat-label">минут</div></div>
+<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${clockSvg}</div><div class="dm-stat-val">${s.dur}</div><div class="dm-stat-label">минут</div></div>` + (usesHall ? `
 <div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${usersSvg}</div><div class="dm-stat-val">${left}</div><div class="dm-stat-label">мест свободно</div></div>
-<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${starSvg}</div><div class="dm-stat-val">${slotCap(s)}</div><div class="dm-stat-label">мест всего</div></div>`;
+<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${starSvg}</div><div class="dm-stat-val">${slotCap(s)}</div><div class="dm-stat-label">мест всего</div></div>` : '');
 
   document.getElementById('sdm-desc').textContent = descText;
   document.getElementById('sdm-features').innerHTML = (featureList || [])
@@ -37,7 +39,7 @@ function openSlotDetail(slotId) {
   const full = left <= 0;
   const isBooked = bookings.some(b => b.slotId === s.id && b.status !== 'cancelled');
   if (isBooked) { btn.textContent = 'Вы записаны ✓'; btn.disabled = false; btn.classList.add('is-booked-ok'); btn.onclick = null; btn.style.opacity = ''; btn.title = 'Вы уже записаны на это занятие'; }
-  else if (full) { btn.textContent = 'Мест нет'; btn.classList.remove('is-booked-ok'); btn.disabled = true; btn.onclick = null; btn.style.opacity = ''; btn.title = 'Свободных мест нет'; }
+  else if (full) { btn.textContent = usesHall ? 'Мест нет' : 'Занято'; btn.classList.remove('is-booked-ok'); btn.disabled = true; btn.onclick = null; btn.style.opacity = ''; btn.title = usesHall ? 'Свободных мест нет' : 'Время уже занято'; }
   else { btn.textContent = 'Записаться →'; btn.classList.remove('is-booked-ok'); btn.disabled = false; btn.style.opacity = ''; btn.title = ''; btn.onclick = () => { document.getElementById('slot-detail-modal').classList.remove('show'); openBookingModal(slotId); }; }
 
   document.getElementById('slot-detail-modal').classList.add('show');

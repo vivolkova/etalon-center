@@ -133,11 +133,11 @@ const BookingsAPI = {
   async my() {
     return apiRequest('/bookings.php?action=my');
   },
-  async all(status, search) {
-    let url = '/bookings.php?action=all';
-    if (status) url += `&status=${status}`;
-    if (search) url += `&search=${encodeURIComponent(search)}`;
-    return apiRequest(url);
+  // opts: { from, to, location_id, status, search } — всё необязательно (по умолчанию −7…+30 дней, все филиалы)
+  async all(opts) {
+    const q = new URLSearchParams({ action: 'all' });
+    Object.entries(opts || {}).forEach(function ([k, v]) { if (v) q.set(k, v); });
+    return apiRequest('/bookings.php?' + q.toString());
   },
   async create(slotId, stationId, notes) {
     return apiRequest('/bookings.php?action=create', 'POST', { slot_id: slotId, station_id: stationId, notes: notes || '' });

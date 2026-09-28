@@ -111,9 +111,12 @@ function renderWeekCal() {
         const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
         const full = slotFree(s) <= 0;
         const booked = alreadyBooked.has(s.id);
+        // У байкфита мест в зале нет — вместо «x/y мест» показываем специалиста
+        const hallless = !slotUsesHall(s.cat);
         const spotsText = booked ? '✓ Записан'
-          : full ? 'Мест нет'
-            : slotFree(s) + '/' + slotCap(s) + ' мест';
+          : full ? (hallless ? 'Занято' : 'Мест нет')
+            : hallless ? (s.specialist || '')
+              : slotFree(s) + '/' + slotCap(s) + ' мест';
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
@@ -121,7 +124,7 @@ function renderWeekCal() {
         if (booked) cls += ' booked';
         else if (full) cls += ' full';
 
-        var bookLabel = booked ? '✓ Записан' : full ? 'Мест нет' : 'Записаться';
+        var bookLabel = booked ? '✓ Записан' : full ? (hallless ? 'Занято' : 'Мест нет') : 'Записаться';
         var bookOnclick = (!full && !booked)
           ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
           : 'event.stopPropagation()';

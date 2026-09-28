@@ -229,14 +229,13 @@ function openClientProfile(email) {
     histEl.innerHTML = history.map(b => {
       const d = new Date(b.date);
       const sMap = { confirmed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', pending: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M6 3v4l6 5-6 5v4M18 3v4l-6 5 6 5v4"/></svg>', cancelled: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' };
-      const catCol = catColor(b.cat);
       return `<div class="cp-history-row">
     <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status] || sMap.confirmed || '•'}</div>
     <div style="flex:1">
       <div style="font-weight:600;font-size:13px">${b.service}</div>
       <div style="font-size:11px;color:var(--ink-60)">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
     </div>
-    <div style="font-weight:700;font-size:13px;color:${catCol}">${b.price.toLocaleString('ru')} ₽</div>
+    <div style="font-weight:700;font-size:13px;color:${catColor(b.cat)}">${b.price.toLocaleString('ru')} ₽</div>
   </div>`;
     }).join('');
   }
@@ -277,36 +276,11 @@ function renderAdmin() {
   renderAdminBookings();
 }
 
-function renderAdminBookings() {
-  const tbody = document.getElementById('admin-tbody');
-  if (!bookings.length) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--ink-60)">Записей пока нет</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = [...bookings].reverse().map(b => {
-    const date = new Date(b.date);
-    const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
-    const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
-    return `<tr>
-  <td><strong>${b.name}</strong><br><span style="color:var(--ink-60);font-size:11px">${b.email}</span></td>
-  <td>${b.service}</td>
-  <td>${date.getDate()} ${MONTHS_RU[date.getMonth()]} · ${b.time}</td>
-  <td style="font-weight:600">${b.price.toLocaleString('ru')} ₽</td>
-  <td><span class="status-badge ${statusMap[b.status]}">${statusLabel[b.status]}</span></td>
-  <td style="display:flex;gap:4px;flex-wrap:wrap">
-    
-    ${b.status !== 'cancelled' ? `<button class="action-btn cancel" onclick="adminCancel(${b.id})">×</button>` : ''}
-    <button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" onclick="openChatWith('${b.email || ''}','${b.name || ''}')">Чат</button>
-  </td>
-</tr>`;
-  }).join('');
-}
-
 async function adminCancel(id) {
   if (!confirm('Отменить запись?')) return;
   try {
     await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
-    await loadAdminBookings();                        // перечитываем из API
+    await loadBookingsPanel();                        // перечитываем из API с фильтрами раздела
     renderAdminBookings();                            // перерисовываем список
     showToast('Запись отменена');
   } catch (e) {

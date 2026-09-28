@@ -168,15 +168,18 @@ async function loadChatDialogs() {
 }
 
 // ── Загрузка всех записей для администратора ─────────────────
-async function loadAdminBookings() {
+// opts — фильтры раздела «Записи» (период, филиал); без них — окно −7…+30 дней по всем филиалам
+async function loadAdminBookings(opts) {
   try {
-    const data = await BookingsAPI.all();
+    const data = await BookingsAPI.all(opts);
     bookings = data.map(function (b) {
       return {
-        id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email,
-        service: b.slot_name, cat: b.category,
+        id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email, phone: b.user_phone || '',
+        service: b.slot_name, cat: b.category, location_id: b.location_id != null ? Number(b.location_id) : null,
         date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
-        specialist: b.specialist_name || '', price: Number(b.price),
+        specialist: b.specialist_name || '', specialistFull: b.specialist_full || b.specialist_name || '',
+        station: b.station_label || '', stationCode: b.station_code || '',
+        price: Number(b.price),
         status: b.status, paymentStatus: b.payment_status,
         clientId: b.user_email
       };

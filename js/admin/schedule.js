@@ -96,7 +96,9 @@ function renderAdminSchedule() {
         cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
-        cellHtml += '<div class="wg-slot-meta">' + s.specialist + ' · ' + s.price.toLocaleString('ru') + '₽ · ' + slotFree(s) + '/' + slotCap(s) + '</div>';
+        // Специалист · цена · свободно/мест (у байкфита мест в зале нет); пустые части не показываем
+        const meta = [s.specialist, s.price.toLocaleString('ru') + '₽', slotUsesHall(s.cat) ? slotFree(s) + '/' + slotCap(s) : ''].filter(Boolean).join(' · ');
+        cellHtml += '<div class="wg-slot-meta">' + meta + '</div>';
         cellHtml += '<div class="wg-slot-btns">';
         cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
         cellHtml += '<button class="wg-slot-btn" style="color:#dc2626" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
@@ -377,9 +379,12 @@ function openSlotModal(slotId) {
     smSetSlotMode(false);
   }
   // Схема зала с блокировками — только у сохранённого слота (блокировка привязана к занятию)
-  smHallSlotId = slotId || null;
-  document.getElementById('sm-hall-wrap').style.display = slotId ? '' : 'none';
-  if (slotId) smRenderHall();
+  // У байкфита нет мест в зале: скрыть «Мест в зале» и «Заблокировать станки» (с причиной)
+  const usesHall = slotUsesHall(document.getElementById('sm-cat').value);
+  document.getElementById('sm-max-wrap').style.display = usesHall ? '' : 'none';
+  smHallSlotId = slotId && usesHall ? slotId : null;
+  document.getElementById('sm-hall-wrap').style.display = smHallSlotId ? '' : 'none';
+  if (smHallSlotId) smRenderHall();
   modal.classList.add('show');
 }
 function closeSlotModal() { document.getElementById('slot-modal').classList.remove('show'); }
