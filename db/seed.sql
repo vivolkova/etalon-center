@@ -71,6 +71,29 @@ INSERT INTO users (email, password, name, phone, role_id, type) VALUES
 ('vikisvolkova@gmail.com', '$2y$12$t4RYOd0pszvOvb0W2X8QQuCZ808dHmohFy5m5t.2vXjlJ5xyGhV7i', 'Виктория', '+79515506666',
  (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='client'), 'new');
 
+-- Графики и исключения ниже заводит локальный админ (created_by обязателен)
+SET @dev_admin = (SELECT id FROM users WHERE email = 'admin@local');
+
+-- Графики специалистов (в пределах режима работы филиала). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
+-- (в остальные месяцы не работает); Максим и Игорь — бессрочно.
+INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, week, created_by) VALUES
+(1, 'Сентябрь 2026', '2026-09-01', '2026-09-30',
+ '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00"}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+(1, 'Октябрь 2026', '2026-10-01', '2026-10-31',
+ '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"20:00"}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+(1, 'Ноябрь 2026', '2026-11-01', '2026-11-30',
+ '[{"day":"Понедельник","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Суббота","intervals":[{"from":"10:00","to":"14:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+(2, 'Основной', '2026-01-01', NULL,
+ '[{"day":"Понедельник","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Вторник","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Среда","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Четверг","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Пятница","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"21:00"}]},{"day":"Суббота","intervals":[]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+(3, 'Основной', '2026-01-01', NULL,
+ '[{"day":"Понедельник","intervals":[]},{"day":"Вторник","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Среда","intervals":[]},{"day":"Четверг","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Пятница","intervals":[]},{"day":"Суббота","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin);
+
+-- Исключения: сборы и соревнования (не работает), день с особыми часами
+INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, intervals, reason, created_by) VALUES
+(1, '2026-10-12', '2026-10-25', 'off',    NULL, 'Сборы', @dev_admin),
+(1, '2026-10-30', '2026-10-30', 'custom', '[{"from":"12:00","to":"16:00"}]', 'Перенос часов', @dev_admin),
+(2, '2026-10-04', '2026-10-04', 'off',    NULL, 'Соревнования', @dev_admin);
+
 -- Библиотека тренировок и услуг (единый источник описаний; коды сложности, подписи — на фронте)
 INSERT INTO library (location_id, name, category_id, type_id, duration, price, difficulty, summary, details) VALUES
 -- Тренировки (activity_category = training)

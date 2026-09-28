@@ -33,7 +33,6 @@ function openSubModal(id) {
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = 'sub-tmp-modal';
-  el.addEventListener('click', function (e) { if (e.target === el) el.remove(); });
   el.innerHTML = [
     '<div class="admin-modal" style="max-width:420px">',
     '<div class="admin-modal-title">' + (p ? 'Редактировать абонемент' : 'Новый абонемент') + '</div>',
@@ -169,7 +168,6 @@ function openPromoModal(id) {
   var el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = 'promo-tmp-modal';
-  el.addEventListener('click', function (e) { if (e.target === el) el.remove(); });
   var expiresVal = p ? p.expires.split('.').reverse().join('-') : '';
   el.innerHTML =
     '<div class="admin-modal" style="max-width:420px">' +

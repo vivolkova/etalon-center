@@ -1,6 +1,7 @@
 <?php
 // api/specialists.php — Специалисты (тренеры, байкфиттеры, мастера)
 require_once __DIR__ . '/../middleware/helpers.php';
+require_once __DIR__ . '/../middleware/specialist_hours.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -32,7 +33,17 @@ if ($method === 'GET' && $action === 'list') {
         ORDER BY sp.id
     ');
     $stmt->execute();
-    ok($stmt->fetchAll());
+    $rows = $stmt->fetchAll();
+    // Для админки — актуальные периоды графика и исключения (с сегодняшнего дня) для карточек
+    if ($all) {
+        $hours = specialistsHoursMap($db, null, date('Y-m-d'));
+        foreach ($rows as &$r) {
+            $r['schedules']  = $hours[$r['id']]['schedules'] ?? [];
+            $r['exceptions'] = $hours[$r['id']]['exceptions'] ?? [];
+        }
+        unset($r);
+    }
+    ok($rows);
 }
 
 // POST — создать специалиста (admin)

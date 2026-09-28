@@ -1,4 +1,4 @@
-// Интерфейс: toast, закрытие модалок по клику на фон
+// Интерфейс: toast, модалки не закрываются по клику на фон
 
 // ═══ TOAST ════════════════════════════════════════════════════════
 
@@ -12,13 +12,14 @@ function showToast(msg, type = '') {
   setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3500);
 }
 
-// ═══ CLOSE MODALS ON OVERLAY CLICK ═══════════════════════════════
+// ═══ MODALS: NO CLOSE ON OVERLAY CLICK ═══════════════════════════
 
-(document.getElementById('booking-modal') || { addEventListener: () => { } }).addEventListener('click', e => { if (e.target === e.currentTarget) closeBookingModal(); });
-// Форма входа/регистрации — модальная: клик по подложке НЕ закрывает (только × или кнопка).
-['slot-modal', 'service-modal', 'announce-modal', 'client-modal', 'client-profile-modal', 'slot-detail-modal', 'service-detail-modal', 'payment-modal', 'lib-modal', 'lib-to-sch-modal'].forEach(id => {
-  const el = document.getElementById(id);
-  if (el) el.addEventListener('click', e => { if (e.target === e.currentTarget) e.currentTarget.classList.remove('show'); });
-});
+// Во всём проекте модальные окна закрываются только кнопками (×, «Отмена», «Закрыть»),
+// клик мимо окна — по подложке *-modal-overlay — ничего не делает. Перехватываем такой клик
+// на фазе захвата, до обработчиков самой модалки, — правило действует и для новых модалок.
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t instanceof Element && Array.from(t.classList).some(c => c.endsWith('modal-overlay'))) e.stopPropagation();
+}, true);
 
 

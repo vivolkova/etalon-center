@@ -124,6 +124,48 @@ CREATE TABLE specialists (
     CONSTRAINT fk_specialists_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── График работы специалиста: недельный шаблон на период ───
+-- Периоды одного специалиста не пересекаются (проверка в API, среди активных). Например, «Зима» 01.09–31.05, «Лето» 01.06–31.08.
+-- week — [{day:'Понедельник', intervals:[{from:'07:00', to:'11:00'}, {from:'17:00', to:'21:00'}]}, …];
+-- дня нет в списке или intervals пуст — выходной. На даты вне всех периодов специалист не работает.
+CREATE TABLE specialist_schedules (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    specialist_id INT NOT NULL,
+    name          VARCHAR(128) NOT NULL,              -- «Зима», «Лето»… (обязательно)
+    date_from     DATE NOT NULL,
+    date_to       DATE NULL,                          -- NULL — бессрочно
+    week          JSON NOT NULL,
+    active        TINYINT(1) NOT NULL DEFAULT 1,      -- soft-delete: 0 = удалён (физически не удаляем)
+    created_by    INT NOT NULL,                       -- users.id, кто создал
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_spec_sched (specialist_id, date_from),
+    CONSTRAINT fk_spec_sched_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
+    CONSTRAINT fk_spec_sched_user       FOREIGN KEY (created_by)    REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Исключения из графика: отсутствия и особые часы на даты ─
+-- type — что происходит: off — не работает (вкладка «Отсутствия»); custom — работает по intervals вместо шаблона
+-- (вкладка «Особые часы работы»). Подписи — в интерфейсе.
+-- reason — почему (для людей): сборы, соревнования, отпуск… На логику не влияет.
+-- Исключения одного специалиста не пересекаются (проверка в API, среди активных). Исключение важнее шаблона.
+CREATE TABLE specialist_exceptions (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    specialist_id INT NOT NULL,
+    date_from     DATE NOT NULL,
+    date_to       DATE NOT NULL,                      -- для одного дня = date_from
+    type          ENUM('off','custom') NOT NULL,
+    intervals     JSON NULL,                          -- для custom: [{from, to}, …]
+    reason        VARCHAR(255) NULL,                  -- «Сборы», «Соревнования»…; NULL — не указана
+    active        TINYINT(1) NOT NULL DEFAULT 1,      -- soft-delete: 0 = удалён (физически не удаляем)
+    created_by    INT NOT NULL,                       -- users.id, кто создал
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY idx_spec_exc (specialist_id, date_from),
+    CONSTRAINT fk_spec_exc_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
+    CONSTRAINT fk_spec_exc_user       FOREIGN KEY (created_by)    REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Библиотека тренировок/услуг (источник описаний слотов) ───
 -- Тренировка или услуга — по категории: activity_category.code = 'training' — тренировка,
 -- любая другая (bikefit, workshop, massage…) — услуга.

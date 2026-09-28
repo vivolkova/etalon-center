@@ -216,6 +216,16 @@ const SpecialistsAPI = {
   async delete(id) { return apiRequest(`/specialists.php?action=delete&id=${id}`, 'DELETE'); },
 };
 
+// График работы специалиста: периоды (недельные шаблоны) и исключения (отсутствия, особые часы)
+const SpecialistHoursAPI = {
+  async list(specialistId) { return apiRequest(`/specialist_hours.php?action=list&specialist_id=${specialistId}`); },
+  async availability(specialistId, from, to) { return apiRequest(`/specialist_hours.php?action=availability&specialist_id=${specialistId}&from=${from}&to=${to}`); },
+  async saveSchedule(data) { return apiRequest('/specialist_hours.php?action=schedule_save', 'POST', data); },
+  async deleteSchedule(id) { return apiRequest(`/specialist_hours.php?action=schedule_delete&id=${id}`, 'DELETE'); },
+  async saveException(data) { return apiRequest('/specialist_hours.php?action=exception_save', 'POST', data); },
+  async deleteException(id) { return apiRequest(`/specialist_hours.php?action=exception_delete&id=${id}`, 'DELETE'); },
+};
+
 // ── CHAT ───────────────────────────────────────────────────
 const ChatAPI = {
   async messages(userId) {

@@ -40,7 +40,6 @@ function openFormModal(id, title, body, onSave, extraButtons) {
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = id;
-  el.addEventListener('click', function (e) { if (e.target === el) el.remove(); });
   el.innerHTML = '<div class="admin-modal" style="max-width:460px">' +
     '<div class="admin-modal-title">' + title + '</div>' + body +
     '<div class="admin-modal-actions">' + (extraButtons || '') +

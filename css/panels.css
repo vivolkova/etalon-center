@@ -1076,3 +1076,12 @@
   }
 }
 
+
+/* Редактор интервалов графика специалиста: пустой день — «выходной» */
+.iv-list:empty::before {
+  content: 'выходной';
+  display: inline-block;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #9ca3af;
+}

@@ -28,6 +28,9 @@ async function loadSpecialistsAll() {
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
         category: t.category || 'trainer',
         location_id: t.location_id != null ? parseInt(t.location_id) : null,
+        // актуальные (с сегодняшнего дня) периоды графика и исключения — для карточек
+        schedules: t.schedules || [],
+        exceptions: t.exceptions || [],
         active: parseInt(t.active) ? 1 : 0
       };
     });
