@@ -98,16 +98,17 @@ let ltsLibId = null;
 let ltsWeekStart = new Date(admWeekStart);
 let ltsSelectedDays = new Set();
 
-// Из библиотеки в расписание можно ставить групповые тренировки (training + slot_type group)
-// и услуги байкфита (bikefit); сервер проверяет то же самое (api/slots.php).
+// Админ ставит в расписание только групповые тренировки (training + slot_type group).
+// Персональную, самостоятельную и байкфит записывает клиент (или админ за клиента).
+// Сервер проверяет то же самое (api/slots.php).
 function libCanSchedule(item) {
-  return !!item && ((item.cat === 'training' && item.type === 'group') || item.cat === 'bikefit');
+  return !!item && item.cat === 'training' && item.type === 'group';
 }
 
 function addToScheduleFromLib(id) {
   const item = LIBRARY[libCurrentType].find(x => x.id === id);
   if (!item) return;
-  if (!libCanSchedule(item)) { showToast('В расписание можно добавлять только групповые тренировки и байкфит', 'error'); return; }
+  if (!libCanSchedule(item)) { showToast('В расписание можно добавлять только групповые тренировки', 'error'); return; }
   ltsLibId = id;
   ltsWeekStart = new Date(admWeekStart);
   ltsSelectedDays = new Set();

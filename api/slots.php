@@ -47,19 +47,18 @@ function checkWorkHours($db, $locId, $date, $startTime, $duration) {
     }
 }
 
-// Из библиотеки в расписание можно ставить групповые тренировки (training + slot_type group)
-// и услуги байкфита (bikefit). Слот без записи библиотеки не ограничиваем.
+// Админ ставит в расписание только групповые тренировки (training + slot_type group).
+// Слот без записи библиотеки не ограничиваем.
 function checkLibraryForSlot(PDO $db, $libraryId): void {
     if (empty($libraryId)) return;
     $st = $db->prepare('SELECT dc.code AS cat, dt.code AS type FROM library l
-                        JOIN dictionaries dc ON dc.id = l.category_id
-                        LEFT JOIN dictionaries dt ON dt.id = l.type_id
+                        JOIN dictionaries dc ON dc.id = l.activity_category_id
+                        LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
                         WHERE l.id = ?');
     $st->execute([(int)$libraryId]);
     $lib = $st->fetch();
     if (!$lib) err('Запись библиотеки не найдена', 404);
-    $allowed = ($lib['cat'] === 'training' && $lib['type'] === 'group') || $lib['cat'] === 'bikefit';
-    if (!$allowed) err('В расписание из библиотеки можно добавлять только групповые тренировки и байкфит');
+    if (!($lib['cat'] === 'training' && $lib['type'] === 'group')) err('В расписание можно добавлять только групповые тренировки');
 }
 
 // GET — список слотов
@@ -83,7 +82,7 @@ if ($method === 'GET' && $action === 'list') {
             LEFT JOIN library  l   ON s.library_id = l.id
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
-            LEFT JOIN dictionaries dt ON l.type_id = dt.id
+            LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
     $params = [$from, $to];
     if ($cat) { $sql .= ' AND dc.code = ?'; $params[] = $cat; }
@@ -112,7 +111,7 @@ if ($method === 'GET' && $action === 'get') {
                           LEFT JOIN library  l   ON s.library_id = l.id
                           JOIN locations   loc ON s.location_id = loc.id
                           JOIN dictionaries dc ON s.category_id = dc.id
-                          LEFT JOIN dictionaries dt ON l.type_id = dt.id
+                          LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
                           WHERE s.id = ?');
     $stmt->execute([$id]);
     $slot = $stmt->fetch();

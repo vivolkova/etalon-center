@@ -16,7 +16,8 @@ INSERT INTO dictionaries (group_code, code, name) VALUES
 ('activity_category', 'bikefit', 'Байкфит'),
 ('activity_category', 'workshop', 'Мастерская'),
 ('slot_type', 'group', 'Групповая'),
-('slot_type', 'individual', 'Индивидуальная'),
+('slot_type', 'personal', 'Персональная'),
+('slot_type', 'free', 'Самостоятельная'),
 ('specialist_type', 'trainer', 'Тренер'),
 ('specialist_type', 'bikefitter', 'Байкфиттер'),
 ('specialist_type', 'mechanic', 'Мастер');
@@ -41,6 +42,11 @@ INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, p
 ('Эталон — основной филиал', 'Лиственная 18', 6, 2, 7, 'info@etaloncenter.ru', '+7 495 000-00-00',
  '[{"day":"Понедельник","open":true,"from":"07:00","to":"22:00"},{"day":"Вторник","open":true,"from":"07:00","to":"22:00"},{"day":"Среда","open":true,"from":"07:00","to":"22:00"},{"day":"Четверг","open":true,"from":"07:00","to":"22:00"},{"day":"Пятница","open":true,"from":"07:00","to":"21:00"},{"day":"Суббота","open":true,"from":"09:00","to":"20:00"},{"day":"Воскресенье","open":false,"from":"10:00","to":"18:00"}]');
 
+-- Категории активностей и типы специалистов доступны в основном филиале (филиалы у значений — явным списком)
+INSERT INTO location_dictionaries (dictionary_id, location_id)
+SELECT d.id, l.id FROM dictionaries d CROSS JOIN locations l
+WHERE d.group_code IN ('activity_category', 'specialist_type');
+
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
 (1, (SELECT id FROM station_type WHERE code='exercise_bike'), 'Smart Bike 1', 0, 0, 1),
@@ -54,10 +60,17 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────
 
-INSERT INTO specialists (location_id, type_id, name, full_name, speciality, experience) VALUES
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Анна К.',   'Анна Козлова',   'Групповые тренировки', 5),
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='trainer'), 'Максим Р.', 'Максим Романов', 'HIIT',                 7),
-(1, (SELECT id FROM dictionaries WHERE group_code='specialist_type' AND code='bikefitter'), 'Игорь Б.', 'Игорь Белов', 'Байкфит, настройка посадки', 6);
+INSERT INTO specialists (name, full_name, experience) VALUES
+('Анна К.',   'Анна Козлова',   5),
+('Максим Р.', 'Максим Романов', 7),
+('Игорь Б.',  'Игорь Белов',    6);
+
+-- Типы специалистов: Максим — и тренер, и байкфиттер
+INSERT INTO specialist_types (specialist_id, type_id)
+SELECT sp.id, d.id FROM specialists sp
+JOIN dictionaries d ON d.group_code = 'specialist_type'
+ AND (sp.full_name, d.code) IN (('Анна Козлова', 'trainer'), ('Максим Романов', 'trainer'),
+                                ('Максим Романов', 'bikefitter'), ('Игорь Белов', 'bikefitter'));
 
 INSERT INTO subscription_plans (location_id, name, sessions, price, validity, color, sort_order) VALUES
 (1, 'Старт',   4, 4200, 30, '#6b7280', 1),
@@ -74,28 +87,28 @@ INSERT INTO users (email, password, name, phone, role_id, type) VALUES
 -- Графики и исключения ниже заводит локальный админ (created_by обязателен)
 SET @dev_admin = (SELECT id FROM users WHERE email = 'admin@local');
 
--- Графики специалистов (в пределах режима работы филиала). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
+-- Графики специалистов (в пределах режима работы филиала; все интервалы — в филиале 1). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
 -- (в остальные месяцы не работает); Максим и Игорь — бессрочно.
-INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, week, created_by) VALUES
+INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_hours, created_by) VALUES
 (1, 'Сентябрь 2026', '2026-09-01', '2026-09-30',
- '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00"}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+ '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00","location_id":1}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (1, 'Октябрь 2026', '2026-10-01', '2026-10-31',
- '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00"},{"from":"17:00","to":"20:00"}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+ '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"20:00","location_id":1}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (1, 'Ноябрь 2026', '2026-11-01', '2026-11-30',
- '[{"day":"Понедельник","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Вторник","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Среда","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Четверг","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Пятница","intervals":[{"from":"17:00","to":"21:00"}]},{"day":"Суббота","intervals":[{"from":"10:00","to":"14:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+ '[{"day":"Понедельник","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Суббота","intervals":[{"from":"10:00","to":"14:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (2, 'Основной', '2026-01-01', NULL,
- '[{"day":"Понедельник","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Вторник","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Среда","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Четверг","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"22:00"}]},{"day":"Пятница","intervals":[{"from":"10:00","to":"14:00"},{"from":"18:00","to":"21:00"}]},{"day":"Суббота","intervals":[]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+ '[{"day":"Понедельник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"21:00","location_id":1}]},{"day":"Суббота","intervals":[]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (3, 'Основной', '2026-01-01', NULL,
- '[{"day":"Понедельник","intervals":[]},{"day":"Вторник","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Среда","intervals":[]},{"day":"Четверг","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Пятница","intervals":[]},{"day":"Суббота","intervals":[{"from":"10:00","to":"18:00"}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin);
+ '[{"day":"Понедельник","intervals":[]},{"day":"Вторник","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Среда","intervals":[]},{"day":"Четверг","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Пятница","intervals":[]},{"day":"Суббота","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin);
 
 -- Исключения: сборы и соревнования (не работает), день с особыми часами
-INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, intervals, reason, created_by) VALUES
+INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, work_hours, reason, created_by) VALUES
 (1, '2026-10-12', '2026-10-25', 'off',    NULL, 'Сборы', @dev_admin),
-(1, '2026-10-30', '2026-10-30', 'custom', '[{"from":"12:00","to":"16:00"}]', 'Перенос часов', @dev_admin),
+(1, '2026-10-30', '2026-10-30', 'custom', '[{"from":"12:00","to":"16:00","location_id":1}]', 'Перенос часов', @dev_admin),
 (2, '2026-10-04', '2026-10-04', 'off',    NULL, 'Соревнования', @dev_admin);
 
 -- Библиотека тренировок и услуг (единый источник описаний; коды сложности, подписи — на фронте)
-INSERT INTO library (location_id, name, category_id, type_id, duration, price, difficulty, summary, details) VALUES
+INSERT INTO library (location_id, name, activity_category_id, slot_type_id, duration, price, difficulty, summary, details) VALUES
 -- Тренировки (activity_category = training)
 (1,'Утренний сайкл',
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='group'),60,1200,'beginner',
@@ -110,7 +123,7 @@ INSERT INTO library (location_id, name, category_id, type_id, duration, price, d
  'Высокоинтенсивные интервалы для роста МПК и скоростной выносливости.',
  JSON_ARRAY('Интервалы 30/30, 1/1, 4 мин','Пиковая мощность 120-150% FTP','Zwift - гонки','VO2max развитие')),
 (1,'Персональная тренировка',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='individual'),60,2500,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='personal'),60,2500,'any',
  'Индивидуальное занятие с тренером. Программа полностью под ваш уровень и цели.',
  JSON_ARRAY('Тест FTP при первом занятии','Индивидуальный план','Анализ педалирования','Обратная связь в реальном времени')),
 (1,'Восстановительная',
@@ -118,7 +131,7 @@ INSERT INTO library (location_id, name, category_id, type_id, duration, price, d
  'Лёгкое восстановительное занятие после интенсивных тренировок или соревнований.',
  JSON_ARRAY('Зона 1 по мощности','Высокий каденс 95-105 RPM','Без нагрузки','Растяжка в конце')),
 (1,'Свободная тренировка',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='individual'),60,800,'any',
+ (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='free'),60,800,'any',
  'Самостоятельная тренировка на смарт-тренере в удобном темпе. Зал, оборудование и Zwift в вашем распоряжении - без программы и тренера.',
  JSON_ARRAY('Свободный график нагрузки','Доступ к Zwift и ERG-режиму','Подходит для любого уровня','Оплата за одно посещение')),
 -- Услуги (activity_category <> training)

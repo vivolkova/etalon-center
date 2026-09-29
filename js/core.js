@@ -118,11 +118,19 @@ function specTypeName(code) {
   const t = SPEC_TYPES.find(function (x) { return x.code === code; });
   return t ? t.name : (code || '—');
 }
-// Типы занятий (dictionaries.slot_type): групповая / индивидуальная — задаётся в библиотеке
+// Типы занятий (dictionaries.slot_type) — задаются в библиотеке у тренировок:
+// group — групповая с тренером, personal — персональная с тренером, free — самостоятельная, без тренера
 let SLOT_TYPES = [
   { id: 0, code: 'group', name: 'Групповая' },
-  { id: 0, code: 'individual', name: 'Индивидуальная' },
+  { id: 0, code: 'personal', name: 'Персональная' },
+  { id: 0, code: 'free', name: 'Самостоятельная' },
 ];
+
+// Нужен ли занятию специалист: групповая и персональная тренировка, байкфит. То же правило на сервере
+// (activityNeedsSpecialist в middleware/specialist_hours.php)
+function activityNeedsSpecialist(cat, type) {
+  return (cat === 'training' && (type === 'group' || type === 'personal')) || cat === 'bikefit';
+}
 function slotTypeName(code) {
   const t = SLOT_TYPES.find(function (x) { return x.code === code; });
   return t ? t.name : (code || '—');
@@ -142,25 +150,24 @@ async function loadDictValues() {
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Что отключено в филиалах (location_dictionaries.active = 0): набор ключей 'dictionaryId:locationId'
-let DICT_OFF = new Set();
+// Филиалы значений прикладных групп (activity_category, specialist_type): { dictionaryId: [locationId, …] }.
+// Значение доступно только в своих филиалах; значений других групп здесь нет — они не зависят от филиала
+let DICT_LOCS = {};
 async function loadDictAvailability() {
   try {
     const res = await DictionariesAPI.availability();
-    DICT_OFF = new Set((res || []).map(function (r) { return r.dictionary_id + ':' + r.location_id; }));
+    DICT_LOCS = {};
+    (res || []).forEach(function (r) { DICT_LOCS[r.dictionary_id] = r.location_ids || []; });
   } catch (e) { /* сервер недоступен */ }
 }
 // Доступно ли значение справочника в филиале (нет данных — считаем доступным)
 function dictAvailableAt(dictId, locId) {
-  return !dictId || !locId || !DICT_OFF.has(dictId + ':' + locId);
+  if (!dictId || !locId || !DICT_LOCS[dictId]) return true;
+  return DICT_LOCS[dictId].indexOf(Number(locId)) >= 0;
 }
 // Категории активностей, доступные в филиале
 function catsAt(locId) {
   return ACTIVITY_CATS.filter(function (c) { return dictAvailableAt(c.id, locId); });
-}
-// Типы специалистов, доступные в филиале
-function specTypesAt(locId) {
-  return SPEC_TYPES.filter(function (t) { return dictAvailableAt(t.id, locId); });
 }
 
 // Тренировка — категория training, всё остальное — услуги

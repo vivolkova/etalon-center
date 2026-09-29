@@ -172,11 +172,10 @@ const StationsAPI = {
 
 // ── DICTIONARIES (общие справочники + доступность по филиалам) ──
 const DictionariesAPI = {
-  async list(locationId) { return apiRequest('/dictionaries.php?action=list' + (locationId ? '&location_id=' + locationId : '')); },
+  async list() { return apiRequest('/dictionaries.php?action=list'); },
   async availability() { return apiRequest('/dictionaries.php?action=availability'); },
   async create(data) { return apiRequest('/dictionaries.php?action=create', 'POST', data); },
   async update(data) { return apiRequest('/dictionaries.php?action=update', 'PUT', data); },
-  async setLocation(location_id, dictionary_id, active) { return apiRequest('/dictionaries.php?action=location', 'PUT', { location_id, dictionary_id, active }); },
 };
 
 // ── LOCATIONS ──────────────────────────────────────────────

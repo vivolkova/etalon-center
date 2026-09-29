@@ -33,6 +33,7 @@ CREATE TABLE locations (
 -- ref_id — связанное значение другого справочника. Сейчас используется так:
 -- activity_category -> specialist_type (какой специалист ведёт активность:
 -- training -> trainer, bikefit -> bikefitter, workshop -> mechanic).
+-- В каких филиалах доступно значение (activity_category, specialist_type) — location_dictionaries.
 CREATE TABLE dictionaries (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     group_code VARCHAR(40)  NOT NULL,
@@ -57,18 +58,17 @@ BEGIN
 END$$
 DELIMITER ;
 
--- ── Доступность значений справочника по филиалам ────────────
--- Справочник общий; здесь — доступно ли значение в конкретном филиале (например, в филиале нет
--- мастерской: active = 0). Нет строки — значение доступно (новые значения сразу доступны везде).
--- Используется для прикладных групп: activity_category, specialist_type.
+-- ── Филиалы, в которых доступно значение справочника ────────
+-- Для прикладных групп (activity_category, specialist_type): значение доступно только в филиалах с активной строкой,
+-- всегда явным списком — новый филиал автоматически никуда не добавляется. Филиал убрали из значения — active = 0.
 CREATE TABLE location_dictionaries (
     id            INT AUTO_INCREMENT PRIMARY KEY,
-    location_id   INT NOT NULL,
     dictionary_id INT NOT NULL,
-    active        TINYINT(1) NOT NULL DEFAULT 1,   -- 0 — отключено в филиале
+    location_id   INT NOT NULL,
+    active        TINYINT(1) NOT NULL DEFAULT 1,   -- 0 — филиал убран из значения
     updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_loc_dict (location_id, dictionary_id),
-    KEY fk_locdict_dict (dictionary_id),
+    UNIQUE KEY uq_loc_dict (dictionary_id, location_id),
+    KEY fk_locdict_location (location_id),
     CONSTRAINT fk_locdict_location FOREIGN KEY (location_id)   REFERENCES locations(id)    ON DELETE CASCADE,
     CONSTRAINT fk_locdict_dict     FOREIGN KEY (dictionary_id) REFERENCES dictionaries(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -107,26 +107,36 @@ CREATE TABLE users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Специалисты (тренеры, байкфиттеры, мастера) ────────────
+-- Не привязан к филиалу: в каком филиале работает — задаётся у интервалов графика (specialist_schedules.week).
+-- Специализация — типы из справочника specialist_type, может быть несколько (тренер и байкфиттер) — specialist_types.
 CREATE TABLE specialists (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    type_id     INT NOT NULL,                    -- dictionaries.specialist_type (тренер/байкфиттер/мастер)
     name        VARCHAR(128) NOT NULL,
     full_name   VARCHAR(255) NOT NULL,
-    speciality  VARCHAR(255),
     experience  INT DEFAULT 0,
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT NOT NULL,
-    KEY fk_specialists_location (location_id),
-    KEY fk_specialists_type (type_id),
-    CONSTRAINT fk_specialists_location FOREIGN KEY (location_id) REFERENCES locations(id),
-    CONSTRAINT fk_specialists_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id)
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Типы специалиста (тренер / байкфиттер / мастер), может быть несколько ──
+-- Тип сняли со специалиста — active = 0 (физически не удаляем).
+CREATE TABLE specialist_types (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    specialist_id INT NOT NULL,
+    type_id       INT NOT NULL,                  -- dictionaries.specialist_type
+    active        TINYINT(1) NOT NULL DEFAULT 1, -- 0 — тип снят со специалиста
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_spec_type (specialist_id, type_id),
+    KEY fk_spec_types_type (type_id),
+    CONSTRAINT fk_spec_types_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
+    CONSTRAINT fk_spec_types_type       FOREIGN KEY (type_id)       REFERENCES dictionaries(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── График работы специалиста: недельный шаблон на период ───
 -- Периоды одного специалиста не пересекаются (проверка в API, среди активных). Например, «Зима» 01.09–31.05, «Лето» 01.06–31.08.
--- week — [{day:'Понедельник', intervals:[{from:'07:00', to:'11:00'}, {from:'17:00', to:'21:00'}]}, …];
+-- work_hours — [{day:'Понедельник', intervals:[{from:'07:00', to:'11:00', location_id:1}, {from:'17:00', to:'21:00', location_id:2}]}, …];
+-- у каждого интервала свой филиал (locations.id); интервалы дня не пересекаются даже в разных филиалах;
 -- дня нет в списке или intervals пуст — выходной. На даты вне всех периодов специалист не работает.
 CREATE TABLE specialist_schedules (
     id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -134,7 +144,7 @@ CREATE TABLE specialist_schedules (
     name          VARCHAR(128) NOT NULL,              -- «Зима», «Лето»… (обязательно)
     date_from     DATE NOT NULL,
     date_to       DATE NULL,                          -- NULL — бессрочно
-    week          JSON NOT NULL,
+    work_hours    JSON NOT NULL,                      -- недельный шаблон (см. выше)
     active        TINYINT(1) NOT NULL DEFAULT 1,      -- soft-delete: 0 = удалён (физически не удаляем)
     created_by    INT NOT NULL,                       -- users.id, кто создал
     created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -145,7 +155,7 @@ CREATE TABLE specialist_schedules (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Исключения из графика: отсутствия и особые часы на даты ─
--- type — что происходит: off — не работает (вкладка «Отсутствия»); custom — работает по intervals вместо шаблона
+-- type — что происходит: off — не работает (вкладка «Отсутствия»); custom — работает по work_hours вместо шаблона
 -- (вкладка «Особые часы работы»). Подписи — в интерфейсе.
 -- reason — почему (для людей): сборы, соревнования, отпуск… На логику не влияет.
 -- Исключения одного специалиста не пересекаются (проверка в API, среди активных). Исключение важнее шаблона.
@@ -155,7 +165,7 @@ CREATE TABLE specialist_exceptions (
     date_from     DATE NOT NULL,
     date_to       DATE NOT NULL,                      -- для одного дня = date_from
     type          ENUM('off','custom') NOT NULL,
-    intervals     JSON NULL,                          -- для custom: [{from, to}, …]
+    work_hours    JSON NULL,                          -- для custom: [{from, to, location_id}, …]
     reason        VARCHAR(255) NULL,                  -- «Сборы», «Соревнования»…; NULL — не указана
     active        TINYINT(1) NOT NULL DEFAULT 1,      -- soft-delete: 0 = удалён (физически не удаляем)
     created_by    INT NOT NULL,                       -- users.id, кто создал
@@ -172,8 +182,8 @@ CREATE TABLE specialist_exceptions (
 CREATE TABLE library (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(255) NOT NULL,
-    category_id INT NOT NULL,                    -- dictionaries.activity_category
-    type_id     INT NULL,                        -- dictionaries.slot_type: group / individual — только у тренировок; у услуг NULL
+    activity_category_id INT NOT NULL,           -- dictionaries.activity_category
+    slot_type_id         INT NULL,               -- dictionaries.slot_type: group / personal / free — только у тренировок; у услуг NULL
     duration    INT NOT NULL DEFAULT 60,
     price       INT NOT NULL,
     difficulty  VARCHAR(32) DEFAULT 'any',       -- код; подпись на фронте
@@ -184,10 +194,10 @@ CREATE TABLE library (
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT NOT NULL,
     KEY fk_library_location (location_id),
-    KEY fk_library_category (category_id),
-    KEY fk_library_type (type_id),
-    CONSTRAINT fk_library_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
-    CONSTRAINT fk_library_type     FOREIGN KEY (type_id)     REFERENCES dictionaries(id),
+    KEY fk_library_category (activity_category_id),
+    KEY fk_library_type (slot_type_id),
+    CONSTRAINT fk_library_category FOREIGN KEY (activity_category_id) REFERENCES dictionaries(id),
+    CONSTRAINT fk_library_type     FOREIGN KEY (slot_type_id)         REFERENCES dictionaries(id),
     CONSTRAINT fk_library_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

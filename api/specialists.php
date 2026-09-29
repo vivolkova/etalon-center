@@ -1,5 +1,6 @@
 <?php
 // api/specialists.php — Специалисты (тренеры, байкфиттеры, мастера)
+// Специалист не привязан к филиалу (филиал — у интервалов графика), типов может быть несколько.
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/specialist_hours.php';
 setCORS();
@@ -7,75 +8,94 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// код значения справочника -> id
-function specTypeId($db, $code) {
-    $st = $db->prepare('SELECT id FROM dictionaries WHERE group_code = ? AND code = ?');
-    $st->execute(['specialist_type', $code]);
-    $id = $st->fetchColumn();
-    if ($id === false) err('Неизвестная категория специалиста: ' . $code);
-    return (int)$id;
+// Коды типов специалиста -> id справочника specialist_type; нужен хотя бы один, неизвестный код — ошибка
+function specTypeIds(PDO $db, $codes): array {
+    $codes = array_values(array_unique(array_filter(array_map('strval', is_array($codes) ? $codes : []))));
+    if (!$codes) err('Укажите специализацию');
+    $st = $db->prepare('SELECT code, id FROM dictionaries WHERE group_code = ? AND code IN ('
+        . implode(',', array_fill(0, count($codes), '?')) . ')');
+    $st->execute(array_merge(['specialist_type'], $codes));
+    $ids = $st->fetchAll(PDO::FETCH_KEY_PAIR);
+    foreach ($codes as $c) if (!isset($ids[$c])) err('Неизвестный тип специалиста: ' . $c);
+    return array_map('intval', array_values($ids));
 }
 
-// GET — список специалистов (публичный)
+// Заменить набор типов специалиста (связи specialist_types): снятые — active = 0, выбранные — active = 1
+function saveSpecTypes(PDO $db, int $specId, array $typeIds): void {
+    $db->prepare('UPDATE specialist_types SET active = 0 WHERE specialist_id = ?')->execute([$specId]);
+    $ins = $db->prepare('INSERT INTO specialist_types (specialist_id, type_id, active) VALUES (?, ?, 1)
+                         ON DUPLICATE KEY UPDATE active = 1');
+    foreach ($typeIds as $t) $ins->execute([$specId, $t]);
+}
+
+// GET — список специалистов (публичный). types — коды типов; для админки (all=1) ещё
+// актуальные периоды графика, исключения и филиалы, где специалист работает (location_ids)
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
     $all = !empty($_GET['all']);
     if ($all) authAdmin();
     $where = $all ? '1' : 'sp.active = 1';
     $stmt = $db->prepare('
-        SELECT sp.*, dt.code AS category,
-               COUNT(s.id) AS sessions_count
+        SELECT sp.*,
+               (SELECT GROUP_CONCAT(d.code ORDER BY d.id) FROM specialist_types stp
+                  JOIN dictionaries d ON d.id = stp.type_id WHERE stp.specialist_id = sp.id AND stp.active = 1) AS types,
+               (SELECT COUNT(*) FROM slots s WHERE s.specialist_id = sp.id AND s.active = 1) AS sessions_count
         FROM specialists sp
-        LEFT JOIN slots s ON s.specialist_id = sp.id AND s.active = 1
-        LEFT JOIN dictionaries dt ON sp.type_id = dt.id
         WHERE ' . $where . '
-        GROUP BY sp.id
         ORDER BY sp.id
     ');
     $stmt->execute();
     $rows = $stmt->fetchAll();
-    // Для админки — актуальные периоды графика и исключения (с сегодняшнего дня) для карточек
-    if ($all) {
-        $hours = specialistsHoursMap($db, null, date('Y-m-d'));
-        foreach ($rows as &$r) {
-            $r['schedules']  = $hours[$r['id']]['schedules'] ?? [];
-            $r['exceptions'] = $hours[$r['id']]['exceptions'] ?? [];
+    $hours = $all ? specialistsHoursMap($db, null, date('Y-m-d')) : [];
+    foreach ($rows as &$r) {
+        $r['types'] = $r['types'] !== null ? explode(',', $r['types']) : [];
+        if ($all) {
+            $h = $hours[$r['id']] ?? [];
+            $r['schedules']    = $h['schedules'] ?? [];
+            $r['exceptions']   = $h['exceptions'] ?? [];
+            $r['location_ids'] = specLocationIds($h);
         }
-        unset($r);
     }
+    unset($r);
     ok($rows);
 }
 
-// POST — создать специалиста (admin)
+// POST — создать специалиста (admin): {name, full_name, types:[коды] — специализация, experience, active}
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'full_name', 'category', 'location_id']);
+    require_fields($d, ['name', 'full_name']);
     $db = getDB();
-    $typeId = specTypeId($db, $d['category']);
-    $stmt = $db->prepare('INSERT INTO specialists (location_id,type_id,name,full_name,speciality,experience,active) VALUES (?,?,?,?,?,?,?)');
+    $typeIds = specTypeIds($db, $d['types'] ?? []);
+    $db->beginTransaction();
+    $stmt = $db->prepare('INSERT INTO specialists (name,full_name,experience,active) VALUES (?,?,?,?)');
     $stmt->execute([
-        (int)$d['location_id'], $typeId, $d['name'], $d['full_name'],
-        $d['speciality'] ?? '', $d['experience'] ?? 0,
+        $d['name'], $d['full_name'], $d['experience'] ?? 0,
         isset($d['active']) ? (int)(bool)$d['active'] : 1,
     ]);
-    ok(['id' => $db->lastInsertId()], 'Специалист добавлен');
+    $id = (int)$db->lastInsertId();
+    saveSpecTypes($db, $id, $typeIds);
+    $db->commit();
+    ok(['id' => $id], 'Специалист добавлен');
 }
 
 // PUT — обновить специалиста (admin)
 if ($method === 'PUT' && $action === 'update') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'full_name', 'category', 'location_id']);
+    require_fields($d, ['id', 'name', 'full_name']);
     $db = getDB();
-    $typeId = specTypeId($db, $d['category']);
-    $db->prepare('UPDATE specialists SET location_id=?,type_id=?,name=?,full_name=?,speciality=?,experience=?,active=? WHERE id=?')
+    $id = (int)$d['id'];
+    $typeIds = specTypeIds($db, $d['types'] ?? []);
+    $db->beginTransaction();
+    $db->prepare('UPDATE specialists SET name=?,full_name=?,experience=?,active=? WHERE id=?')
        ->execute([
-           (int)$d['location_id'], $typeId, $d['name'], $d['full_name'],
-           $d['speciality'] ?? '', $d['experience'] ?? 0,
+           $d['name'], $d['full_name'], $d['experience'] ?? 0,
            isset($d['active']) ? (int)(bool)$d['active'] : 1,
-           (int)$d['id'],
+           $id,
        ]);
+    saveSpecTypes($db, $id, $typeIds);
+    $db->commit();
     ok(null, 'Специалист обновлён');
 }
 

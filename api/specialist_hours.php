@@ -57,7 +57,7 @@ if ($method === 'GET' && $action === 'availability') {
     ok(specialistAvailability($db, $specId, $from, $to));
 }
 
-// POST — создать/изменить период графика: {id?, specialist_id, name, date_from, date_to|null, week}
+// POST — создать/изменить период графика: {id?, specialist_id, name, date_from, date_to|null, work_hours}
 if ($method === 'POST' && $action === 'schedule_save') {
     $user = authSpecHours();
     $d = input();
@@ -71,11 +71,13 @@ if ($method === 'POST' && $action === 'schedule_save') {
     $from = specDate($d['date_from'] ?? '', 'дату начала периода');
     $to = empty($d['date_to']) ? null : specDate($d['date_to'], 'дату окончания периода');
     if ($to !== null && $from > $to) err('Дата начала периода позже даты окончания');
-    $week = specNormWeek($d['week'] ?? []);
+    $week = specNormWeek($d['work_hours'] ?? []);
     if (!array_filter($week, fn($w) => $w['intervals'])) err('Укажите часы работы хотя бы в один день');
 
-    $branch = specBranchHours($db, $specId);
-    foreach ($week as $w) specCheckInBranch($branch, $w['day'], $w['intervals'], $w['day']);
+    // Каждый интервал — в режиме работы своего филиала в этот день недели
+    foreach ($week as $w) {
+        foreach ($w['intervals'] as $iv) specCheckInBranch($db, $iv, $w['day'], $w['day']);
+    }
 
     // Активные периоды одного специалиста не пересекаются (NULL в date_to — бессрочно)
     $st = $db->prepare('SELECT name, date_from, date_to FROM specialist_schedules
@@ -89,11 +91,11 @@ if ($method === 'POST' && $action === 'schedule_save') {
 
     $weekJson = json_encode($week, JSON_UNESCAPED_UNICODE);
     if ($id) {
-        $st = $db->prepare('UPDATE specialist_schedules SET name=?, date_from=?, date_to=?, week=? WHERE id=? AND specialist_id=?');
+        $st = $db->prepare('UPDATE specialist_schedules SET name=?, date_from=?, date_to=?, work_hours=? WHERE id=? AND specialist_id=?');
         $st->execute([$name, $from, $to, $weekJson, $id, $specId]);
         ok(['id' => $id], 'Период графика обновлён');
     }
-    $db->prepare('INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, week, created_by) VALUES (?,?,?,?,?,?)')
+    $db->prepare('INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_hours, created_by) VALUES (?,?,?,?,?,?)')
        ->execute([$specId, $name, $from, $to, $weekJson, (int)$user['id']]);
     ok(['id' => (int)$db->lastInsertId()], 'Период графика добавлен');
 }
@@ -105,7 +107,7 @@ if ($method === 'DELETE' && $action === 'schedule_delete') {
     ok(null, 'Период графика удалён');
 }
 
-// POST — создать/изменить исключение: {id?, specialist_id, date_from, date_to, type: off|custom, intervals, reason}
+// POST — создать/изменить исключение: {id?, specialist_id, date_from, date_to, type: off|custom, work_hours, reason}
 if ($method === 'POST' && $action === 'exception_save') {
     $user = authSpecHours();
     $d = input();
@@ -123,18 +125,20 @@ if ($method === 'POST' && $action === 'exception_save') {
 
     $intervals = null;
     if ($type === 'custom') {
-        $intervals = specNormIntervals($d['intervals'] ?? [], 'Особые часы');
+        $intervals = specNormIntervals($d['work_hours'] ?? [], 'Особые часы');
         if (!$intervals) err('Укажите часы работы в эти даты');
-        // Часы — в режиме работы филиала в каждый его рабочий день диапазона;
-        // выходные дни филиала пропускаем (в них специалист всё равно не работает)
-        $branch = specBranchHours($db, $specId);
+        // Каждый интервал — в режиме работы своего филиала в каждый рабочий день этого филиала в диапазоне;
+        // дни, когда филиал интервала не работает, пропускаем (в них интервал не действует)
+        foreach ($intervals as $iv) specLocation($db, (int)$iv['location_id']);   // филиал существует и действующий
         $openDays = 0;
         for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
             $date = date('Y-m-d', $ts);
             $dayName = specDayName($date);
-            if ($branch !== null && $branch[$dayName] === null) continue;
-            $openDays++;
-            specCheckInBranch($branch, $dayName, $intervals, specFmtDate($date) . ' (' . mb_strtolower($dayName) . ')');
+            foreach ($intervals as $iv) {
+                if (specLocClosed($db, (int)$iv['location_id'], $dayName)) continue;
+                $openDays++;
+                specCheckInBranch($db, $iv, $dayName, specFmtDate($date) . ' (' . mb_strtolower($dayName) . ')');
+            }
         }
         if (!$openDays) err('В эти даты филиал не работает');
     }
@@ -154,11 +158,11 @@ if ($method === 'POST' && $action === 'exception_save') {
     if ($reason === '') $reason = null;
     $ivJson = $intervals !== null ? json_encode($intervals, JSON_UNESCAPED_UNICODE) : null;
     if ($id) {
-        $st = $db->prepare('UPDATE specialist_exceptions SET date_from=?, date_to=?, type=?, intervals=?, reason=? WHERE id=? AND specialist_id=?');
+        $st = $db->prepare('UPDATE specialist_exceptions SET date_from=?, date_to=?, type=?, work_hours=?, reason=? WHERE id=? AND specialist_id=?');
         $st->execute([$from, $to, $type, $ivJson, $reason, $id, $specId]);
         ok(['id' => $id], 'Исключение обновлено');
     }
-    $db->prepare('INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, intervals, reason, created_by) VALUES (?,?,?,?,?,?,?)')
+    $db->prepare('INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, work_hours, reason, created_by) VALUES (?,?,?,?,?,?,?)')
        ->execute([$specId, $from, $to, $type, $ivJson, $reason, (int)$user['id']]);
     ok(['id' => (int)$db->lastInsertId()], 'Исключение добавлено');
 }

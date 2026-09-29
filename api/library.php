@@ -25,7 +25,7 @@ function libRow($r) {
         'location_id' => (int)$r['location_id'],
         'name'       => $r['name'],
         'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop | …
-        'type'       => $r['type'],                 // slot_type: group | individual; у услуг null
+        'type'       => $r['type'],                 // slot_type: group | personal | free; у услуг null
         'dur'        => (int)$r['duration'],
         'price'      => (int)$r['price'],
         'max'        => $r['max_people'] !== null ? (int)$r['max_people'] : null,
@@ -40,8 +40,8 @@ $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_pe
                     l.summary, l.details, l.active,
                     dc.code AS cat, dt.code AS type
              FROM library l
-             JOIN dictionaries dc ON l.category_id = dc.id
-             LEFT JOIN dictionaries dt ON l.type_id = dt.id
+             JOIN dictionaries dc ON l.activity_category_id = dc.id
+             LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
              JOIN locations   loc ON l.location_id = loc.id';
 
 // GET — список (публичный; нужен и форме слота, и экрану «Библиотека»)
@@ -101,7 +101,7 @@ if ($method === 'POST' && $action === 'create') {
     // Вместимость не хранится в библиотеке — она задаётся в locations.max_people.
     $locId = (int)$d['location_id'];   // филиал записи выбирается на форме
     $stmt = $db->prepare('INSERT INTO library
-        (location_id, name, category_id, type_id, duration, price, difficulty, summary, details, active)
+        (location_id, name, activity_category_id, slot_type_id, duration, price, difficulty, summary, details, active)
         VALUES (?,?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId, $d['name'], $catId, $typeId,
@@ -132,7 +132,7 @@ if ($method === 'PUT' && $action === 'update') {
 
     require_fields($d, ['location_id']);
     $stmt = $db->prepare('UPDATE library SET
-        location_id=?, name=?, category_id=?, type_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
+        location_id=?, name=?, activity_category_id=?, slot_type_id=?, duration=?, price=?, difficulty=?, summary=?, details=?, active=?
         WHERE id=?');
     $stmt->execute([
         (int)$d['location_id'], $d['name'], $catId, $typeId,

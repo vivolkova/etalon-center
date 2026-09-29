@@ -6,10 +6,9 @@ async function loadSpecialists() {
     const res = await apiRequest('/specialists.php?action=list');
     SPECIALISTS_DATA = (res || []).map(function (t) {
       return {
-        id: t.id, name: t.name, full: t.full_name, spec: t.speciality,
+        id: t.id, name: t.name, full: t.full_name,
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-        category: t.category || 'trainer',
-        location_id: t.location_id != null ? parseInt(t.location_id) : null,
+        types: t.types || [],          // коды типов: trainer, bikefitter, mechanic (может быть несколько)
         active: parseInt(t.active) ? 1 : 0
       };
     });
@@ -24,10 +23,10 @@ async function loadSpecialistsAll() {
     const res = await apiRequest('/specialists.php?action=list&all=1');
     SPECIALISTS_ALL = (res || []).map(function (t) {
       return {
-        id: t.id, name: t.name, full: t.full_name, spec: t.speciality || '',
+        id: t.id, name: t.name, full: t.full_name,
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-        category: t.category || 'trainer',
-        location_id: t.location_id != null ? parseInt(t.location_id) : null,
+        types: t.types || [],
+        location_ids: (t.location_ids || []).map(Number),   // филиалы из графика (специалист к филиалу не привязан)
         // актуальные (с сегодняшнего дня) периоды графика и исключения — для карточек
         schedules: t.schedules || [],
         exceptions: t.exceptions || [],
@@ -56,7 +55,7 @@ function applySpecialistFilter(selectId, labelId, cat) {
   var specType = c && c.spec_type;
   var title = specType ? c.spec_name : 'Специалист';
   var list = specType
-    ? SPECIALISTS_DATA.filter(function (t) { return t.category === specType; })
+    ? SPECIALISTS_DATA.filter(function (t) { return t.types.indexOf(specType) >= 0; })
     : SPECIALISTS_DATA;
   var label = document.getElementById(labelId);
   if (label) label.textContent = title;
