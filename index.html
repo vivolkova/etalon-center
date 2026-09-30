@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20260929-10">
-  <link rel="stylesheet" href="css/site.css?v=20260929-10">
-  <link rel="stylesheet" href="css/panels.css?v=20260929-10">
-  <link rel="stylesheet" href="css/library.css?v=20260929-10">
-  <link rel="stylesheet" href="css/week-grid.css?v=20260929-10">
-  <link rel="stylesheet" href="css/admin.css?v=20260929-10">
+  <link rel="stylesheet" href="css/base.css?v=20260930-6">
+  <link rel="stylesheet" href="css/site.css?v=20260930-6">
+  <link rel="stylesheet" href="css/panels.css?v=20260930-6">
+  <link rel="stylesheet" href="css/library.css?v=20260930-6">
+  <link rel="stylesheet" href="css/week-grid.css?v=20260930-6">
+  <link rel="stylesheet" href="css/admin.css?v=20260930-6">
 </head>
 
 <body>
@@ -864,6 +864,7 @@
               <button class="chip" data-set-tab="stations" onclick="switchSettingsTab('stations')">Станки и зал</button>
               <button class="chip" data-set-tab="types" onclick="switchSettingsTab('types')">Типы станков</button>
               <button class="chip" data-set-tab="dicts" onclick="switchSettingsTab('dicts')">Справочники</button>
+              <button class="chip" data-set-tab="params" onclick="switchSettingsTab('params')">Параметры</button>
             </div>
           </div>
 
@@ -894,6 +895,23 @@
               <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openStationTypeModal(null)">+ Тип станка</button>
             </div>
             <div class="lib-grid" id="st-types"></div>
+          </div>
+
+          <!-- Параметры студии (таблица settings) -->
+          <div class="set-tab" id="set-tab-params" style="display:none">
+            <!-- Блок 1: параметры по умолчанию -->
+            <div class="adm-card" style="margin-bottom:16px">
+              <div class="adm-card-title" style="margin-bottom:12px">Параметры по умолчанию</div>
+              <div id="settings-params"></div>
+              <div style="display:flex;justify-content:flex-end"><button class="btn-primary" style="padding:8px 20px;font-size:13px" onclick="saveParamsBlock()">Сохранить</button></div>
+            </div>
+            <!-- Блок 2: время на переезд для каждой пары филиалов -->
+            <div class="adm-card">
+              <div class="adm-card-title" style="margin-bottom:4px">Время на переезд между филиалами</div>
+              <div class="set-hint" style="margin-bottom:12px">Одинаковое в обе стороны. Пустое поле — действует время по умолчанию.</div>
+              <div id="settings-travel"></div>
+              <div id="settings-travel-save" style="display:flex;justify-content:flex-end"><button class="btn-primary" style="padding:8px 20px;font-size:13px" onclick="saveTravelBlock()">Сохранить</button></div>
+            </div>
           </div>
 
           <!-- Справочники (общие; у прикладных значений — в каких филиалах доступно) -->
@@ -1028,33 +1046,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20260929-10"></script>
-  <script src="js/core.js?v=20260929-10"></script>
-  <script src="js/week-grid.js?v=20260929-10"></script>
-  <script src="js/auth.js?v=20260929-10"></script>
-  <script src="js/site/schedule.js?v=20260929-10"></script>
-  <script src="js/site/booking.js?v=20260929-10"></script>
-  <script src="js/site/services-bookings.js?v=20260929-10"></script>
-  <script src="js/admin/admin.js?v=20260929-10"></script>
-  <script src="js/admin/schedule.js?v=20260929-10"></script>
-  <script src="js/admin/services.js?v=20260929-10"></script>
-  <script src="js/admin/chat.js?v=20260929-10"></script>
-  <script src="js/admin/notifications.js?v=20260929-10"></script>
-  <script src="js/client/panel.js?v=20260929-10"></script>
-  <script src="js/client/payment.js?v=20260929-10"></script>
-  <script src="js/client/chat-profile.js?v=20260929-10"></script>
-  <script src="js/site/detail-modals.js?v=20260929-10"></script>
-  <script src="js/admin/library.js?v=20260929-10"></script>
-  <script src="js/admin/data-nav.js?v=20260929-10"></script>
-  <script src="js/admin/dashboard.js?v=20260929-10"></script>
-  <script src="js/admin/specialists.js?v=20260929-10"></script>
-  <script src="js/admin/sales.js?v=20260929-10"></script>
-  <script src="js/admin/settings.js?v=20260929-10"></script>
-  <script src="js/admin/stations.js?v=20260929-10"></script>
-  <script src="js/admin/dictionaries.js?v=20260929-10"></script>
-  <script src="js/ui.js?v=20260929-10"></script>
-  <script src="js/loaders.js?v=20260929-10"></script>
-  <script src="js/init.js?v=20260929-10"></script>
+  <script src="js/api.js?v=20260930-6"></script>
+  <script src="js/core.js?v=20260930-6"></script>
+  <script src="js/week-grid.js?v=20260930-6"></script>
+  <script src="js/auth.js?v=20260930-6"></script>
+  <script src="js/site/schedule.js?v=20260930-6"></script>
+  <script src="js/site/booking.js?v=20260930-6"></script>
+  <script src="js/site/services-bookings.js?v=20260930-6"></script>
+  <script src="js/admin/admin.js?v=20260930-6"></script>
+  <script src="js/admin/schedule.js?v=20260930-6"></script>
+  <script src="js/admin/services.js?v=20260930-6"></script>
+  <script src="js/admin/chat.js?v=20260930-6"></script>
+  <script src="js/admin/notifications.js?v=20260930-6"></script>
+  <script src="js/client/panel.js?v=20260930-6"></script>
+  <script src="js/client/payment.js?v=20260930-6"></script>
+  <script src="js/client/chat-profile.js?v=20260930-6"></script>
+  <script src="js/site/detail-modals.js?v=20260930-6"></script>
+  <script src="js/admin/library.js?v=20260930-6"></script>
+  <script src="js/admin/data-nav.js?v=20260930-6"></script>
+  <script src="js/admin/dashboard.js?v=20260930-6"></script>
+  <script src="js/admin/specialists.js?v=20260930-6"></script>
+  <script src="js/admin/sales.js?v=20260930-6"></script>
+  <script src="js/admin/settings.js?v=20260930-6"></script>
+  <script src="js/admin/stations.js?v=20260930-6"></script>
+  <script src="js/admin/dictionaries.js?v=20260930-6"></script>
+  <script src="js/ui.js?v=20260930-6"></script>
+  <script src="js/loaders.js?v=20260930-6"></script>
+  <script src="js/init.js?v=20260930-6"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">

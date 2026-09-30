@@ -189,12 +189,9 @@ function admInitDragDrop(grid) {
     if (s) {
       var whErr = workHoursError(s.location_id, dayIdx, newTime, s.dur);
       if (whErr) { showToast(whErr, 'error'); cleanup(); return; }
-      var oldTime = s.time;
-      s.time = newTime;
-      s.date = newDate;
-      s.dayOfWeek = (newDate.getDay() + 6) % 7;
       var dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-      // Сохраняем через API
+      // Сохраняем через API; слот переносим на экране только после успешного сохранения —
+      // при отказе сервера (специалист занят, не работает…) он остаётся на месте, текст ошибки показывает apiRequest
       SlotsAPI.update({
         id: s.id,
         location_id: s.location_id,
@@ -206,12 +203,16 @@ function admInitDragDrop(grid) {
         duration: s.dur,
         price: s.price,
         specialist_id: s.specialist_id || null,
-      }).catch(function (e) { showToast('Ошибка сохранения перемещения', 'error'); });
-      showToast(s.name + ' → ' + dayNames[dayIdx] + ' ' + newTime, 'success');
+      }).then(function () {
+        s.time = newTime;
+        s.date = newDate;
+        s.dayOfWeek = (newDate.getDay() + 6) % 7;
+        showToast(s.name + ' → ' + dayNames[dayIdx] + ' ' + newTime, 'success');
+        renderAdminSchedule();
+      }).catch(function () { renderAdminSchedule(); });
     }
 
     cleanup();
-    renderAdminSchedule();
   });
 
   document.addEventListener('dragend', function () { cleanup(); });

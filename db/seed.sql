@@ -42,6 +42,10 @@ INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, p
 ('Эталон — основной филиал', 'Лиственная 18', 6, 2, 7, 'info@etaloncenter.ru', '+7 495 000-00-00',
  '[{"day":"Понедельник","open":true,"from":"07:00","to":"22:00"},{"day":"Вторник","open":true,"from":"07:00","to":"22:00"},{"day":"Среда","open":true,"from":"07:00","to":"22:00"},{"day":"Четверг","open":true,"from":"07:00","to":"22:00"},{"day":"Пятница","open":true,"from":"07:00","to":"21:00"},{"day":"Суббота","open":true,"from":"09:00","to":"20:00"},{"day":"Воскресенье","open":false,"from":"10:00","to":"18:00"}]');
 
+-- Параметры студии (меняются в админке: Настройки студии → Параметры)
+INSERT INTO settings (code, name, value) VALUES
+('location_travel_minutes', 'Время на переезд между филиалами по умолчанию, мин', '90');
+
 -- Категории активностей и типы специалистов доступны в основном филиале (филиалы у значений — явным списком)
 INSERT INTO location_dictionaries (dictionary_id, location_id)
 SELECT d.id, l.id FROM dictionaries d CROSS JOIN locations l

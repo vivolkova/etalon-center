@@ -179,6 +179,14 @@ const DictionariesAPI = {
 };
 
 // ── LOCATIONS ──────────────────────────────────────────────
+// Параметры студии (таблица settings)
+const SettingsAPI = {
+  async list() { return apiRequest('/settings.php?action=list'); },
+  async update(values) { return apiRequest('/settings.php?action=update', 'PUT', { values }); },          // { code: value }
+  async travelList() { return apiRequest('/settings.php?action=travel_list'); },
+  async travelSave(pairs) { return apiRequest('/settings.php?action=travel_save', 'PUT', { pairs }); },     // [{location_a_id, location_b_id, minutes}]
+};
+
 const LocationsAPI = {
   async list() { return apiRequest('/locations.php?action=list'); },
   async listAll() { return apiRequest('/locations.php?action=list&all=1'); },

@@ -7,7 +7,7 @@ const DICT_GROUP_LABEL = {
   slot_type: 'Типы занятий — задаются в библиотеке (системный)',
   user_role: 'Роли пользователей (системный)',
 };
-const DICT_GROUP_ORDER = ['activity_category', 'specialist_type', 'slot_type', 'user_role'];
+const DICT_GROUP_ORDER = ['specialist_type', 'activity_category', 'slot_type', 'user_role'];
 
 let DICTS = [];   // значения справочников (с location_ids)
 

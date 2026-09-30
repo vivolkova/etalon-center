@@ -2,14 +2,21 @@
 
 // ═══ TOAST ════════════════════════════════════════════════════════
 
+// Ошибки висят дольше (их нужно успеть прочитать); любое сообщение закрывается кликом
+const TOAST_MS = { error: 8000, default: 3500 };
+
 function showToast(msg, type = '') {
   const container = document.getElementById('toasts');
   const t = document.createElement('div');
   t.className = `toast${type ? ' ' + type : ''}`;
   const icon = type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ';
   t.innerHTML = `<span class="toast-icon">${icon}</span><span>${msg}</span>`;
+  t.style.cursor = 'pointer';
+  t.title = 'Закрыть';
+  const hide = () => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); };
+  t.addEventListener('click', hide);
   container.appendChild(t);
-  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity .3s'; setTimeout(() => t.remove(), 300); }, 3500);
+  setTimeout(hide, TOAST_MS[type] || TOAST_MS.default);
 }
 
 // ═══ MODALS: NO CLOSE ON OVERLAY CLICK ═══════════════════════════

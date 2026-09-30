@@ -2,7 +2,7 @@
 
 // ═══ SETTINGS ════════════════════════════════════════════════════════
 
-// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники
+// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники / Параметры
 let settingsTab = 'locations';
 
 function renderSettings() {
@@ -17,6 +17,61 @@ function switchSettingsTab(tab) {
   if (tab === 'stations') renderStationsTab();
   if (tab === 'types') renderStationTypesTab();
   if (tab === 'dicts') renderDictsTab();
+  if (tab === 'params') { renderParamsTab(); renderTravelTab(); }
+}
+
+// ── Параметры студии: два блока, в каждом одна кнопка «Сохранить» (сервер сохраняет блок целиком) ──
+// Блок 1 — параметры по умолчанию (таблица settings)
+async function renderParamsTab() {
+  const box = document.getElementById('settings-params');
+  if (!box) return;
+  let list;
+  try { list = (await SettingsAPI.list()) || []; } catch (e) { return; }
+  if (!list.length) { box.innerHTML = '<div class="set-hint">Параметров нет</div>'; return; }
+  box.innerHTML = list.map(function (p) {
+    const input = p.type === 'int'
+      ? '<input class="form-input" type="number" data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
+        (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + ' style="width:120px">'
+      : '<input class="form-input" data-param="' + p.code + '" value="' + escAttr(p.value) + '" style="width:260px">';
+    return '<div class="form-field" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+      '<label class="form-label" style="margin:0;width:380px;max-width:100%">' + escAttr(p.name) + '</label>' + input + '</div>';
+  }).join('');
+}
+
+async function saveParamsBlock() {
+  const values = {};
+  document.querySelectorAll('#settings-params [data-param]').forEach(function (el) { values[el.getAttribute('data-param')] = el.value.trim(); });
+  if (!Object.keys(values).length) return;
+  try { await SettingsAPI.update(values); } catch (e) { return; }
+  showToast('Параметры сохранены', 'success');
+  renderParamsTab();
+}
+
+// Блок 2 — время на переезд для каждой пары действующих филиалов (location_travel)
+async function renderTravelTab() {
+  const box = document.getElementById('settings-travel');
+  if (!box) return;
+  let list;
+  try { list = (await SettingsAPI.travelList()) || []; } catch (e) { return; }
+  document.getElementById('settings-travel-save').style.display = list.length ? 'flex' : 'none';
+  if (!list.length) { box.innerHTML = '<div class="set-hint">Нужно хотя бы два действующих филиала</div>'; return; }
+  box.innerHTML = list.map(function (p) {
+    return '<div class="form-field" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
+      '<label class="form-label" style="margin:0;width:380px;max-width:100%">' + escAttr(p.a_name) + ' ↔ ' + escAttr(p.b_name) + ', мин</label>' +
+      '<input class="form-input" type="number" min="0" max="600" data-a="' + p.location_a_id + '" data-b="' + p.location_b_id + '"' +
+      ' value="' + (p.minutes !== null ? p.minutes : '') + '" style="width:120px">' +
+      '</div>';
+  }).join('');
+}
+
+async function saveTravelBlock() {
+  const pairs = Array.from(document.querySelectorAll('#settings-travel input[data-a]')).map(function (el) {
+    return { location_a_id: +el.getAttribute('data-a'), location_b_id: +el.getAttribute('data-b'), minutes: el.value.trim() };
+  });
+  if (!pairs.length) return;
+  try { await SettingsAPI.travelSave(pairs); } catch (e) { return; }
+  showToast('Время на переезд сохранено', 'success');
+  renderTravelTab();
 }
 
 // Выпадающий список филиалов для вкладок «по филиалу»; выбранный филиал общий для вкладок

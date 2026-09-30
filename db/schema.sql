@@ -390,3 +390,37 @@ CREATE TABLE promo_codes (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Параметры студии, которые меняет администратор ──────────
+-- Технические настройки (доступ к БД, секреты, адрес сайта) — в config/db.php, не здесь.
+-- code — на него опирается приложение (не меняется); name — подпись в админке; value — значение строкой,
+-- тип и допустимые значения проверяет API (api/settings.php). Новая настройка — строкой в раздел 1 seed.sql.
+CREATE TABLE settings (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    code        VARCHAR(64)  NOT NULL,
+    name        VARCHAR(255) NOT NULL,
+    value       VARCHAR(255) NOT NULL,
+    updated_by  INT NULL,                          -- users.id, кто изменил последним
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_settings_code (code),
+    CONSTRAINT fk_settings_user FOREIGN KEY (updated_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Время на переезд специалиста между двумя филиалами ───────
+-- Одинаково в обе стороны: пара хранится одной строкой, location_a_id < location_b_id.
+-- Для пары без активной строки действует settings.location_travel_minutes (по умолчанию).
+CREATE TABLE location_travel (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    location_a_id INT NOT NULL,                    -- меньший id пары
+    location_b_id INT NOT NULL,                    -- больший id пары
+    minutes       INT NOT NULL,
+    active        TINYINT(1) NOT NULL DEFAULT 1,   -- 0 — время для пары сброшено (действует значение по умолчанию)
+    updated_by    INT NULL,                        -- users.id, кто изменил последним
+    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_location_travel (location_a_id, location_b_id),
+    KEY fk_travel_b (location_b_id),
+    CONSTRAINT chk_travel_pair  CHECK (location_a_id < location_b_id),
+    CONSTRAINT fk_travel_a      FOREIGN KEY (location_a_id) REFERENCES locations(id),
+    CONSTRAINT fk_travel_b      FOREIGN KEY (location_b_id) REFERENCES locations(id),
+    CONSTRAINT fk_travel_user   FOREIGN KEY (updated_by)    REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
