@@ -6,12 +6,9 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// Нарушение уникальности типа станка: код и название уникальны каждый сам по себе
-// (uq_station_type_code, uq_station_type_name). Иную ошибку БД пробрасываем.
+// Нарушение уникальности названия типа станка (uq_station_type_name). Иную ошибку БД пробрасываем.
 function stationTypeDuplicate(PDOException $e): never {
-    $msg = $e->getMessage();
-    if (str_contains($msg, 'uq_station_type_name')) err('Тип с таким названием уже есть');
-    if (str_contains($msg, 'uq_station_type_code')) err('Тип с таким кодом уже есть');
+    if (str_contains($e->getMessage(), 'uq_station_type_name')) err('Тип с таким названием уже есть');
     throw $e;
 }
 
@@ -53,7 +50,7 @@ if ($method === 'GET' && $action === 'list') {
 // stations_count — сколько станков этого типа (во всех филиалах)
 if ($method === 'GET' && $action === 'types') {
     $db = getDB();
-    ok($db->query('SELECT t.id, t.name, t.code, t.icon, t.active, COUNT(s.id) AS stations_count
+    ok($db->query('SELECT t.id, t.name, t.icon, t.active, COUNT(s.id) AS stations_count
                    FROM station_type t LEFT JOIN stations s ON s.type_id = t.id
                    GROUP BY t.id ORDER BY t.id')->fetchAll());
 }
@@ -62,19 +59,18 @@ if ($method === 'GET' && $action === 'types') {
 if ($method === 'POST' && $action === 'type_create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['code', 'name']);
-    if (!preg_match('/^[a-z][a-z0-9_]{1,39}$/', $d['code'])) err('Код — латиница в нижнем регистре, цифры и _ (например, smart_bike)');
+    require_fields($d, ['name']);
     $db = getDB();
     try {
-        $db->prepare('INSERT INTO station_type (code, name, icon, active) VALUES (?,?,?,?)')
-           ->execute([$d['code'], $d['name'], $d['icon'] ?? null, isset($d['active']) ? (int)(bool)$d['active'] : 1]);
+        $db->prepare('INSERT INTO station_type (name, icon, active) VALUES (?,?,?)')
+           ->execute([$d['name'], $d['icon'] ?? null, isset($d['active']) ? (int)(bool)$d['active'] : 1]);
     } catch (PDOException $e) {
         stationTypeDuplicate($e);
     }
     ok(['id' => (int)$db->lastInsertId()], 'Тип станка добавлен');
 }
 
-// PUT ?action=type_update — изменить тип станка (admin). Код не меняется — на него могут опираться данные.
+// PUT ?action=type_update — изменить тип станка (admin)
 if ($method === 'PUT' && $action === 'type_update') {
     authAdmin();
     $d  = input();

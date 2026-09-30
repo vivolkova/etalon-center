@@ -180,7 +180,7 @@ async function loadAdminBookings(opts) {
         service: b.slot_name, cat: b.category, location_id: b.location_id != null ? Number(b.location_id) : null,
         date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
         specialist: b.specialist_name || '', specialistFull: b.specialist_full || b.specialist_name || '',
-        station: b.station_label || '', stationCode: b.station_code || '',
+        station: b.station_label || '', stationType: b.station_type_name || '',
         price: Number(b.price),
         status: b.status, paymentStatus: b.payment_status,
         clientId: b.user_email

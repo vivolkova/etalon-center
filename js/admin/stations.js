@@ -121,7 +121,7 @@ function openStationModal(id, x, y) {
   const types = STATION_TYPES.filter(function (t) { return Number(t.active) || (s && Number(t.id) === s.type_id); });
   const body =
     '<div class="form-field"><label class="form-label">Название (номер на схеме)</label>' +
-    '<input class="form-input" id="stm-label" value="' + escAttr(s ? s.label : '') + '" placeholder="Smart Bike 7"></div>' +
+    '<input class="form-input" id="stm-label" value="' + escAttr(s ? s.label : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Тип станка</label><select class="form-input" id="stm-type">' +
     types.map(function (t) { return '<option value="' + t.id + '"' + (s && Number(t.id) === s.type_id ? ' selected' : '') + '>' + escAttr(t.name) + '</option>'; }).join('') +
     '</select></div>' +
@@ -177,8 +177,7 @@ async function renderStationTypesTab() {
     return '<div class="lib-card' + (inactive ? ' card-inactive' : '') + '">' +
       '<div style="display:flex;gap:12px;align-items:center">' +
       '<div class="st-type-ico">' + (t.icon || '') + '</div>' +
-      '<div style="min-width:0"><div class="lib-card-title">' + escAttr(t.name) + '</div>' +
-      '<div class="set-hint">' + escAttr(t.code) + '</div></div></div>' +
+      '<div style="min-width:0"><div class="lib-card-title">' + escAttr(t.name) + '</div></div></div>' +
       '<div class="lib-card-meta">' + (inactive ? '<span class="lib-meta-tag tag-muted">Выключен</span>' : '') +
       '<span class="lib-meta-tag">Станков: ' + (parseInt(t.stations_count) || 0) + '</span></div>' +
       '<div class="lib-card-footer"><div></div><div class="lib-card-actions">' +
@@ -192,11 +191,7 @@ function openStationTypeModal(id) {
   const t = id ? STATION_TYPES.find(function (v) { return Number(v.id) === id; }) : null;
   const body =
     '<div class="form-field"><label class="form-label">Название</label>' +
-    '<input class="form-input" id="stt-name" value="' + escAttr(t ? t.name : '') + '" placeholder="Велостанок"></div>' +
-    '<div class="form-field"><label class="form-label">Код</label>' +
-    (t ? '<div class="form-input form-view">' + escAttr(t.code) + '</div>'
-       : '<input class="form-input" id="stt-code" placeholder="smart_bike">') +
-    '<div class="set-hint">Латиница, цифры и _. После создания не меняется.</div></div>' +
+    '<input class="form-input" id="stt-name" value="' + escAttr(t ? t.name : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Иконка (SVG)</label>' +
     '<textarea class="form-input" id="stt-icon" rows="4" style="height:auto;font-family:monospace;font-size:11px" placeholder="<svg viewBox=&quot;0 0 64 64&quot;>…</svg>">' + escAttr(t && t.icon ? t.icon : '') + '</textarea>' +
     '<div class="st-type-ico" id="stt-preview" style="margin-top:6px">' + (t && t.icon ? t.icon : '') + '</div></div>' +
@@ -209,7 +204,7 @@ function openStationTypeModal(id) {
     if (icon && !/^<svg[\s>]/i.test(icon)) { showToast('Иконка — код SVG, начинается с <svg', 'error'); return false; }
     const active = document.getElementById('stt-active').checked ? 1 : 0;
     if (t) await StationsAPI.typeUpdate({ id: t.id, name: name, icon: icon || null, active: active });
-    else await StationsAPI.typeCreate({ code: document.getElementById('stt-code').value.trim(), name: name, icon: icon || null, active: active });
+    else await StationsAPI.typeCreate({ name: name, icon: icon || null, active: active });
     showToast('Тип станка сохранён', 'success');
     renderStationTypesTab();
     return true;

@@ -31,11 +31,11 @@ SET c.ref_id = s.id
 WHERE c.group_code = 'activity_category';
 
 -- Типы станков (вынесены из dictionaries).
-INSERT INTO station_type (code, name, icon) VALUES
-('exercise_bike', 'Велотренажёр', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 57h52M10 57v-2M54 57v-2M27 57l2-8"/><rect x="18" y="34" width="34" height="15" rx="7.5"/><path d="M24 34l-1-18M16 13h13M24 23l22-2M46 21l1-9M43 12h9q4 0 4 4v4q0 3-3 3"/><circle cx="25" cy="41.5" r="6" stroke="#ff6a1a"/><path d="M25 41.5h-6"/><path d="M23 22l-.5-6" stroke="#ff6a1a"/></svg>'),
-('trainer_stand_11', 'Велостанок 11s', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7h22a4 4 0 0 1 4 4l3 39a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3l3-39a4 4 0 0 1 4-4zM18 53v4M46 53v4M13 57h9M42 57h9"/><g stroke="#ff6a1a"><circle cx="32" cy="21" r="9"/><circle cx="32" cy="21" r="4"/></g><path d="M23 36h9M27.5 36v10M35 36h5l-3 4a3 3 0 1 1-2 5" stroke="#1fa5a0"/></svg>'),
-('trainer_stand_12', 'Велостанок 12s', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7h22a4 4 0 0 1 4 4l3 39a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3l3-39a4 4 0 0 1 4-4zM18 53v4M46 53v4M13 57h9M42 57h9"/><g stroke="#ff6a1a"><circle cx="32" cy="21" r="9"/><circle cx="32" cy="21" r="4"/></g><path d="M23 36h9M27.5 36v10M35 36h5l-3 4a3 3 0 1 1-2 5" stroke="#1fa5a0"/></svg>'),
-('rollers', 'Роллерный станок', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="36" r="10.5"/><circle cx="50" cy="36" r="10.5"/><path d="M14 36h16l-6-17M14 36l10-15h19l7 15M30 36l13-15M20 17h8M41 17h6"/><g stroke="#ff6a1a" stroke-width="3"><circle cx="9" cy="51" r="3.5"/><circle cx="19" cy="51" r="3.5"/><circle cx="50" cy="51" r="3.5"/><path d="M19 47.5h31M19 54.5h31"/></g><path d="M3 58h58M6 58v-2M58 58v-2" stroke-width="3"/></svg>');
+INSERT INTO station_type (name, icon) VALUES
+('Велотренажёр', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 57h52M10 57v-2M54 57v-2M27 57l2-8"/><rect x="18" y="34" width="34" height="15" rx="7.5"/><path d="M24 34l-1-18M16 13h13M24 23l22-2M46 21l1-9M43 12h9q4 0 4 4v4q0 3-3 3"/><circle cx="25" cy="41.5" r="6" stroke="#ff6a1a"/><path d="M25 41.5h-6"/><path d="M23 22l-.5-6" stroke="#ff6a1a"/></svg>'),
+('Велостанок 11s', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7h22a4 4 0 0 1 4 4l3 39a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3l3-39a4 4 0 0 1 4-4zM18 53v4M46 53v4M13 57h9M42 57h9"/><g stroke="#ff6a1a"><circle cx="32" cy="21" r="9"/><circle cx="32" cy="21" r="4"/></g><path d="M23 36h9M27.5 36v10M35 36h5l-3 4a3 3 0 1 1-2 5" stroke="#1fa5a0"/></svg>'),
+('Велостанок 12s', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 7h22a4 4 0 0 1 4 4l3 39a3 3 0 0 1-3 3H17a3 3 0 0 1-3-3l3-39a4 4 0 0 1 4-4zM18 53v4M46 53v4M13 57h9M42 57h9"/><g stroke="#ff6a1a"><circle cx="32" cy="21" r="9"/><circle cx="32" cy="21" r="4"/></g><path d="M23 36h9M27.5 36v10M35 36h5l-3 4a3 3 0 1 1-2 5" stroke="#1fa5a0"/></svg>'),
+('Роллерный станок', '<svg viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="36" r="10.5"/><circle cx="50" cy="36" r="10.5"/><path d="M14 36h16l-6-17M14 36l10-15h19l7 15M30 36l13-15M20 17h8M41 17h6"/><g stroke="#ff6a1a" stroke-width="3"><circle cx="9" cy="51" r="3.5"/><circle cx="19" cy="51" r="3.5"/><circle cx="50" cy="51" r="3.5"/><path d="M19 47.5h31M19 54.5h31"/></g><path d="M3 58h58M6 58v-2M58 58v-2" stroke-width="3"/></svg>');
 
 -- Филиал по умолчанию (зал 6×2 = 12 мест).
 INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, phone, work_hours) VALUES
@@ -49,13 +49,13 @@ WHERE d.group_code IN ('activity_category', 'specialist_type');
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
-(1, (SELECT id FROM station_type WHERE code='exercise_bike'), 'Smart Bike 1', 0, 0, 1),
-(1, (SELECT id FROM station_type WHERE code='exercise_bike'), 'Smart Bike 2', 1, 0, 2),
-(1, (SELECT id FROM station_type WHERE code='exercise_bike'), 'Smart Bike 3', 2, 0, 3),
-(1, (SELECT id FROM station_type WHERE code='exercise_bike'), 'Smart Bike 4', 3, 0, 4),
-(1, (SELECT id FROM station_type WHERE code='trainer_stand_11'), 'Станок 11S', 4, 0, 5),
-(1, (SELECT id FROM station_type WHERE code='trainer_stand_12'), 'Станок 12S', 5, 0, 6),
-(1, (SELECT id FROM station_type WHERE code='rollers'), 'Роллер 1', 0, 1, 7);
+(1, (SELECT id FROM station_type WHERE name='Велотренажёр'), 'Smart Bike 1', 0, 0, 1),
+(1, (SELECT id FROM station_type WHERE name='Велотренажёр'), 'Smart Bike 2', 1, 0, 2),
+(1, (SELECT id FROM station_type WHERE name='Велотренажёр'), 'Smart Bike 3', 2, 0, 3),
+(1, (SELECT id FROM station_type WHERE name='Велотренажёр'), 'Smart Bike 4', 3, 0, 4),
+(1, (SELECT id FROM station_type WHERE name='Велостанок 11s'), 'Станок 11S', 4, 0, 5),
+(1, (SELECT id FROM station_type WHERE name='Велостанок 12s'), 'Станок 12S', 5, 0, 6),
+(1, (SELECT id FROM station_type WHERE name='Роллерный станок'), 'Роллер 1', 0, 1, 7);
 
 
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────

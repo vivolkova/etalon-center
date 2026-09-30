@@ -41,7 +41,7 @@ if ($method === 'GET' && $action === 'all') {
                    s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, s.location_id,
                    dc.code AS category,
                    t.name AS specialist_name, t.full_name AS specialist_full,
-                   st.label AS station_label, stt.code AS station_code
+                   st.label AS station_label, stt.name AS station_type_name
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id

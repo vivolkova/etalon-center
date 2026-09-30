@@ -78,12 +78,10 @@ CREATE TABLE location_dictionaries (
 -- icon — SVG-иконка типа станка для схемы зала.
 CREATE TABLE station_type (
     id         INT AUTO_INCREMENT PRIMARY KEY,
-    code       VARCHAR(40)  NOT NULL,
     name       VARCHAR(100) NOT NULL,
     icon       TEXT NULL,
     active     TINYINT DEFAULT 1,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_station_type_code (code),
     UNIQUE KEY uq_station_type_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

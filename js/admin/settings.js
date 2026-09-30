@@ -355,9 +355,9 @@ function renderAdminBookingsFiltered(list) {
   const muted = function (v) { return v ? escAttr(v) : '<span style="color:var(--ink-60)">—</span>'; };
   tbody.innerHTML = [...list].reverse().map(b => {
     const date = new Date(b.date);
-    // Станок: название + код типа станка
+    // Станок: название + тип станка
     const station = b.station
-      ? escAttr(b.station) + (b.stationCode ? '<br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.stationCode) + '</span>' : '')
+      ? escAttr(b.station) + (b.stationType ? '<br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.stationType) + '</span>' : '')
       : muted('');
     // Полоса слева — цвет категории занятия (тренировка / байкфит / мастерская)
     return '<tr>' +
