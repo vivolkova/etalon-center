@@ -1,16 +1,20 @@
 <?php
 // ═══════════════════════════════════════════════════════════
-// middleware/slot_rules.php — Может ли специалист провести занятие
+// middleware/slot_rules.php — Можно ли поставить занятие: свободен ли зал и может ли специалист его провести
 // ═══════════════════════════════════════════════════════════
-// Одна проверка для всех мест, где создаётся или меняется занятие (админка, позже — запись клиента):
+// Одна проверка для всех мест, где создаётся или меняется занятие (админка, позже — запись клиента): checkSlot().
+// Зал (checkSlotHall): тренировки проходят в зале филиала и не пересекаются по времени — групповая занимает
+//   весь зал; персональная и самостоятельная могут идти одновременно (на разных станках), но не с групповой.
+//   Байкфит и другие категории — в отдельных помещениях, зал не занимают.
+// Специалист (checkSlotSpecialist):
 //   1) специалист указан, если занятию он нужен (activityNeedsSpecialist); у самостоятельной — не указан;
 //   2) специалист активен и у него есть специализация, которая ведёт эту категорию (activity_category.ref_id);
 //   3) категория и специализация доступны в филиале занятия (location_dictionaries);
 //   4) занятие целиком в одном рабочем интервале специалиста в этом филиале (график, отсутствия, особые часы);
 //   5) нет пересечений с другими занятиями специалиста — в любом филиале и любой категории;
 //      между занятиями в разных филиалах — не меньше времени на переезд между ними (travelMinutes).
-// Ошибка — err() с понятным текстом. Вызывать внутри транзакции: строка специалиста блокируется
-// (SELECT … FOR UPDATE), чтобы два одновременных сохранения не поставили его в два места.
+// Ошибка — err() с понятным текстом. Вызывать внутри транзакции: строки филиала и специалиста блокируются
+// (SELECT … FOR UPDATE), чтобы два одновременных сохранения не заняли зал дважды и не поставили человека в два места.
 require_once __DIR__ . '/specialist_hours.php';
 require_once __DIR__ . '/settings.php';
 
@@ -37,6 +41,37 @@ function slotLocName(PDO $db, int $locId): string {
 
 // $s: ['id' => id изменяемого слота|null, 'location_id', 'date' => 'Y-m-d', 'start' => 'HH:MM',
 //      'duration' => мин, 'cat' => activity_category.code, 'type' => slot_type.code|null, 'specialist_id' => id|null]
+function checkSlot(PDO $db, array $s): void {
+    checkSlotHall($db, $s);
+    checkSlotSpecialist($db, $s);
+}
+
+// Зал филиала: тренировка не пересекается с другими тренировками в этом филиале
+// (две персональные / самостоятельные одновременно — можно, если ни одна не групповая)
+function checkSlotHall(PDO $db, array $s): void {
+    if ($s['cat'] !== 'training') return;
+    $locId = (int)$s['location_id'];
+    // Блокируем строку филиала до конца транзакции
+    $db->prepare('SELECT id FROM locations WHERE id = ? FOR UPDATE')->execute([$locId]);
+    $start = specTimeToMin(substr((string)$s['start'], 0, 5));
+    $end   = $start + (int)$s['duration'];
+    $st = $db->prepare("SELECT s.name, s.start_time, s.duration, dt.code AS type FROM slots s
+                        JOIN dictionaries dc ON dc.id = s.category_id AND dc.code = 'training'
+                        LEFT JOIN library l ON l.id = s.library_id
+                        LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
+                        WHERE s.location_id = ? AND s.slot_date = ? AND s.active = 1 AND s.id <> ?");
+    $st->execute([$locId, (string)$s['date'], (int)($s['id'] ?? 0)]);
+    foreach ($st->fetchAll() as $o) {
+        $oStart = specTimeToMin(substr($o['start_time'], 0, 5));
+        $oEnd   = $oStart + (int)$o['duration'];
+        if (!($start < $oEnd && $oStart < $end)) continue;
+        $shared = in_array($s['type'] ?? null, ['personal', 'free'], true) && in_array($o['type'], ['personal', 'free'], true);
+        if ($shared) continue;
+        err('Зал филиала «' . slotLocName($db, $locId) . '» занят: ' . specFmtDate((string)$s['date']) . ' '
+            . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»');
+    }
+}
+
 function checkSlotSpecialist(PDO $db, array $s): void {
     $locId  = (int)$s['location_id'];
     $specId = (int)($s['specialist_id'] ?? 0);

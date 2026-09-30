@@ -4,6 +4,7 @@
 
 // ── ADMIN WEEK SCHEDULE ───────────────────────────────────────────
 let ADM_ROW_H = 60;  // px на час — берётся из --wg-row-h сетки при отрисовке (css/week-grid.css)
+const ADM_ADD_GUTTER = 18;   // px справа в ячейке, свободные от занятий: «+» для ещё одного занятия (css .wg--admin)
 
 let admWeekStart = (function () {
   const d = new Date(today);
@@ -27,9 +28,93 @@ async function admWeekToday() {
   renderAdminSchedule();
 }
 
+// ── Фильтр по филиалам: какие залы показывать в сетке ──
+// null — все филиалы; иначе список id. Выбор запоминается в браузере (только для этого пользователя)
+const ADM_LOCS_KEY = 'etalon.admSchedule.locations';
+let admLocFilter = (function () {
+  try { const v = JSON.parse(localStorage.getItem(ADM_LOCS_KEY)); return Array.isArray(v) ? v.map(Number) : null; }
+  catch (e) { return null; }
+})();
+
+function admRenderLocFilter() {
+  const box = document.getElementById('adm-loc-filter');
+  if (!box) return;
+  if (LOCATIONS.length < 2) { box.innerHTML = ''; box.style.display = 'none'; return; }
+  box.style.display = '';
+  // Сохранённый выбор — только из действующих филиалов
+  const ids = LOCATIONS.map(function (l) { return l.id; });
+  const selected = admLocFilter ? admLocFilter.filter(function (id) { return ids.indexOf(id) >= 0; }) : ids;
+  // Список уже нарисован — не пересобираем (иначе закроется открытый выпадающий список)
+  if (box.querySelector('#adm-locs') && box.dataset.locs === ids.join(',')) return;
+  box.dataset.locs = ids.join(',');
+  box.innerHTML = msHtml('adm-locs', LOCATIONS.map(function (l) { return { value: l.id, label: l.name }; }), selected, '— Филиалы не выбраны —', true);
+  // Читаем выбор после общего обработчика списка (он отмечает пункты по «Выбрать все») — поэтому setTimeout
+  box.onchange = function () { setTimeout(admApplyLocFilter, 0); };
+  function admApplyLocFilter() {
+    const vals = msValues('adm-locs').map(Number);
+    admLocFilter = vals.length === ids.length ? null : vals;
+    try {
+      if (admLocFilter) localStorage.setItem(ADM_LOCS_KEY, JSON.stringify(admLocFilter));
+      else localStorage.removeItem(ADM_LOCS_KEY);
+    } catch (e) { /* хранилище недоступно — выбор действует до перезагрузки */ }
+    renderAdminSchedule();
+  }
+}
+
+// ── Фильтр по специалисту: null — все; иначе id. Выбор запоминается в браузере ──
+const ADM_SPEC_KEY = 'etalon.admSchedule.specialist';
+let admSpecFilter = (function () {
+  try { const v = parseInt(localStorage.getItem(ADM_SPEC_KEY)); return v || null; } catch (e) { return null; }
+})();
+
+function admRenderSpecFilter() {
+  const sel = document.getElementById('adm-spec-filter');
+  if (!sel) return;
+  const list = SPECIALISTS_DATA.slice().sort(function (a, b) { return a.full.localeCompare(b.full, 'ru'); });
+  sel.innerHTML = '<option value="">Все специалисты</option>' +
+    list.map(function (t) { return '<option value="' + t.id + '">' + escAttr(t.full) + '</option>'; }).join('');
+  // Сохранённый специалист больше не в списке (деактивирован) — показываем всех
+  if (admSpecFilter && !list.some(function (t) { return t.id === admSpecFilter; })) admSpecFilter = null;
+  sel.value = admSpecFilter || '';
+}
+
+function admSpecFilterChanged(val) {
+  admSpecFilter = parseInt(val) || null;
+  try {
+    if (admSpecFilter) localStorage.setItem(ADM_SPEC_KEY, String(admSpecFilter));
+    else localStorage.removeItem(ADM_SPEC_KEY);
+  } catch (e) { /* хранилище недоступно — выбор действует до перезагрузки */ }
+  renderAdminSchedule();
+}
+
+// Слот показывается при текущем фильтре специалиста
+function admSpecVisible(s) {
+  return !admSpecFilter || Number(s.specialist_id) === admSpecFilter;
+}
+
+// Слот показывается при текущем фильтре филиалов
+function admLocVisible(s) {
+  if (!admLocFilter || LOCATIONS.length < 2) return true;
+  return admLocFilter.indexOf(Number(s.location_id)) >= 0;
+}
+
+// Название филиала слота (для подсказки; на карточке — только когда в сетке несколько филиалов)
+function admSlotLocName(s) {
+  if (LOCATIONS.length < 2) return '';
+  const l = findLocation(s.location_id);
+  return l ? l.name : '';
+}
+
+// В сетке больше одного филиала — тогда на карточке слота пишем его филиал
+function admManyLocsShown() {
+  return LOCATIONS.length > 1 && (!admLocFilter || admLocFilter.length > 1);
+}
+
 function renderAdminSchedule() {
   const grid = document.getElementById('adm-week-grid');
   if (!grid) return;
+  admRenderLocFilter();
+  admRenderSpecFilter();
 
   const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -47,10 +132,10 @@ function renderAdminSchedule() {
     const d = new Date(admWeekStart); d.setDate(admWeekStart.getDate() + i); return d;
   });
 
-  // Слоты недели
+  // Слоты недели — в выбранных филиалах и у выбранного специалиста
   const weekSlots = SLOTS.filter(s => {
     const sd = s.date;
-    return sd >= admWeekStart && sd <= we;
+    return sd >= admWeekStart && sd <= we && admLocVisible(s) && admSpecVisible(s);
   });
 
   // Шапка: угол + заголовки дней
@@ -84,7 +169,13 @@ function renderAdminSchedule() {
           parseInt(s.time.split(':')[0]) === hr;
       });
 
-      let cellHtml = "<div class='wg-cell' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
+      // Час занят каким-либо занятием (начавшимся в этом часе или раньше) — «+» в полосе справа, а не по центру
+      const busy = weekSlots.some(function (s) {
+        if (s.date.getDate() !== d.getDate() || s.date.getMonth() !== d.getMonth()) return false;
+        const st = timeToMin(s.time), en = st + (parseInt(s.dur) || 0);
+        return st < (hr + 1) * 60 && en > hr * 60;
+      });
+      let cellHtml = "<div class='wg-cell" + (busy ? " wg-cell--busy" : "") + "' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
 
       // Рисуем слоты
       daySlots.forEach(function (s) {
@@ -92,12 +183,13 @@ function renderAdminSchedule() {
         const topPx = Math.round(topMin * ADM_ROW_H / 60);
         const heightPx = Math.max(Math.round(s.dur * ADM_ROW_H / 60), 24);
         // Пересекающиеся занятия — рядом по колонкам, чтобы были видны все
-        const colStyle = wgLaneStyle(dayLayouts[di].get(s.id));
-        cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + s.name + ' · ' + s.time + ' (перетащите, чтобы изменить время)">';
+        const colStyle = wgLaneStyle(dayLayouts[di].get(s.id), ADM_ADD_GUTTER);
+        const locName = admSlotLocName(s);
+        cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + escAttr(s.name + ' · ' + s.time + (locName ? ' · ' + locName : '')) + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
-        // Специалист · цена · свободно/мест (у байкфита мест в зале нет); пустые части не показываем
-        const meta = [s.specialist, s.price.toLocaleString('ru') + '₽', slotUsesHall(s.cat) ? slotFree(s) + '/' + slotCap(s) : ''].filter(Boolean).join(' · ');
+        // Филиал (зал) · специалист · цена · свободно/мест (у байкфита мест в зале нет); пустые части не показываем
+        const meta = [locName && admManyLocsShown() ? '<b>' + escAttr(locName) + '</b>' : '', s.specialist, s.price.toLocaleString('ru') + '₽', slotUsesHall(s.cat) ? slotFree(s) + '/' + slotCap(s) : ''].filter(Boolean).join(' · ');
         cellHtml += '<div class="wg-slot-meta">' + meta + '</div>';
         cellHtml += '<div class="wg-slot-btns">';
         cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
@@ -262,60 +354,42 @@ function smRenderTimes(selected, keepOutside) {
   }
 }
 
-let smSelectedLibId = null;   // id выбранной строки библиотеки для slots.library_id
+let smSelectedLibId = null;   // id выбранной записи библиотеки — slots.library_id
 
+// Тренировки для слота: групповые тренировки из библиотеки выбранного филиала (то же проверяет сервер)
 function smFillLibSelect() {
-  const sel = document.getElementById('sm-lib-select');
+  const sel = document.getElementById('sm-lib');
   if (!sel) return;
-  // Из библиотеки в расписание — только то, что разрешает libCanSchedule (проверяет и сервер)
-  const allItems = [...(LIBRARY.trainings || []), ...(LIBRARY.services || [])].filter(libCanSchedule);
-  sel.innerHTML = '<option value="">— Выбрать из библиотеки —</option>' +
-    allItems.map(function (item) {
-      return '<option value="' + item.id + '__' + (LIBRARY.trainings.includes(item) ? 'trainings' : 'services') + '">' +
-        '[' + catName(item.cat) + '] ' + item.name + ' · ' + item.dur + 'мин · ' + Number(item.price).toLocaleString('ru') + '₽' +
-        '</option>';
+  const locId = parseInt(document.getElementById('sm-location').value) || null;
+  const items = (LIBRARY.trainings || []).filter(function (item) { return libCanSchedule(item) && item.location_id === locId; });
+  sel.innerHTML = '<option value="">' + (!locId ? '— Сначала выберите филиал —' : items.length ? '— Выберите тренировку —' : '— В библиотеке филиала нет групповых тренировок —') + '</option>' +
+    items.map(function (item) {
+      return '<option value="' + item.id + '">' + escAttr(item.name) + '</option>';   // длительность и цена — в полях ниже
     }).join('');
-  document.getElementById('sm-lib-preview').style.display = 'none';
+  sel.value = '';
 }
 
+// Выбрана тренировка: название, категория, длительность и цена — из записи библиотеки
 function smApplyLibItem(val) {
-  if (!val) { smClearLib(); return; }
-  const parts = val.split('__');
-  const id = parseInt(parts[0]);
-  const type = parts[1];
-  const item = (LIBRARY[type] || []).find(x => x.id === id);
+  const item = val ? (LIBRARY.trainings || []).find(function (x) { return x.id === parseInt(val); }) : null;
+  smSelectedLibId = item ? item.id : null;
+  document.getElementById('sm-name').value = item ? item.name : '';
+  document.getElementById('sm-cat').value = 'training';
+  document.getElementById('sm-cat-view').textContent = catName('training');
+  smApplySpecialistFilter('training');
   if (!item) return;
-  smSelectedLibId = item.id;   // связываем слот с записью библиотеки
-
-  // Заполняем поля формы
-  document.getElementById('sm-name').value = item.name;
-  document.getElementById('sm-cat').value = item.cat;
-  { const cv = document.getElementById('sm-cat-view'); if (cv) cv.textContent = catName(item.cat); }
-  smApplySpecialistFilter(item.cat);
   document.getElementById('sm-dur').value = item.dur;
-  smRenderTimes();
   document.getElementById('sm-price').value = item.price;
-  document.getElementById('sm-max').value = HALL_CAP ?? '';
-  smRenderLibPreview(item);
+  smRenderTimes();
 }
 
-// Превью выбранной записи библиотеки (без перезаписи полей формы)
-function smRenderLibPreview(item) {
-  const prev = document.getElementById('sm-lib-preview');
-  if (!prev) return;
-  prev.style.display = '';
-  prev.innerHTML =
-    '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(item.cat) + ';margin-right:6px;vertical-align:middle"></span>' +
-    '<strong>' + item.name + '</strong> · ' + catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽' +
-    (item.desc ? '<div style="color:var(--ink-60);margin-top:4px">' + item.desc + '</div>' : '');
-}
-
-function smClearLib() {
-  smSelectedLibId = null;
-  const sel = document.getElementById('sm-lib-select');
-  if (sel) sel.value = '';
-  const prev = document.getElementById('sm-lib-preview');
-  if (prev) prev.style.display = 'none';
+// Сменили филиал нового слота: тренировки — из библиотеки этого филиала, время — по его режиму работы
+function smLocationChanged() {
+  smFillLibSelect();
+  smApplyLibItem('');
+  smRenderTimes();
+  const locId = parseInt(document.getElementById('sm-location').value) || null;
+  document.getElementById('sm-max').value = locId ? (hallCapOf(locId) ?? '') : '';
 }
 
 // Заполнить выпадающий список филиалов в форме слота; один — сразу выбран.
@@ -333,7 +407,7 @@ function smFillLocations(selectedId) {
 function smSetSlotMode(isEdit) {
   const show = function (id, vis) { const e = document.getElementById(id); if (e) e.style.display = vis ? '' : 'none'; };
   show('sm-location', !isEdit);        show('sm-location-view', isEdit);
-  show('sm-name', !isEdit);            show('sm-name-view', isEdit);
+  show('sm-lib', !isEdit);             show('sm-name-view', isEdit);
   show('sm-specialist', true);            show('sm-specialist-view', false);
 }
 
@@ -351,8 +425,14 @@ function openSlotModal(slotId) {
     document.getElementById('sm-day').value = s.dayOfWeek;
     document.getElementById('sm-dur').value = s.dur;
     smRenderTimes(s.time, true);
-    document.getElementById('sm-max').value = s.max != null ? s.max : (HALL_CAP ?? '');
-    document.getElementById('sm-specialist').value = s.specialist;
+    document.getElementById('sm-max').value = s.max != null ? s.max : (hallCapOf(s.location_id) ?? '');
+    const spSel = document.getElementById('sm-specialist');
+    spSel.value = s.specialist_id || '';
+    if (s.specialist_id && spSel.value !== String(s.specialist_id)) {
+      const sp = SPECIALISTS_DATA.find(function (t) { return t.id === s.specialist_id; });
+      spSel.insertAdjacentHTML('beforeend', '<option value="' + s.specialist_id + '">' + escAttr(sp ? sp.full : s.specialist || '#' + s.specialist_id) + ' (не работает в филиале)</option>');
+      spSel.value = s.specialist_id;
+    }
     document.getElementById('sm-price').value = s.price;
     smSelectedLibId = s.library_id || null;   // ссылка на библиотеку сохраняется как есть
     // Значения для нередактируемых полей (режим редактирования)
@@ -365,18 +445,17 @@ function openSlotModal(slotId) {
   } else {
     document.getElementById('slot-modal-title').textContent = 'Добавить слот';
     document.getElementById('sm-id').value = '';
-    smSelectedLibId = null;
-    smFillLocations(null);
-    document.getElementById('sm-name').value = '';
-    document.getElementById('sm-cat').value = 'training';
-    document.getElementById('sm-cat-view').textContent = 'Тренировка';
-    smApplySpecialistFilter('training');
+    // В фильтре расписания выбран один филиал — он и подставляется
+    smFillLocations(admLocFilter && admLocFilter.length === 1 ? admLocFilter[0] : null);
+    smFillLibSelect();
+    smApplyLibItem('');
     document.getElementById('sm-day').value = '0';
     document.getElementById('sm-dur').value = '60';
     smRenderTimes('10:00');
-    document.getElementById('sm-max').value = HALL_CAP ?? '';
+    const newLoc = parseInt(document.getElementById('sm-location').value) || null;
+    document.getElementById('sm-max').value = newLoc ? (hallCapOf(newLoc) ?? '') : '';
     document.getElementById('sm-specialist').value = '';
-    document.getElementById('sm-price').value = '1200';
+    document.getElementById('sm-price').value = '';
     smSetSlotMode(false);
   }
   // Схема зала с блокировками — только у сохранённого слота (блокировка привязана к занятию)
@@ -486,9 +565,9 @@ async function smApplyBlocks(slotId) {
 }
 
 async function saveSlot() {
-  const name = document.getElementById('sm-name').value.trim();
-  if (!name) { showToast('Введите название занятия', 'error'); return; }
   const sid = document.getElementById('sm-id').value;
+  if (!smSelectedLibId) { showToast('Выберите тренировку из библиотеки', 'error'); return; }
+  const name = document.getElementById('sm-name').value.trim();
   const dayOfWeek = parseInt(document.getElementById('sm-day').value);
   const time = document.getElementById('sm-time').value;
   if (!time) { showToast('Укажите время начала', 'error'); return; }
@@ -499,9 +578,11 @@ async function saveSlot() {
   slotDate.setDate(admWeekStart.getDate() + ((dayOfWeek - startDow + 7) % 7));
   slotDate.setHours(0, 0, 0, 0);
 
-  // Находим specialist_id по имени
-  const trainerName = document.getElementById('sm-specialist').value;
-  const trainerObj = SPECIALISTS_DATA ? SPECIALISTS_DATA.find(t => t.name === trainerName) : null;
+  // Тренер — по id; у групповой тренировки обязателен (то же проверяет сервер)
+  const trainerObj = SPECIALISTS_DATA.find(function (t) { return t.id === parseInt(document.getElementById('sm-specialist').value); }) || null;
+  if (!trainerObj) { showToast('Выберите тренера', 'error'); return; }
+  const price = parseInt(document.getElementById('sm-price').value);
+  if (isNaN(price) || price < 0) { showToast('Укажите цену', 'error'); return; }
 
   const location_id = parseInt(document.getElementById('sm-location').value) || null;
   if (!location_id) { showToast('Выберите филиал', 'error'); return; }
@@ -517,8 +598,8 @@ async function saveSlot() {
     slot_date: fmtLocalDate(slotDate),
     start_time: time,
     duration: parseInt(document.getElementById('sm-dur').value),
-    specialist_id: trainerObj ? trainerObj.id : null,
-    price: parseInt(document.getElementById('sm-price').value),
+    specialist_id: trainerObj.id,
+    price: price,
   };
 
   // описание для мгновенного показа во всплывашке (до перезагрузки слотов)
@@ -530,12 +611,13 @@ async function saveSlot() {
 
   const localData = {
     name,
+    location_id,
     cat: apiData.category,
     date: slotDate,
     dayOfWeek, time,
     dur: apiData.duration,
-    max: HALL_CAP,
-    specialist: trainerName,
+    max: hallCapOf(location_id),
+    specialist: trainerObj.name,
     specialist_id: apiData.specialist_id,
     price: apiData.price,
     library_id: smSelectedLibId,
@@ -552,7 +634,7 @@ async function saveSlot() {
       showToast('Слот обновлён' + blk, 'success');
     } else {
       const res = await SlotsAPI.create(apiData);
-      const newId = res && res.id ? res.id : Date.now();
+      const newId = res && res.id ? Number(res.id) : Date.now();
       SLOTS.push({ id: newId, taken: 0, ...localData });
       showToast('Слот добавлен', 'success');
     }

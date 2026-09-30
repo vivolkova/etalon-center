@@ -120,7 +120,7 @@ function addToScheduleFromLib(id) {
     catName(item.cat) + ' · ' + item.dur + ' мин · ' + Number(item.price).toLocaleString('ru') + ' ₽';
 
   // Тренер / Байкфиттер / Мастер — по категории записи (activity_category.ref_id)
-  applySpecialistFilter('lts-specialist', 'lts-specialist-label', item.cat);
+  applySpecialistFilter('lts-specialist', 'lts-specialist-label', item.cat, item.location_id);
   ltsRenderWeekLabel();
   ltsRenderDayBtns();
   ltsRenderTimes();
@@ -213,12 +213,15 @@ async function confirmAddToSchedule() {
 
   const time = document.getElementById('lts-time').value;
   if (!time) { showToast('Нет времени, подходящего под режим работы филиала во все выбранные дни', 'error'); return; }
-  const trainerName = document.getElementById('lts-specialist').value;
-  const trainerObj = SPECIALISTS_DATA ? SPECIALISTS_DATA.find(t => t.name === trainerName) : null;
+  // Тренер — по id; у групповой тренировки обязателен (то же проверяет сервер)
+  const trainerObj = SPECIALISTS_DATA.find(function (t) { return t.id === parseInt(document.getElementById('lts-specialist').value); }) || null;
+  if (!trainerObj) { showToast('Выберите тренера', 'error'); return; }
   const repeat = document.getElementById('lts-repeat').value;
   const weeks = repeat === 'once' ? 1 : repeat === '2weeks' ? 2 : 4;
 
+  // Слоты создаются по одному без отдельных сообщений; в конце — один итог с причинами отказов
   let added = 0;
+  const failed = [];   // [{date, reason}]
   const promises = [];
 
   for (let w = 0; w < weeks; w++) {
@@ -237,11 +240,12 @@ async function confirmAddToSchedule() {
         duration: item.dur,
         price: item.price,
         location_id: item.location_id,
-        specialist_id: trainerObj ? trainerObj.id : null,
+        specialist_id: trainerObj.id,
       };
-      const dow = (slotDate.getDay() + 6) % 7;
       promises.push(
-        SlotsAPI.create(apiData).then(function () { added++; }).catch(function () { })
+        SlotsAPI.create(apiData, true)
+          .then(function () { added++; })
+          .catch(function (e) { failed.push({ date: slotDate, reason: e.message }); })
       );
     });
   }
@@ -255,11 +259,26 @@ async function confirmAddToSchedule() {
   reloadTo.setDate(reloadTo.getDate() + weeks * 7);
   await loadSlots(reloadFrom, reloadTo);
 
+  const total = added + failed.length;
+  // Ничего не добавлено — окно остаётся открытым, чтобы поменять время, тренера или дни
+  if (!added) {
+    showToast('Ни одно занятие не добавлено. ' + ltsFailText(failed), 'error');
+    return;
+  }
   closeLtsModal();
   const schTab = document.querySelector('.atab[onclick*="schedule"]');
   if (schTab) switchAdminTab('schedule', schTab);
   renderAdminSchedule();
-  showToast('Добавлено ' + added + ' занятий в расписание', 'success');
+  if (failed.length) showToast('Добавлено ' + added + ' из ' + total + '. Не добавлены: ' + ltsFailText(failed), 'error');
+  else showToast('Добавлено ' + added + ' занятий в расписание', 'success');
+}
+
+// Причины отказов по датам: «14.10 — …; 16.10 — …» (не больше 5, дальше «и ещё N»)
+function ltsFailText(failed) {
+  const list = failed.slice().sort(function (a, b) { return a.date - b.date; });
+  const dd = function (d) { return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0'); };
+  return list.slice(0, 5).map(function (f) { return dd(f.date) + ' — ' + escAttr(f.reason); }).join('; ') +
+    (list.length > 5 ? '; и ещё ' + (list.length - 5) : '');
 }
 
 
@@ -307,10 +326,7 @@ function openLibItemModal(id, kind) {
   const diffWrap = document.getElementById('lm-difficulty-wrap');
   diffWrap.style.display = isTraining ? '' : 'none';
   const capWrap = document.getElementById('lm-cap-wrap');
-  if (capWrap) {
-    capWrap.style.display = isTraining ? '' : 'none';
-    document.getElementById('lm-cap').value = HALL_CAP ?? '';
-  }
+  if (capWrap) capWrap.style.display = isTraining ? '' : 'none';
   document.getElementById('lm-type').value = kind;
 
   // Список филиалов; если один — сразу выбран, иначе плейсхолдер
@@ -345,11 +361,23 @@ function openLibItemModal(id, kind) {
     document.getElementById('lm-features').value = '';
     document.getElementById('lm-active').checked = true;
   }
-  // Категории — доступные в выбранном филиале (Настройки → Справочники)
-  lmFillCats(isTraining, item ? item.cat : null);
-  if (locSel) locSel.onchange = function () { lmFillCats(isTraining, item ? item.cat : null); };
-  // Категорию можно задать только при создании; при редактировании — только чтение
+  // Категории — доступные в выбранном филиале (Настройки → Справочники); мест — вместимость зала филиала
+  const lmSyncLocation = function () {
+    lmFillCats(isTraining, item ? item.cat : null);
+    const locId = parseInt(locSel.value) || null;
+    const cap = locId ? hallCapOf(locId) : null;
+    document.getElementById('lm-cap').value = cap ?? '';
+  };
+  lmSyncLocation();
+  if (locSel) locSel.onchange = lmSyncLocation;
+  // Филиал, категорию и тип занятия можно задать только при создании; при редактировании — только чтение
+  // (слоты хранят снимок занятия; для другого филиала — новая запись)
   catEl.disabled = (id !== null);   // disabled → серый стиль неизменяемого поля (css/site.css)
+  document.getElementById('lm-format').disabled = (id !== null);
+  if (locSel) {
+    locSel.disabled = (id !== null);
+    locSel.title = id !== null ? 'Филиал записи не меняется — для другого филиала создайте новую запись' : '';
+  }
   modal.classList.add('show');
 }
 

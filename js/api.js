@@ -25,7 +25,8 @@ const Auth = {
 };
 
 // ── Базовый запрос ─────────────────────────────────────────
-async function apiRequest(endpoint, method = 'GET', body = null) {
+// silent — не показывать сообщение об ошибке (вызывающий покажет итог сам, например по нескольким запросам)
+async function apiRequest(endpoint, method = 'GET', body = null, silent = false) {
   const headers = { 'Content-Type': 'application/json' };
   const token = Auth.getToken();
   if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -38,7 +39,7 @@ async function apiRequest(endpoint, method = 'GET', body = null) {
   const fail = function (message, offline) {
     const e = new Error(message);
     e.offline = !!offline;
-    showToast(message, 'error');
+    if (!silent) showToast(message, 'error');
     throw e;
   };
 
@@ -93,8 +94,8 @@ const SlotsAPI = {
   async get(id) {
     return apiRequest(`/slots.php?action=get&id=${id}`);
   },
-  async create(data) {
-    return apiRequest('/slots.php?action=create', 'POST', data);
+  async create(data, silent) {
+    return apiRequest('/slots.php?action=create', 'POST', data, silent);
   },
   async update(data) {
     return apiRequest('/slots.php?action=update', 'PUT', data);

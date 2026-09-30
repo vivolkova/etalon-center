@@ -358,6 +358,16 @@
 
 .wg--admin .wg-slot {
   cursor: grab;
+  right: 18px;   /* полоса справа — для «+» (ADM_ADD_GUTTER в js/admin/schedule.js) */
+}
+
+/* Час с занятием: «+» — в полосе справа, куда занятия не заходят */
+.wg--admin .wg-cell--busy:hover::after {
+  left: auto;
+  right: 0;
+  width: 18px;
+  text-align: center;
+  transform: translateY(-50%);
 }
 
 .wg--admin .wg-slot:active {

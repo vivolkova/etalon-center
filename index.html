@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20260930-6">
-  <link rel="stylesheet" href="css/site.css?v=20260930-6">
-  <link rel="stylesheet" href="css/panels.css?v=20260930-6">
-  <link rel="stylesheet" href="css/library.css?v=20260930-6">
-  <link rel="stylesheet" href="css/week-grid.css?v=20260930-6">
-  <link rel="stylesheet" href="css/admin.css?v=20260930-6">
+  <link rel="stylesheet" href="css/base.css?v=20260930-19">
+  <link rel="stylesheet" href="css/site.css?v=20260930-19">
+  <link rel="stylesheet" href="css/panels.css?v=20260930-19">
+  <link rel="stylesheet" href="css/library.css?v=20260930-19">
+  <link rel="stylesheet" href="css/week-grid.css?v=20260930-19">
+  <link rel="stylesheet" href="css/admin.css?v=20260930-19">
 </head>
 
 <body>
@@ -554,6 +554,12 @@
               </button>
               <button class="wg-today-btn" onclick="admWeekToday()">Сегодня</button>
             </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+              <!-- Фильтр по специалисту: все или один -->
+              <select class="form-input" id="adm-spec-filter" style="width:220px;max-width:100%" onchange="admSpecFilterChanged(this.value)"></select>
+              <!-- Фильтр по филиалам (залам); один филиал — не показывается -->
+              <div id="adm-loc-filter" style="width:280px;max-width:100%"></div>
+            </div>
           </div>
           <div class="wg-wrap">
             <div class="wg wg--admin" id="adm-week-grid"></div>
@@ -1046,33 +1052,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20260930-6"></script>
-  <script src="js/core.js?v=20260930-6"></script>
-  <script src="js/week-grid.js?v=20260930-6"></script>
-  <script src="js/auth.js?v=20260930-6"></script>
-  <script src="js/site/schedule.js?v=20260930-6"></script>
-  <script src="js/site/booking.js?v=20260930-6"></script>
-  <script src="js/site/services-bookings.js?v=20260930-6"></script>
-  <script src="js/admin/admin.js?v=20260930-6"></script>
-  <script src="js/admin/schedule.js?v=20260930-6"></script>
-  <script src="js/admin/services.js?v=20260930-6"></script>
-  <script src="js/admin/chat.js?v=20260930-6"></script>
-  <script src="js/admin/notifications.js?v=20260930-6"></script>
-  <script src="js/client/panel.js?v=20260930-6"></script>
-  <script src="js/client/payment.js?v=20260930-6"></script>
-  <script src="js/client/chat-profile.js?v=20260930-6"></script>
-  <script src="js/site/detail-modals.js?v=20260930-6"></script>
-  <script src="js/admin/library.js?v=20260930-6"></script>
-  <script src="js/admin/data-nav.js?v=20260930-6"></script>
-  <script src="js/admin/dashboard.js?v=20260930-6"></script>
-  <script src="js/admin/specialists.js?v=20260930-6"></script>
-  <script src="js/admin/sales.js?v=20260930-6"></script>
-  <script src="js/admin/settings.js?v=20260930-6"></script>
-  <script src="js/admin/stations.js?v=20260930-6"></script>
-  <script src="js/admin/dictionaries.js?v=20260930-6"></script>
-  <script src="js/ui.js?v=20260930-6"></script>
-  <script src="js/loaders.js?v=20260930-6"></script>
-  <script src="js/init.js?v=20260930-6"></script>
+  <script src="js/api.js?v=20260930-19"></script>
+  <script src="js/core.js?v=20260930-19"></script>
+  <script src="js/week-grid.js?v=20260930-19"></script>
+  <script src="js/auth.js?v=20260930-19"></script>
+  <script src="js/site/schedule.js?v=20260930-19"></script>
+  <script src="js/site/booking.js?v=20260930-19"></script>
+  <script src="js/site/services-bookings.js?v=20260930-19"></script>
+  <script src="js/admin/admin.js?v=20260930-19"></script>
+  <script src="js/admin/schedule.js?v=20260930-19"></script>
+  <script src="js/admin/services.js?v=20260930-19"></script>
+  <script src="js/admin/chat.js?v=20260930-19"></script>
+  <script src="js/admin/notifications.js?v=20260930-19"></script>
+  <script src="js/client/panel.js?v=20260930-19"></script>
+  <script src="js/client/payment.js?v=20260930-19"></script>
+  <script src="js/client/chat-profile.js?v=20260930-19"></script>
+  <script src="js/site/detail-modals.js?v=20260930-19"></script>
+  <script src="js/admin/library.js?v=20260930-19"></script>
+  <script src="js/admin/data-nav.js?v=20260930-19"></script>
+  <script src="js/admin/dashboard.js?v=20260930-19"></script>
+  <script src="js/admin/specialists.js?v=20260930-19"></script>
+  <script src="js/admin/sales.js?v=20260930-19"></script>
+  <script src="js/admin/settings.js?v=20260930-19"></script>
+  <script src="js/admin/stations.js?v=20260930-19"></script>
+  <script src="js/admin/dictionaries.js?v=20260930-19"></script>
+  <script src="js/ui.js?v=20260930-19"></script>
+  <script src="js/loaders.js?v=20260930-19"></script>
+  <script src="js/init.js?v=20260930-19"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1082,14 +1088,16 @@
 
       <div class="form-field">
         <label class="form-label">Филиал</label>
-        <select class="form-input" id="sm-location" onchange="smRenderTimes()"></select>
+        <select class="form-input" id="sm-location" onchange="smLocationChanged()"></select>
         <div class="form-input form-view" id="sm-location-view" style="display:none"></div>
       </div>
 
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Название занятия</label>
-          <input class="form-input" id="sm-name" placeholder="Интервальный сайкл">
+          <!-- Групповая тренировка — только из библиотеки выбранного филиала; при редактировании не меняется -->
+          <label class="form-label">Тренировка</label>
+          <select class="form-input" id="sm-lib" onchange="smApplyLibItem(this.value)"></select>
+          <input type="hidden" id="sm-name">
           <div class="form-input form-view" id="sm-name-view" style="display:none"></div>
         </div>
         <div class="form-field">

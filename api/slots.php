@@ -7,15 +7,6 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// код значения справочника -> id (ошибка, если кода нет)
-function dictId($db, $group, $code) {
-    $st = $db->prepare('SELECT id FROM dictionaries WHERE group_code = ? AND code = ?');
-    $st->execute([$group, $code]);
-    $id = $st->fetchColumn();
-    if ($id === false) err('Неизвестное значение справочника ' . $group . ': ' . $code);
-    return (int)$id;
-}
-
 // Проверка: занятие целиком в режиме работы филиала (locations.work_hours).
 // work_hours — [{day:'Понедельник', open, from:'HH:MM', to:'HH:MM'}, …]; если не задан — не ограничиваем.
 function checkWorkHours($db, $locId, $date, $startTime, $duration) {
@@ -48,46 +39,33 @@ function checkWorkHours($db, $locId, $date, $startTime, $duration) {
     }
 }
 
-// Админ ставит в расписание только групповые тренировки (training + slot_type group).
-// Слот без записи библиотеки не ограничиваем.
-function checkLibraryForSlot(PDO $db, $libraryId): void {
-    if (empty($libraryId)) return;
-    $st = $db->prepare('SELECT dc.code AS cat, dt.code AS type FROM library l
+// Админ ставит в расписание только групповые тренировки (training + slot_type group) — всегда из записи
+// библиотеки этого же филиала. Запись — источник названия и категории слота.
+function slotLibrary(PDO $db, $libraryId, int $locId): array {
+    if (empty($libraryId)) err('Выберите тренировку из библиотеки');
+    $st = $db->prepare('SELECT l.id, l.name, l.location_id, l.activity_category_id, dc.code AS cat, dt.code AS type FROM library l
                         JOIN dictionaries dc ON dc.id = l.activity_category_id
                         LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
-                        WHERE l.id = ?');
+                        WHERE l.id = ? AND l.active = 1');
     $st->execute([(int)$libraryId]);
     $lib = $st->fetch();
     if (!$lib) err('Запись библиотеки не найдена', 404);
     if (!($lib['cat'] === 'training' && $lib['type'] === 'group')) err('В расписание можно добавлять только групповые тренировки');
+    if ((int)$lib['location_id'] !== $locId) err('Тренировка «' . $lib['name'] . '» — из библиотеки другого филиала');
+    return $lib;
 }
 
-// Категория и тип занятия слота: из записи библиотеки (источник истины), без неё — категория из запроса
-function slotCatType(PDO $db, array $d): array {
-    if (!empty($d['library_id'])) {
-        $st = $db->prepare('SELECT dc.code AS cat, dt.code AS type FROM library l
-                            JOIN dictionaries dc ON dc.id = l.activity_category_id
-                            LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
-                            WHERE l.id = ?');
-        $st->execute([(int)$d['library_id']]);
-        $lib = $st->fetch();
-        if (!$lib) err('Запись библиотеки не найдена', 404);
-        return [$lib['cat'], $lib['type']];
-    }
-    return [$d['category'] ?? 'training', null];
-}
-
-// Проверка специалиста занятия (middleware/slot_rules.php) по данным запроса; $id — изменяемый слот
-function checkSlotRequest(PDO $db, array $d, ?int $id): void {
-    [$cat, $type] = slotCatType($db, $d);
-    checkSlotSpecialist($db, [
+// Проверка занятия (middleware/slot_rules.php): зал свободен, специалист может провести.
+// $id — изменяемый слот, $lib — запись библиотеки (категория и тип занятия)
+function checkSlotRequest(PDO $db, array $d, ?int $id, array $lib): void {
+    checkSlot($db, [
         'id'            => $id,
         'location_id'   => (int)$d['location_id'],
         'date'          => $d['slot_date'],
         'start'         => substr((string)$d['start_time'], 0, 5),
         'duration'      => (int)($d['duration'] ?? 60),
-        'cat'           => $cat,
-        'type'          => $type,
+        'cat'           => $lib['cat'],
+        'type'          => $lib['type'],
         'specialist_id' => !empty($d['specialist_id']) ? (int)$d['specialist_id'] : null,
     ]);
 }
@@ -154,27 +132,27 @@ if ($method === 'GET' && $action === 'get') {
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'slot_date', 'start_time', 'price', 'location_id']);
+    require_fields($d, ['slot_date', 'start_time', 'price', 'location_id']);
 
     $db = getDB();
+    $locId = (int)$d['location_id'];   // филиал выбирается на форме
+    // Групповая тренировка из библиотеки этого филиала — источник названия и категории
+    $lib = slotLibrary($db, $d['library_id'] ?? null, $locId);
     // Время занятия — в пределах режима работы филиала
-    checkWorkHours($db, $d['location_id'], $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
-    checkLibraryForSlot($db, $d['library_id'] ?? null);
-    $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
-    $locId      = (int)$d['location_id'];   // филиал выбирается на форме
+    checkWorkHours($db, $locId, $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
 
-    // Специалист: нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строки)
+    // Зал свободен; специалист нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строк)
     $db->beginTransaction();
-    checkSlotRequest($db, $d, null);
+    checkSlotRequest($db, $d, null, $lib);
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
     $stmt = $db->prepare('INSERT INTO slots (location_id,library_id,name,category_id,slot_date,start_time,duration,specialist_id,price)
                           VALUES (?,?,?,?,?,?,?,?,?)');
     $stmt->execute([
         $locId,
-        $d['library_id']  ?? null,
-        $d['name'],
-        $categoryId,
+        (int)$lib['id'],
+        $lib['name'],
+        (int)$lib['activity_category_id'],
         $d['slot_date'],
         $d['start_time'],
         $d['duration']    ?? 60,
@@ -183,7 +161,7 @@ if ($method === 'POST' && $action === 'create') {
     ]);
     $newId = $db->lastInsertId();
     $db->commit();
-    ok(['id' => $newId], 'Слот создан');
+    ok(['id' => (int)$newId], 'Слот создан');
 }
 
 // PUT — обновить слот (только admin)
@@ -195,20 +173,21 @@ if ($method === 'PUT' && $action === 'update') {
 
     require_fields($d, ['location_id', 'slot_date', 'start_time']);
     $db = getDB();
+    $locId = (int)$d['location_id'];
+    $lib = slotLibrary($db, $d['library_id'] ?? null, $locId);
     // Время занятия — в пределах режима работы филиала
-    checkWorkHours($db, $d['location_id'], $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
-    $categoryId = dictId($db, 'activity_category', $d['category'] ?? 'training');
+    checkWorkHours($db, $locId, $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
 
-    // Специалист: нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строки)
+    // Зал свободен; специалист нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строк)
     $db->beginTransaction();
-    checkSlotRequest($db, $d, $id);
+    checkSlotRequest($db, $d, $id, $lib);
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
     $stmt = $db->prepare('UPDATE slots SET location_id=?,library_id=?,name=?,category_id=?,slot_date=?,start_time=?,duration=?,specialist_id=?,price=? WHERE id=?');
     $stmt->execute([
-        (int)$d['location_id'],
-        $d['library_id'] ?? null,
-        $d['name'], $categoryId, $d['slot_date'],
+        $locId,
+        (int)$lib['id'],
+        $lib['name'], (int)$lib['activity_category_id'], $d['slot_date'],
         $d['start_time'], $d['duration'] ?? 60,
         $d['specialist_id'] ?? null, $d['price'],
         $id,

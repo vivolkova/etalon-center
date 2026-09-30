@@ -9,6 +9,7 @@ async function loadSpecialists() {
         id: t.id, name: t.name, full: t.full_name,
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
         types: t.types || [],          // коды типов: trainer, bikefitter, mechanic (может быть несколько)
+        location_ids: (t.location_ids || []).map(Number),   // филиалы, где работает по графику
         active: parseInt(t.active) ? 1 : 0
       };
     });
@@ -41,14 +42,16 @@ function fillSpecialistSelects() {
   var cat = document.getElementById('sm-cat');
   smApplySpecialistFilter(cat ? cat.value : '');
   var libItem = ltsLibId ? [...LIBRARY.trainings, ...LIBRARY.services].find(function (x) { return x.id === ltsLibId; }) : null;
-  applySpecialistFilter('lts-specialist', 'lts-specialist-label', libItem ? libItem.cat : '');
+  applySpecialistFilter('lts-specialist', 'lts-specialist-label', libItem ? libItem.cat : '', libItem ? libItem.location_id : null);
 }
 
-// Список специалистов по категории активности: тип специалиста берётся из справочника
+// Список специалистов по категории активности (значение пункта — id специалиста): тип специалиста берётся из справочника
 // (activity_category.ref_id -> specialist_type: training -> trainer, bikefit -> bikefitter,
 // workshop -> mechanic). Подпись поля — название типа («Тренер», «Байкфиттер», «Мастер»).
 // Если у категории связи нет — поле «Специалист» и все специалисты.
-function applySpecialistFilter(selectId, labelId, cat) {
+// locId — филиал занятия: только специалисты, работающие в нём по графику, и только если их специализация
+// доступна в филиале (Настройки → Справочники). Никого нет — список пустой с пояснением.
+function applySpecialistFilter(selectId, labelId, cat, locId) {
   var sel = document.getElementById(selectId);
   if (!sel) return;
   var c = ACTIVITY_CATS.find(function (x) { return x.code === cat; });
@@ -57,18 +60,24 @@ function applySpecialistFilter(selectId, labelId, cat) {
   var list = specType
     ? SPECIALISTS_DATA.filter(function (t) { return t.types.indexOf(specType) >= 0; })
     : SPECIALISTS_DATA;
+  if (locId) {
+    var typeDict = specType ? SPEC_TYPES.find(function (x) { return x.code === specType; }) : null;
+    var typeHere = !typeDict || dictAvailableAt(typeDict.id, locId);
+    list = typeHere ? list.filter(function (t) { return t.location_ids.indexOf(Number(locId)) >= 0; }) : [];
+  }
   var label = document.getElementById(labelId);
   if (label) label.textContent = title;
   var cur = sel.value;
-  sel.innerHTML = '<option value="">— ' + title + ' —</option>' +
-    list.map(function (t) { return '<option value="' + t.name + '">' + t.full + '</option>'; }).join('');
+  sel.innerHTML = '<option value="">' + (list.length ? '— ' + title + ' —' : '— В филиале нет подходящих специалистов —') + '</option>' +
+    list.map(function (t) { return '<option value="' + t.id + '">' + t.full + '</option>'; }).join('');
   sel.value = cur;
   if (sel.value !== cur) sel.value = '';
 }
 
-// Форма слота в расписании
+// Форма слота в расписании — специалисты филиала слота
 function smApplySpecialistFilter(cat) {
-  applySpecialistFilter('sm-specialist', 'sm-specialist-label', cat);
+  var loc = document.getElementById('sm-location');
+  applySpecialistFilter('sm-specialist', 'sm-specialist-label', cat, loc ? parseInt(loc.value) || null : null);
 }
 
 // ── Загрузка клиентов с сервера ───────────────────────────────

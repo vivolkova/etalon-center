@@ -28,8 +28,8 @@ function saveSpecTypes(PDO $db, int $specId, array $typeIds): void {
     foreach ($typeIds as $t) $ins->execute([$specId, $t]);
 }
 
-// GET — список специалистов (публичный). types — коды типов; для админки (all=1) ещё
-// актуальные периоды графика, исключения и филиалы, где специалист работает (location_ids)
+// GET — список специалистов (публичный). types — коды типов; location_ids — филиалы, где специалист работает
+// по графику и особым часам (с сегодняшнего дня); для админки (all=1) ещё актуальные периоды графика и исключения
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
     $all = !empty($_GET['all']);
@@ -46,14 +46,14 @@ if ($method === 'GET' && $action === 'list') {
     ');
     $stmt->execute();
     $rows = $stmt->fetchAll();
-    $hours = $all ? specialistsHoursMap($db, null, date('Y-m-d')) : [];
+    $hours = specialistsHoursMap($db, null, date('Y-m-d'));
     foreach ($rows as &$r) {
         $r['types'] = $r['types'] !== null ? explode(',', $r['types']) : [];
+        $h = $hours[$r['id']] ?? [];
+        $r['location_ids'] = specLocationIds($h);
         if ($all) {
-            $h = $hours[$r['id']] ?? [];
-            $r['schedules']    = $h['schedules'] ?? [];
-            $r['exceptions']   = $h['exceptions'] ?? [];
-            $r['location_ids'] = specLocationIds($h);
+            $r['schedules']  = $h['schedules'] ?? [];
+            $r['exceptions'] = $h['exceptions'] ?? [];
         }
     }
     unset($r);

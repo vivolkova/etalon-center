@@ -48,9 +48,11 @@ function wgLayoutDay(daySlots) {
 }
 
 // Inline-стиль позиции слота по колонке (пусто — слот один, на всю ширину дня)
-function wgLaneStyle(pos) {
+// gutter — px справа, которые занятия не занимают (в админке там «+» для добавления ещё одного занятия в этот час)
+function wgLaneStyle(pos, gutter) {
   if (!pos || pos.lanes < 2) return '';
-  return 'left:calc(' + (pos.lane * 100 / pos.lanes) + '% + 2px);width:calc(' + (100 / pos.lanes) + '% - 4px);right:auto;';
+  const g = gutter || 0;
+  return 'left:calc((100% - ' + g + 'px) * ' + (pos.lane / pos.lanes) + ' + 2px);width:calc((100% - ' + g + 'px) / ' + pos.lanes + ' - 4px);right:auto;';
 }
 
 // Высота одного часа в px — из CSS-переменной --wg-row-h сетки (единый источник с css/week-grid.css)

@@ -64,6 +64,26 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────
 
+-- Второй филиал (id = 2): зал 3×2, 6 мест; Пн–Сб 08:00–21:00, Вс — выходной
+INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, phone, work_hours) VALUES
+('Эталон — Юг', 'Южная 5', 3, 2, 6, 'south@etaloncenter.ru', '+7 495 000-00-01',
+ '[{"day":"Понедельник","open":true,"from":"08:00","to":"21:00"},{"day":"Вторник","open":true,"from":"08:00","to":"21:00"},{"day":"Среда","open":true,"from":"08:00","to":"21:00"},{"day":"Четверг","open":true,"from":"08:00","to":"21:00"},{"day":"Пятница","open":true,"from":"08:00","to":"21:00"},{"day":"Суббота","open":true,"from":"08:00","to":"21:00"},{"day":"Воскресенье","open":false,"from":"","to":""}]');
+SET @south = LAST_INSERT_ID();
+
+-- В «Юге» — только тренировки, их ведёт тренер (байкфита и мастерской нет)
+INSERT INTO location_dictionaries (dictionary_id, location_id)
+SELECT d.id, @south FROM dictionaries d
+WHERE (d.group_code, d.code) IN (('activity_category', 'training'), ('specialist_type', 'trainer'));
+
+-- Зал «Юга» настроен: два велотренажёра и велостанок (1-й ряд)
+INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
+(@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 1',   0, 0, 1),
+(@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 2',   1, 0, 2),
+(@south, (SELECT id FROM station_type WHERE name='Велостанок 11s'), 'Юг Станок 1', 2, 0, 3);
+
+-- Переезд между основным филиалом и «Югом» — 45 минут (для остальных пар — значение по умолчанию)
+INSERT INTO location_travel (location_a_id, location_b_id, minutes) VALUES (1, @south, 45);
+
 INSERT INTO specialists (name, full_name, experience) VALUES
 ('Анна К.',   'Анна Козлова',   5),
 ('Максим Р.', 'Максим Романов', 7),
@@ -91,8 +111,9 @@ INSERT INTO users (email, password, name, phone, role_id, type) VALUES
 -- Графики и исключения ниже заводит локальный админ (created_by обязателен)
 SET @dev_admin = (SELECT id FROM users WHERE email = 'admin@local');
 
--- Графики специалистов (в пределах режима работы филиала; все интервалы — в филиале 1). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
--- (в остальные месяцы не работает); Максим и Игорь — бессрочно.
+-- Графики специалистов (в пределах режима работы филиалов). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
+-- (в остальные месяцы не работает); Максим и Игорь — бессрочно. Максим по вторникам и четвергам вечером — в «Юге»
+-- (location_id 2), остальное — в основном филиале (location_id 1).
 INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_hours, created_by) VALUES
 (1, 'Сентябрь 2026', '2026-09-01', '2026-09-30',
  '[{"day":"Понедельник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"07:00","to":"11:00","location_id":1},{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"07:00","to":"11:00","location_id":1}]},{"day":"Суббота","intervals":[{"from":"09:00","to":"13:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
@@ -101,7 +122,7 @@ INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_
 (1, 'Ноябрь 2026', '2026-11-01', '2026-11-30',
  '[{"day":"Понедельник","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"17:00","to":"21:00","location_id":1}]},{"day":"Суббота","intervals":[{"from":"10:00","to":"14:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (2, 'Основной', '2026-01-01', NULL,
- '[{"day":"Понедельник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Среда","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Пятница","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"21:00","location_id":1}]},{"day":"Суббота","intervals":[]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
+ '[{"day":"Понедельник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Вторник","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"21:00","location_id":2}]},{"day":"Среда","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"22:00","location_id":1}]},{"day":"Четверг","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"21:00","location_id":2}]},{"day":"Пятница","intervals":[{"from":"10:00","to":"14:00","location_id":1},{"from":"18:00","to":"21:00","location_id":1}]},{"day":"Суббота","intervals":[]},{"day":"Воскресенье","intervals":[]}]', @dev_admin),
 (3, 'Основной', '2026-01-01', NULL,
  '[{"day":"Понедельник","intervals":[]},{"day":"Вторник","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Среда","intervals":[]},{"day":"Четверг","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Пятница","intervals":[]},{"day":"Суббота","intervals":[{"from":"10:00","to":"18:00","location_id":1}]},{"day":"Воскресенье","intervals":[]}]', @dev_admin);
 
@@ -164,19 +185,53 @@ INSERT INTO library (location_id, name, activity_category_id, slot_type_id, dura
  'Быстрая проверка состояния велосипеда с рекомендациями по обслуживанию.',
  JSON_ARRAY('Проверка всех узлов','Список необходимых работ','Оценка стоимости ремонта','Без разборки'));
 
--- Слоты расписания на ближайшую неделю (тестовые)
-INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price) VALUES
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 0 DAY, '10:00:00', 60, 1, 1200),
-(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 0 DAY, '19:00:00', 60, 2, 900),
-(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 1 DAY, '09:00:00', 60, 1, 1200),
-(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 1 DAY, '18:00:00', 60, 2, 1500),
-(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 2 DAY, '12:00:00', 60, NULL, 800),
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 2 DAY, '20:00:00', 60, 1, 1200),
-(1, (SELECT id FROM library WHERE name='Утренний сайкл' LIMIT 1), 'Утренний сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 3 DAY, '10:00:00', 60, 1, 1200),
-(1, (SELECT id FROM library WHERE name='Интервальный сайкл' LIMIT 1), 'Интервальный сайкл', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 4 DAY, '17:00:00', 60, 2, 1200),
-(1, (SELECT id FROM library WHERE name='Свободная тренировка' LIMIT 1), 'Свободная тренировка', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 4 DAY, '19:00:00', 60, NULL, 800),
-(1, (SELECT id FROM library WHERE name='Endurance Ride' LIMIT 1), 'Endurance Ride', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 5 DAY, '11:00:00', 60, 1, 1500),
-(1, (SELECT id FROM library WHERE name='Восстановительная' LIMIT 1), 'Восстановительная', (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), CURDATE() + INTERVAL 6 DAY, '12:00:00', 60, 2, 900);
+-- Слоты расписания (тестовые): неделя 05–11.10.2026 — только групповые тренировки из библиотеки
+-- (остальное записывает клиент), в часы работы тренеров по их графикам (периоды выше).
+-- Даты фиксированные, как и графики, — чтобы расписание всегда было согласовано с графиками.
+-- Название, длительность и цена — из записи библиотеки.
+INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price)
+SELECT 1, l.id, l.name, l.activity_category_id, v.slot_date, v.start_time, l.duration, sp.id, l.price
+FROM (
+  SELECT '2026-10-05' AS slot_date, '08:00:00' AS start_time, 'Утренний сайкл' AS lib, 'Анна Козлова' AS spec
+  UNION ALL SELECT '2026-10-05' AS slot_date, '18:30:00' AS start_time, 'Интервальный сайкл' AS lib, 'Максим Романов' AS spec
+  UNION ALL SELECT '2026-10-06' AS slot_date, '10:00:00' AS start_time, 'Endurance Ride' AS lib, 'Максим Романов' AS spec
+  UNION ALL SELECT '2026-10-06' AS slot_date, '18:00:00' AS start_time, 'Интервальный сайкл' AS lib, 'Анна Козлова' AS spec
+  UNION ALL SELECT '2026-10-07' AS slot_date, '08:00:00' AS start_time, 'Утренний сайкл' AS lib, 'Анна Козлова' AS spec
+  UNION ALL SELECT '2026-10-07' AS slot_date, '19:00:00' AS start_time, 'Восстановительная' AS lib, 'Максим Романов' AS spec
+  UNION ALL SELECT '2026-10-08' AS slot_date, '12:00:00' AS start_time, 'Восстановительная' AS lib, 'Максим Романов' AS spec
+  UNION ALL SELECT '2026-10-08' AS slot_date, '17:30:00' AS start_time, 'Endurance Ride' AS lib, 'Анна Козлова' AS spec
+  UNION ALL SELECT '2026-10-09' AS slot_date, '18:00:00' AS start_time, 'Интервальный сайкл' AS lib, 'Анна Козлова' AS spec
+  UNION ALL SELECT '2026-10-10' AS slot_date, '10:00:00' AS start_time, 'Утренний сайкл' AS lib, 'Анна Козлова' AS spec
+) v
+JOIN library l      ON l.name = v.lib AND l.location_id = 1
+JOIN specialists sp ON sp.full_name = v.spec
+ORDER BY v.slot_date, v.start_time;
+
+-- Библиотека «Юга»: групповые тренировки
+INSERT INTO library (location_id, name, activity_category_id, slot_type_id, duration, price, difficulty, summary, details)
+SELECT @south, v.name, dc.id, dt.id, v.duration, v.price, v.difficulty, v.summary, v.details
+FROM (
+  SELECT 'Вечерний сайкл' AS name, 60 AS duration, 1100 AS price, 'any' AS difficulty,
+         'Групповая тренировка после работы: ровный темп и интервалы средней интенсивности.' AS summary,
+         JSON_ARRAY('Аэробная зона ЧСС 65-75%', 'Zwift — групповой заезд', 'Подходит для любого уровня') AS details
+  UNION ALL
+  SELECT 'Силовой сайкл', 75, 1300, 'intermediate',
+         'Работа на низком каденсе с высоким сопротивлением — развивает силу педалирования.',
+         JSON_ARRAY('Каденс 60-70 RPM', 'Зона мощности Z3-Z4', 'Нужен опыт тренировок')
+) v
+JOIN dictionaries dc ON dc.group_code = 'activity_category' AND dc.code = 'training'
+JOIN dictionaries dt ON dt.group_code = 'slot_type' AND dt.code = 'group';
+
+-- Занятия Максима в «Юге» на тестовой неделе (Вт и Чт вечером, по его графику)
+INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price)
+SELECT @south, l.id, l.name, l.activity_category_id, v.slot_date, v.start_time, l.duration, sp.id, l.price
+FROM (
+  SELECT '2026-10-06' AS slot_date, '18:30:00' AS start_time, 'Вечерний сайкл' AS lib
+  UNION ALL SELECT '2026-10-08', '19:00:00', 'Силовой сайкл'
+) v
+JOIN library l      ON l.name = v.lib AND l.location_id = @south
+JOIN specialists sp ON sp.full_name = 'Максим Романов'
+ORDER BY v.slot_date, v.start_time;
 
 -- Услуги главной страницы (перенос из localStorage в БД)
 INSERT INTO services (location_id, icon, name, description, price, features, sort_order) VALUES

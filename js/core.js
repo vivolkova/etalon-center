@@ -209,6 +209,12 @@ let currentUser = null;
 let bookings = [];
 let authMode = 'login';
 let HALL_CAP = null;   // вместимость зала (locations.max_people); заполняется после загрузки данных
+
+// Вместимость зала филиала (locations.max_people); нет данных — HALL_CAP
+function hallCapOf(locId) {
+  const l = locId && typeof findLocation === 'function' ? findLocation(locId) : null;
+  return l && l.max_people != null ? parseInt(l.max_people) : HALL_CAP;
+}
 let LOCATIONS = [];    // активные филиалы (для выпадающих списков)
 let LOCATIONS_ALL = []; // все филиалы, включая неактивные (для раздела Настройки)
 
