@@ -4,9 +4,10 @@
 // Диапазон часов сетки: от самого раннего открытия до самого позднего закрытия
 // среди активных филиалов (режим работы — Панель → Настройки → Филиалы),
 // расширенный так, чтобы были видны все слоты недели. Режим работы не задан и слотов нет — 08–22.
-function weekHourRange(weekSlots) {
+// locIds — учитывать только эти филиалы (по умолчанию все активные).
+function weekHourRange(weekSlots, locIds) {
   let from = Infinity, to = -Infinity;
-  LOCATIONS.forEach(function (l) {
+  LOCATIONS.filter(function (l) { return !locIds || locIds.indexOf(Number(l.id)) >= 0; }).forEach(function (l) {
     for (let i = 0; i < 7; i++) {
       const h = locDayHours(l.id, i);
       if (h) { from = Math.min(from, h.from); to = Math.max(to, h.to); }

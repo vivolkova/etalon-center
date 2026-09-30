@@ -430,3 +430,22 @@
     align-items: flex-start;
   }
 }
+
+/* ── Сайт: выбор филиала над расписанием ── */
+.sch-loc {
+  margin-bottom: 14px;
+}
+
+.sch-loc-chips {
+  margin-bottom: 6px;
+}
+
+.sch-loc-chips .chip {
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+.sch-loc-info {
+  font-size: 13px;
+  color: var(--ink-60);
+}

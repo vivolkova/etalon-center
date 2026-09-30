@@ -109,6 +109,7 @@ async function loadMyBookings() {
         date: b.slot_date,
         time: b.start_time ? b.start_time.slice(0, 5) : '',
         specialist: b.specialist_name || '',
+        location_id: b.location_id != null ? Number(b.location_id) : null,
         price: Number(b.price),
         status: b.status,
         paymentStatus: b.payment_status,

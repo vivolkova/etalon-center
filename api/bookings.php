@@ -12,7 +12,7 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
-               t.name AS specialist_name, st.label AS station_label
+               s.location_id, t.name AS specialist_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         JOIN dictionaries dc ON s.category_id = dc.id

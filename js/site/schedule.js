@@ -11,10 +11,54 @@ let schWeekStart = (function () {
   return d;
 })();
 
+// ── Филиал: в сетке всегда ровно один. Выбор запоминается в браузере ──
+const SCH_LOC_KEY = 'etalon.site.location';
+let schLocId = (function () {
+  try { return parseInt(localStorage.getItem(SCH_LOC_KEY)) || null; } catch (e) { return null; }
+})();
+
+// Выбранный филиал среди действующих; сохранённого нет или он закрыт — первый действующий
+function schLoc() {
+  return LOCATIONS.find(function (l) { return Number(l.id) === schLocId; }) || LOCATIONS[0] || null;
+}
+
+function renderSchLoc() {
+  const box = document.getElementById('sch-loc');
+  if (!box) return;
+  const loc = schLoc();
+  if (!loc) { box.innerHTML = ''; return; }
+  let h = '';
+  if (LOCATIONS.length > 1) {
+    h += '<div class="filter-chips sch-loc-chips">' + LOCATIONS.map(function (l) {
+      return '<button class="chip' + (l.id === loc.id ? ' active' : '') + '" onclick="selectSchLoc(' + l.id + ')">' + escAttr(l.name) + '</button>';
+    }).join('') + '</div>';
+  }
+  const info = [loc.address, loc.phone].filter(Boolean).map(escAttr).join(' · ');
+  if (info) h += '<div class="sch-loc-info">' + info + '</div>';
+  box.innerHTML = h;
+}
+
+function selectSchLoc(id) {
+  schLocId = Number(id);
+  try { localStorage.setItem(SCH_LOC_KEY, String(schLocId)); } catch (e) { /* хранилище недоступно — выбор до перезагрузки */ }
+  renderSchedule();
+}
+
+// Название филиала слота/записи — только когда филиалов несколько (при одном это лишний шум)
+function siteLocName(locId) {
+  if (LOCATIONS.length < 2 || locId == null) return '';
+  const l = LOCATIONS.find(function (x) { return Number(x.id) === Number(locId); });
+  return l ? l.name : '';
+}
+
 function renderSchedule() {
-  currentCat = validCat(currentCat);
-  const f = document.getElementById('sch-cat-filter'); if (f) f.innerHTML = catChipsHtml(currentCat, 'filterCat');
-  const lg = document.getElementById('sch-legend'); if (lg) lg.innerHTML = catLegendHtml();
+  renderSchLoc();
+  const loc = schLoc();
+  // Категории — доступные в выбранном филиале (location_dictionaries)
+  const cats = loc ? catsAt(loc.id) : ACTIVITY_CATS;
+  currentCat = validCat(currentCat, cats);
+  const f = document.getElementById('sch-cat-filter'); if (f) f.innerHTML = catChipsHtml(currentCat, 'filterCat', cats);
+  const lg = document.getElementById('sch-legend'); if (lg) lg.innerHTML = catLegendHtml(cats);
   renderWeekCal();
 }
 
@@ -57,9 +101,12 @@ function renderWeekCal() {
     const d = new Date(schWeekStart); d.setDate(schWeekStart.getDate() + i); return d;
   });
 
-  // Слоты недели
+  // Слоты недели выбранного филиала
+  const loc = schLoc();
+  const locId = loc ? Number(loc.id) : null;
   const weekSlots = SLOTS.filter(function (s) {
     return s.date >= schWeekStart && s.date <= weekEnd &&
+      (locId === null || Number(s.location_id) === locId) &&
       (currentCat === 'all' || s.cat === currentCat);
   });
 
@@ -79,8 +126,8 @@ function renderWeekCal() {
   });
 
   // ── Строки часов ──
-  // Часы — по режиму работы филиалов (как в админке)
-  const hrRange = weekHourRange(weekSlots);
+  // Часы — по режиму работы выбранного филиала
+  const hrRange = weekHourRange(weekSlots, locId === null ? null : [locId]);
   // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
   const dayLayouts = days.map(function (d) {
     return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));

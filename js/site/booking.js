@@ -8,7 +8,7 @@ function openBookingModal(slotId) {
   if (!selectedSlot) return;
   const s = selectedSlot;
   document.getElementById('bm-title').textContent = s.name;
-  document.getElementById('bm-sub').textContent = `${s.date.getDate()} ${MONTHS_FULL[s.date.getMonth()]} · ${s.time} · ${s.specialist}`;
+  document.getElementById('bm-sub').textContent = [s.date.getDate() + ' ' + MONTHS_FULL[s.date.getMonth()], s.time, s.specialist, siteLocName(s.location_id)].filter(Boolean).join(' · ');
   // У байкфита мест в зале нет: не показываем «Свободно … мест» и схему зала (станок не выбирается)
   const usesHall = slotUsesHall(s.cat);
   document.getElementById('bm-details').innerHTML = `

@@ -151,7 +151,7 @@ function renderAdminSchedule() {
 
   // Временная шкала + ячейки
   ADM_ROW_H = wgRowHeight(grid);
-  const hrRange = weekHourRange(weekSlots);
+  const hrRange = weekHourRange(weekSlots, LOCATIONS.length > 1 ? admLocFilter : null);
   // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
   const dayLayouts = days.map(function (d) {
     return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));

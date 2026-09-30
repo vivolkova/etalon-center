@@ -69,20 +69,21 @@ function escAttr(str) {
 
 // Кнопки-фильтры категорий («Все» + категории из справочника activity_category) и легенда.
 // onclickFn — имя глобальной функции-обработчика (cat, btn).
-function catChipsHtml(current, onclickFn) {
+// cats — какие категории показать (по умолчанию все; сайт передаёт доступные в выбранном филиале).
+function catChipsHtml(current, onclickFn, cats) {
   return '<button class="chip' + (current === 'all' ? ' active' : '') + '" onclick="' + onclickFn + '(\'all\',this)">Все</button>' +
-    ACTIVITY_CATS.map(function (c) {
+    (cats || ACTIVITY_CATS).map(function (c) {
       return '<button class="chip cat-chip cat-' + c.code + (current === c.code ? ' active' : '') + '" onclick="' + onclickFn + '(\'' + c.code + '\',this)">' + escAttr(c.name) + '</button>';
     }).join('');
 }
-function catLegendHtml() {
-  return ACTIVITY_CATS.map(function (c) {
+function catLegendHtml(cats) {
+  return (cats || ACTIVITY_CATS).map(function (c) {
     return '<div class="sch-legend-item"><div class="sch-legend-dot cat-' + c.code + '"></div>' + escAttr(c.name) + '</div>';
   }).join('');
 }
-// Выбранная категория пропала из справочника (выключили) — сбросить на «Все»
-function validCat(cat) {
-  return cat === 'all' || ACTIVITY_CATS.some(function (c) { return c.code === cat; }) ? cat : 'all';
+// Выбранная категория пропала из справочника (выключили) или из списка cats — сбросить на «Все»
+function validCat(cat, cats) {
+  return cat === 'all' || (cats || ACTIVITY_CATS).some(function (c) { return c.code === cat; }) ? cat : 'all';
 }
 
 // Занимает ли занятие места в зале (станки, вместимость, блокировки станков).
