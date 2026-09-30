@@ -160,3 +160,87 @@ function fmtMinutes(int $m): string {
 function minToTimeStr(int $m): string {
     return sprintf('%02d:%02d', intdiv($m, 60), $m % 60);
 }
+
+// ═══ Защита уже поставленных занятий от изменений задним числом ═══
+// Изменение графика, отсутствий, особых часов, специализаций или активности специалиста сначала записывается
+// в транзакции, затем все его будущие активные занятия в затронутых датах проверяются по новым данным.
+// Хоть одно перестало подходить — откат и ошибка со списком занятий (specialistSlotsGuard).
+
+// Заблокировать строку специалиста до конца транзакции (чтобы параллельно не поставили занятие): [full_name, active]
+function lockSpecialist(PDO $db, int $specId): array {
+    $st = $db->prepare('SELECT id, full_name, active FROM specialists WHERE id = ? FOR UPDATE');
+    $st->execute([$specId]);
+    $sp = $st->fetch();
+    if (!$sp) err('Специалист не найден', 404);
+    return $sp;
+}
+
+// Будущие (с сегодняшнего дня) активные занятия специалиста в датах [$from; $to] ($to = null — без конца),
+// которые он по текущим данным провести не может: [{slot, reason}]
+function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?string $to = null): array {
+    $today = date('Y-m-d');
+    if ($from === null || $from < $today) $from = $today;
+    if ($to !== null && $to < $from) return [];
+    $sql = 'SELECT s.id, s.name, s.slot_date, s.start_time, s.duration, s.location_id, dc.ref_id, rt.name AS type_name
+            FROM slots s
+            JOIN dictionaries dc ON dc.id = s.category_id
+            LEFT JOIN dictionaries rt ON rt.id = dc.ref_id
+            WHERE s.specialist_id = ? AND s.active = 1 AND s.slot_date >= ?' . ($to !== null ? ' AND s.slot_date <= ?' : '') . '
+            ORDER BY s.slot_date, s.start_time';
+    $st = $db->prepare($sql);
+    $st->execute($to !== null ? [$specId, $from, $to] : [$specId, $from]);
+    $slots = $st->fetchAll();
+    if (!$slots) return [];
+
+    $st = $db->prepare('SELECT active FROM specialists WHERE id = ?');
+    $st->execute([$specId]);
+    $active = (int)$st->fetchColumn();
+    $st = $db->prepare('SELECT type_id FROM specialist_types WHERE specialist_id = ? AND active = 1');
+    $st->execute([$specId]);
+    $types = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+
+    $days = [];   // кеш часов работы по датам
+    $out = [];
+    foreach ($slots as $s) {
+        $reason = null;
+        if (!$active) {
+            $reason = 'специалист неактивен';
+        } elseif ($s['ref_id'] && !in_array((int)$s['ref_id'], $types, true)) {
+            $reason = 'нет специализации «' . $s['type_name'] . '»';
+        } else {
+            $date = $s['slot_date'];
+            $day = $days[$date] ??= specialistAvailability($db, $specId, $date, $date)[0];
+            $locId = (int)$s['location_id'];
+            $start = specTimeToMin(substr($s['start_time'], 0, 5));
+            $end   = $start + (int)$s['duration'];
+            $here  = array_filter($day['intervals'], fn($iv) => (int)$iv['location_id'] === $locId);
+            $fits  = false;
+            foreach ($here as $iv) {
+                if (specTimeToMin($iv['from']) <= $start && $end <= specTimeToMin($iv['to'])) { $fits = true; break; }
+            }
+            if (!$fits) {
+                if (!$day['intervals']) $reason = 'не работает' . ($day['reason'] ? ': ' . $day['reason'] : '');
+                elseif (!$here) $reason = 'не работает в филиале «' . slotLocName($db, $locId) . '»';
+                else $reason = 'вне часов работы (' . implode(', ', array_map(fn($iv) => $iv['from'] . '–' . $iv['to'], $here)) . ')';
+            }
+        }
+        if ($reason !== null) $out[] = ['slot' => $s, 'reason' => $reason];
+    }
+    return $out;
+}
+
+// Проверить будущие занятия специалиста после изменения (внутри транзакции): есть конфликты — откат и ошибка.
+// $what — что пытались сделать, для текста: «сохранить отсутствие», «удалить период графика»…
+function specialistSlotsGuard(PDO $db, int $specId, ?string $from, ?string $to, string $what): void {
+    $conf = specialistSlotConflicts($db, $specId, $from, $to);
+    if (!$conf) return;
+    $st = $db->prepare('SELECT full_name FROM specialists WHERE id = ?');
+    $st->execute([$specId]);
+    $who = (string)$st->fetchColumn();
+    $db->rollBack();
+    $list = array_map(fn($c) => specFmtDate($c['slot']['slot_date']) . ' ' . substr($c['slot']['start_time'], 0, 5)
+        . ' «' . $c['slot']['name'] . '» — ' . $c['reason'], array_slice($conf, 0, 5));
+    err('Нельзя ' . $what . ': у специалиста ' . $who . ' есть занятия, которые станут невозможны: '
+        . implode('; ', $list) . (count($conf) > 5 ? '; и ещё ' . (count($conf) - 5) : '')
+        . '. Перенесите эти занятия или назначьте другого специалиста.');
+}

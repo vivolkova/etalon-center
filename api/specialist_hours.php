@@ -2,6 +2,7 @@
 // api/specialist_hours.php — График работы специалистов: периоды (недельные шаблоны) и исключения
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/specialist_hours.php';
+require_once __DIR__ . '/../middleware/slot_rules.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -24,6 +25,23 @@ function specRowExists(PDO $db, string $table, int $id, int $specId, string $not
     $st = $db->prepare('SELECT 1 FROM ' . $table . ' WHERE id = ? AND specialist_id = ? AND active = 1');
     $st->execute([$id, $specId]);
     if (!$st->fetchColumn()) err($notFound, 404);
+}
+
+// Затронутые изменением даты: объединение старого и нового диапазонов ($to = null — бессрочно)
+function specAffectedRange(?array $old, string $from, ?string $to): array {
+    if (!$old) return [$from, $to];
+    $f = min($old['date_from'], $from);
+    $t = ($old['date_to'] === null || $to === null) ? null : max($old['date_to'], $to);
+    return [$f, $t];
+}
+
+// Активная запись периода/исключения (для изменения и удаления): строка или ошибка
+function specActiveRow(PDO $db, string $table, int $id, string $notFound): array {
+    $st = $db->prepare('SELECT * FROM ' . $table . ' WHERE id = ? AND active = 1');
+    $st->execute([$id]);
+    $row = $st->fetch();
+    if (!$row) err($notFound, 404);
+    return $row;
 }
 
 // Дата YYYY-MM-DD или ошибка
@@ -90,20 +108,35 @@ if ($method === 'POST' && $action === 'schedule_save') {
     }
 
     $weekJson = json_encode($week, JSON_UNESCAPED_UNICODE);
+    // Записываем в транзакции и проверяем, что уже поставленные занятия в затронутых датах по-прежнему возможны
+    $old = $id ? specActiveRow($db, 'specialist_schedules', $id, 'Период графика не найден') : null;
+    [$affFrom, $affTo] = specAffectedRange($old, $from, $to);
+    $db->beginTransaction();
+    lockSpecialist($db, $specId);
     if ($id) {
         $st = $db->prepare('UPDATE specialist_schedules SET name=?, date_from=?, date_to=?, work_hours=? WHERE id=? AND specialist_id=?');
         $st->execute([$name, $from, $to, $weekJson, $id, $specId]);
-        ok(['id' => $id], 'Период графика обновлён');
+    } else {
+        $db->prepare('INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_hours, created_by) VALUES (?,?,?,?,?,?)')
+           ->execute([$specId, $name, $from, $to, $weekJson, (int)$user['id']]);
+        $id = (int)$db->lastInsertId();
     }
-    $db->prepare('INSERT INTO specialist_schedules (specialist_id, name, date_from, date_to, work_hours, created_by) VALUES (?,?,?,?,?,?)')
-       ->execute([$specId, $name, $from, $to, $weekJson, (int)$user['id']]);
-    ok(['id' => (int)$db->lastInsertId()], 'Период графика добавлен');
+    specialistSlotsGuard($db, $specId, $affFrom, $affTo, 'сохранить период графика');
+    $db->commit();
+    ok(['id' => $id], $old ? 'Период графика обновлён' : 'Период графика добавлен');
 }
 
-// DELETE — удалить период графика (мягко: active = 0, физически не удаляем)
+// DELETE — удалить период графика (мягко: active = 0, физически не удаляем).
+// Нельзя, если в его датах уже стоят занятия специалиста, которые без него станут невозможны
 if ($method === 'DELETE' && $action === 'schedule_delete') {
     authSpecHours();
-    getDB()->prepare('UPDATE specialist_schedules SET active = 0 WHERE id = ?')->execute([(int)($_GET['id'] ?? 0)]);
+    $db = getDB();
+    $row = specActiveRow($db, 'specialist_schedules', (int)($_GET['id'] ?? 0), 'Период графика не найден');
+    $db->beginTransaction();
+    lockSpecialist($db, (int)$row['specialist_id']);
+    $db->prepare('UPDATE specialist_schedules SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);
+    specialistSlotsGuard($db, (int)$row['specialist_id'], $row['date_from'], $row['date_to'], 'удалить период графика');
+    $db->commit();
     ok(null, 'Период графика удалён');
 }
 
@@ -157,20 +190,36 @@ if ($method === 'POST' && $action === 'exception_save') {
     $reason = mb_substr(trim((string)($d['reason'] ?? '')), 0, 255);
     if ($reason === '') $reason = null;
     $ivJson = $intervals !== null ? json_encode($intervals, JSON_UNESCAPED_UNICODE) : null;
+    // Записываем в транзакции и проверяем, что уже поставленные занятия в затронутых датах по-прежнему возможны
+    $old = $id ? specActiveRow($db, 'specialist_exceptions', $id, 'Исключение не найдено') : null;
+    [$affFrom, $affTo] = specAffectedRange($old, $from, $to);
+    $db->beginTransaction();
+    lockSpecialist($db, $specId);
     if ($id) {
         $st = $db->prepare('UPDATE specialist_exceptions SET date_from=?, date_to=?, type=?, work_hours=?, reason=? WHERE id=? AND specialist_id=?');
         $st->execute([$from, $to, $type, $ivJson, $reason, $id, $specId]);
-        ok(['id' => $id], 'Исключение обновлено');
+    } else {
+        $db->prepare('INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, work_hours, reason, created_by) VALUES (?,?,?,?,?,?,?)')
+           ->execute([$specId, $from, $to, $type, $ivJson, $reason, (int)$user['id']]);
+        $id = (int)$db->lastInsertId();
     }
-    $db->prepare('INSERT INTO specialist_exceptions (specialist_id, date_from, date_to, type, work_hours, reason, created_by) VALUES (?,?,?,?,?,?,?)')
-       ->execute([$specId, $from, $to, $type, $ivJson, $reason, (int)$user['id']]);
-    ok(['id' => (int)$db->lastInsertId()], 'Исключение добавлено');
+    specialistSlotsGuard($db, $specId, $affFrom, $affTo, $type === 'off' ? 'сохранить отсутствие' : 'сохранить особые часы работы');
+    $db->commit();
+    ok(['id' => $id], $old ? 'Исключение обновлено' : 'Исключение добавлено');
 }
 
-// DELETE — удалить исключение (мягко: active = 0, физически не удаляем)
+// DELETE — удалить исключение (мягко: active = 0, физически не удаляем).
+// Удаление особых часов возвращает в эти даты обычный график — занятия должны в него помещаться
 if ($method === 'DELETE' && $action === 'exception_delete') {
     authSpecHours();
-    getDB()->prepare('UPDATE specialist_exceptions SET active = 0 WHERE id = ?')->execute([(int)($_GET['id'] ?? 0)]);
+    $db = getDB();
+    $row = specActiveRow($db, 'specialist_exceptions', (int)($_GET['id'] ?? 0), 'Исключение не найдено');
+    $db->beginTransaction();
+    lockSpecialist($db, (int)$row['specialist_id']);
+    $db->prepare('UPDATE specialist_exceptions SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);
+    specialistSlotsGuard($db, (int)$row['specialist_id'], $row['date_from'], $row['date_to'],
+        $row['type'] === 'off' ? 'удалить отсутствие' : 'удалить особые часы работы');
+    $db->commit();
     ok(null, 'Исключение удалено');
 }
 

@@ -3,6 +3,7 @@
 // Специалист не привязан к филиалу (филиал — у интервалов графика), типов может быть несколько.
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/specialist_hours.php';
+require_once __DIR__ . '/../middleware/slot_rules.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -88,6 +89,7 @@ if ($method === 'PUT' && $action === 'update') {
     $id = (int)$d['id'];
     $typeIds = specTypeIds($db, $d['types'] ?? []);
     $db->beginTransaction();
+    lockSpecialist($db, $id);
     $db->prepare('UPDATE specialists SET name=?,full_name=?,experience=?,active=? WHERE id=?')
        ->execute([
            $d['name'], $d['full_name'], $d['experience'] ?? 0,
@@ -95,6 +97,8 @@ if ($method === 'PUT' && $action === 'update') {
            $id,
        ]);
     saveSpecTypes($db, $id, $typeIds);
+    // Деактивация или снятие специализации — только если будущие занятия специалиста остаются возможны
+    specialistSlotsGuard($db, $id, null, null, 'сохранить специалиста');
     $db->commit();
     ok(null, 'Специалист обновлён');
 }
@@ -104,7 +108,11 @@ if ($method === 'DELETE' && $action === 'delete') {
     authAdmin();
     $id = (int)($_GET['id'] ?? 0);
     $db = getDB();
+    $db->beginTransaction();
+    lockSpecialist($db, $id);
     $db->prepare('UPDATE specialists SET active=0 WHERE id=?')->execute([$id]);
+    specialistSlotsGuard($db, $id, null, null, 'удалить специалиста');
+    $db->commit();
     ok(null, 'Специалист удалён');
 }
 
