@@ -7,6 +7,11 @@
   gap: 14px;
 }
 
+/* Библиотека разбита на блоки (.svc-section с заголовком, как на странице «Услуги»): первый — без отступа сверху */
+.lib-blocks > .svc-section:first-child {
+  margin-top: 0;
+}
+
 .lib-card {
   background: #fff;
   border: 1.5px solid var(--border);

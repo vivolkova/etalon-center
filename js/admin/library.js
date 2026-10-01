@@ -52,11 +52,10 @@ function renderLibrary() {
       (libCurrentType === 'trainings' ? 'Добавить тренировку' : 'Добавить услугу') + '</button></div>';
     return;
   }
-  grid.innerHTML = items.map(function (item) {
+  const cardHtml = function (item) {
     const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
     const locName = locObj ? locObj.name : '';
     const features = (item.features || []).slice(0, 3);
-    const isTraining = libCurrentType === 'trainings';
     let difficultyHtml = (isTraining && item.difficulty) ? '<div class="lib-difficulty">' + (DIFFICULTY_LABEL[item.difficulty] || item.difficulty) + '</div>' : '';
     let featuresHtml = '';
     if (features.length) {
@@ -88,8 +87,26 @@ function renderLibrary() {
       '<div class="lib-card-actions">' + actionsHtml + '</div>' +
       '</div>' +
       '</div>';
+  };
+
+  // Блоки: тренировки — по виду (групповые, персональные, самостоятельные; порядок справочника slot_type),
+  // услуги — по категории (порядок справочника). Пустые блоки не показываем; заголовок — как на странице «Услуги» сайта
+  const isTraining = libCurrentType === 'trainings';
+  const keyOf = function (item) { return isTraining ? (item.type || '') : item.cat; };
+  const keys = (isTraining ? SLOT_TYPES : ACTIVITY_CATS).map(function (x) { return x.code; });
+  items.forEach(function (item) { if (keys.indexOf(keyOf(item)) < 0) keys.push(keyOf(item)); });
+  grid.innerHTML = keys.map(function (key) {
+    const block = items.filter(function (item) { return keyOf(item) === key; });
+    if (!block.length) return '';
+    const title = isTraining ? (LIB_TYPE_TITLES[key] || slotTypeName(key)) : catName(key);
+    return '<div class="svc-section ' + (isTraining ? colorClass('training', key) : colorClass(key)) + '">' +
+      '<h3 class="svc-section-title"><span class="svc-dot"></span>' + escAttr(title) + '</h3>' +
+      '<div class="lib-grid">' + block.map(cardHtml).join('') + '</div></div>';
   }).join('');
 }
+
+// Заголовки блоков тренировок по виду (slot_type); у нового вида — его название из справочника
+const LIB_TYPE_TITLES = { group: 'Групповые тренировки', personal: 'Персональные тренировки', free: 'Самостоятельные тренировки' };
 
 
 // ── ADD TO SCHEDULE FROM LIBRARY ──────────────────────────────────
