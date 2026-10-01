@@ -9,6 +9,7 @@ const SETTINGS_RULES = [
     'client_booking_lead_minutes' => ['type' => 'int', 'min' => 0, 'max' => 1440],
     'client_booking_horizon_days' => ['type' => 'int', 'min' => 1, 'max' => 365],
     'free_training_max_minutes'   => ['type' => 'int', 'min' => 30, 'max' => 720],
+    'free_training_extra_price'   => ['type' => 'int', 'min' => 0, 'max' => 100000],
 ];
 
 // Значение настройки строкой; нет строки в таблице — $default. Кешируется на время запроса

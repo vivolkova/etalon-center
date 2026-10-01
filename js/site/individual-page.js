@@ -101,9 +101,19 @@ function indPgRenderFilters() {
       return indChip(fmtDurShort(m), m === indPg.dur, 'indPgSelectDur(' + m + ')');
     }).join(''));
   }
-  h += '<div class="indp-price">' + fmtDurShort(indPg.dur) + ' · ' + it.price.toLocaleString('ru') + ' ₽'
-    + (it.summary ? '<span>' + escAttr(it.summary) + '</span>' : '') + '</div>';
+  // У самостоятельной цена растёт с длительностью — показываем, из чего она складывается
+  const formula = it.extra_price && it.durations.length > 1
+    ? '<span>' + it.price.toLocaleString('ru') + ' ₽ за ' + fmtDurShort(it.duration) + ', далее +' + it.extra_price.toLocaleString('ru') + ' ₽ за каждые ' + fmtDurShort(IND_OPTS[indPg.locId].step) + '</span>'
+    : '';
+  h += '<div class="indp-price">' + fmtDurShort(indPg.dur) + ' · ' + indPgPrice(it, indPg.dur).toLocaleString('ru') + ' ₽'
+    + formula + (it.summary ? '<span>' + escAttr(it.summary) + '</span>' : '') + '</div>';
   document.getElementById('indp-filters').innerHTML = h;
+}
+
+// Цена тренировки выбранной длительности (сервер считает её для каждой длительности — prices; он же берёт её при записи)
+function indPgPrice(it, dur) {
+  const i = it.durations.indexOf(dur);
+  return it.prices && i >= 0 ? it.prices[i] : it.price;
 }
 
 // Неделя с сервера; пока грузится — прежняя сетка остаётся на месте, приглушённая
@@ -217,7 +227,7 @@ function openIndBooking(date, m) {
     d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(m) + '–' + minToTime(m + indPg.dur),
     spec ? (spec.full_name || spec.name) : '', siteLocName(indPg.locId),
   ].filter(Boolean).join(' · ');
-  document.getElementById('indb-total').textContent = fmtDurShort(indPg.dur) + ' · ' + it.price.toLocaleString('ru') + ' ₽';
+  document.getElementById('indb-total').textContent = fmtDurShort(indPg.dur) + ' · ' + indPgPrice(it, indPg.dur).toLocaleString('ru') + ' ₽';
   document.getElementById('indb-comment').value = '';
   const btn = document.getElementById('indb-submit');
   btn.disabled = true; btn.textContent = 'Записаться →';

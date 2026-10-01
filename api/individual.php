@@ -48,6 +48,15 @@ function indDurations(PDO $db, array $lib): array {
     return $out ?: [$base];
 }
 
+// Цена занятия длительностью $dur минут. У самостоятельной тренировки цена библиотеки — за её длительность
+// (первый час), за каждые следующие IND_STEP минут — доплата free_training_extra_price. У остальных — цена библиотеки
+function indPrice(PDO $db, array $lib, int $dur): int {
+    $price = (int)$lib['price'];
+    if ($lib['type'] !== 'free') return $price;
+    $steps = (int)ceil(max(0, $dur - (int)$lib['duration']) / IND_STEP);
+    return $price + $steps * settingInt($db, 'free_training_extra_price', 500);
+}
+
 // Сейчас по часовому поясу филиала (locations.timezone): время занятий — местное время филиала
 function indNow(PDO $db, int $locId): DateTimeImmutable {
     static $cache = [];
@@ -325,6 +334,10 @@ if ($method === 'GET' && $action === 'options') {
             'duration' => (int)$lib['duration'], 'price' => (int)$lib['price'],
             'summary' => $lib['summary'], 'details' => $lib['details'],
             'needs_specialist' => $needs, 'durations' => indDurations($db, $lib), 'specialists' => $specs,
+            // prices — цена для каждой длительности из durations (у самостоятельной растёт с длительностью);
+            // extra_price — доплата за каждые IND_STEP минут сверх длительности библиотеки (только у самостоятельной)
+            'prices' => array_map(fn($m) => indPrice($db, $lib, $m), indDurations($db, $lib)),
+            'extra_price' => $lib['type'] === 'free' ? settingInt($db, 'free_training_extra_price', 500) : null,
             'bookable' => !$needs || (bool)$specs,
         ];
     }
@@ -452,7 +465,7 @@ if ($method === 'POST' && $action === 'create') {
     $db->prepare('INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price, taken)
                   VALUES (?,?,?,?,?,?,?,?,?,1)')
        ->execute([(int)$lib['location_id'], (int)$lib['id'], $lib['name'], (int)$lib['activity_category_id'], $date,
-                  minToTimeStr($start), $dur, $specId, (int)$lib['price']]);
+                  minToTimeStr($start), $dur, $specId, indPrice($db, $lib, $dur)]);
     $slotId = (int)$db->lastInsertId();
     $db->prepare("INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,'booked')")
        ->execute([(int)$user['id'], $slotId, $stationId, $notes !== '' ? $notes : null]);
