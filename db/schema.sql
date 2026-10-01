@@ -397,21 +397,3 @@ CREATE TABLE settings (
     CONSTRAINT fk_settings_user FOREIGN KEY (updated_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Время на переезд специалиста между двумя филиалами ───────
--- Одинаково в обе стороны: пара хранится одной строкой, location_a_id < location_b_id.
--- Для пары без активной строки действует settings.location_travel_minutes (по умолчанию).
-CREATE TABLE location_travel (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    location_a_id INT NOT NULL,                    -- меньший id пары
-    location_b_id INT NOT NULL,                    -- больший id пары
-    minutes       INT NOT NULL,
-    active        TINYINT(1) NOT NULL DEFAULT 1,   -- 0 — время для пары сброшено (действует значение по умолчанию)
-    updated_by    INT NULL,                        -- users.id, кто изменил последним
-    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_location_travel (location_a_id, location_b_id),
-    KEY fk_travel_b (location_b_id),
-    CONSTRAINT chk_travel_pair  CHECK (location_a_id < location_b_id),
-    CONSTRAINT fk_travel_a      FOREIGN KEY (location_a_id) REFERENCES locations(id),
-    CONSTRAINT fk_travel_b      FOREIGN KEY (location_b_id) REFERENCES locations(id),
-    CONSTRAINT fk_travel_user   FOREIGN KEY (updated_by)    REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

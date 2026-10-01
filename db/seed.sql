@@ -44,7 +44,6 @@ INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, p
 
 -- Параметры студии (меняются в админке: Настройки студии → Параметры)
 INSERT INTO settings (code, name, value) VALUES
-('location_travel_minutes', 'Время на переезд между филиалами по умолчанию, мин', '90'),
 ('client_booking_lead_minutes', 'Индивидуальная запись: не позже чем за, мин до начала', '60'),
 ('client_booking_horizon_days', 'Индивидуальная запись: не дальше чем на, дней вперёд', '30'),
 ('free_training_max_minutes', 'Самостоятельная тренировка: максимальная длительность, мин', '180'),
@@ -84,9 +83,6 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 (@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 1',   0, 0, 1),
 (@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 2',   1, 0, 2),
 (@south, (SELECT id FROM station_type WHERE name='Велостанок 11s'), 'Юг Станок 1', 2, 0, 3);
-
--- Переезд между основным филиалом и «Югом» — 45 минут (для остальных пар — значение по умолчанию)
-INSERT INTO location_travel (location_a_id, location_b_id, minutes) VALUES (1, @south, 45);
 
 INSERT INTO specialists (name, full_name, experience) VALUES
 ('Анна К.',   'Анна Козлова',   5),

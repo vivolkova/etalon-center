@@ -11,8 +11,8 @@
 //   2) специалист активен и у него есть специализация, которая ведёт эту категорию (activity_category.ref_id);
 //   3) категория и специализация доступны в филиале занятия (location_dictionaries);
 //   4) занятие целиком в одном рабочем интервале специалиста в этом филиале (график, отсутствия, особые часы);
-//   5) нет пересечений с другими занятиями специалиста — в любом филиале и любой категории;
-//      между занятиями в разных филиалах — не меньше времени на переезд между ними (travelMinutes).
+//   5) нет пересечений с другими занятиями специалиста — в любом филиале и любой категории.
+//      Время на переезд между филиалами отдельно не проверяется: оно заложено в график специалиста (п. 4).
 // Ошибка — err() с понятным текстом. Вызывать внутри транзакции: строки филиала и специалиста блокируются
 // (SELECT … FOR UPDATE), чтобы два одновременных сохранения не заняли зал дважды и не поставили человека в два места.
 // slotRuleError() — те же проверки без завершения запроса (текст ошибки или null): для подбора свободного времени.
@@ -191,14 +191,9 @@ function checkSlotSpecialist(PDO $db, array $s): void {
         $oStart = specTimeToMin(substr($o['start_time'], 0, 5));
         $oEnd   = $oStart + (int)$o['duration'];
         $sameLoc = (int)$o['location_id'] === $locId;
-        $gap = travelMinutes($db, $locId, (int)$o['location_id']);
-        if ($start < $oEnd + $gap && $oStart < $end + $gap) {
+        if ($start < $oEnd && $oStart < $end) {
             $other = specFmtDate($date) . ' ' . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
-            if ($sameLoc || ($start < $oEnd && $oStart < $end)) {
-                slotFail($who . ': уже есть занятие ' . $other . ($sameLoc ? '' : ' в филиале «' . slotLocName($db, (int)$o['location_id']) . '»'));
-            }
-            slotFail($who . ' не успеет переехать: ' . $other . ' в филиале «' . slotLocName($db, (int)$o['location_id'])
-                . '». На переезд между этими филиалами нужно не меньше ' . fmtMinutes($gap));
+            slotFail($who . ': уже есть занятие ' . $other . ($sameLoc ? '' : ' в филиале «' . slotLocName($db, (int)$o['location_id']) . '»'));
         }
     }
 }

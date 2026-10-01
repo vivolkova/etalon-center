@@ -17,11 +17,10 @@ function switchSettingsTab(tab) {
   if (tab === 'stations') renderStationsTab();
   if (tab === 'types') renderStationTypesTab();
   if (tab === 'dicts') renderDictsTab();
-  if (tab === 'params') { renderParamsTab(); renderTravelTab(); }
+  if (tab === 'params') renderParamsTab();
 }
 
-// ── Параметры студии: два блока, в каждом одна кнопка «Сохранить» (сервер сохраняет блок целиком) ──
-// Блок 1 — параметры по умолчанию (таблица settings)
+// ── Параметры студии (таблица settings): одна кнопка «Сохранить», сервер сохраняет блок целиком ──
 async function renderParamsTab() {
   const box = document.getElementById('settings-params');
   if (!box) return;
@@ -45,33 +44,6 @@ async function saveParamsBlock() {
   try { await SettingsAPI.update(values); } catch (e) { return; }
   showToast('Параметры сохранены', 'success');
   renderParamsTab();
-}
-
-// Блок 2 — время на переезд для каждой пары действующих филиалов (location_travel)
-async function renderTravelTab() {
-  const box = document.getElementById('settings-travel');
-  if (!box) return;
-  let list;
-  try { list = (await SettingsAPI.travelList()) || []; } catch (e) { return; }
-  document.getElementById('settings-travel-save').style.display = list.length ? 'flex' : 'none';
-  if (!list.length) { box.innerHTML = '<div class="set-hint">Нужно хотя бы два действующих филиала</div>'; return; }
-  box.innerHTML = list.map(function (p) {
-    return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
-      '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.a_name) + ' ↔ ' + escAttr(p.b_name) + ', мин</label>' +
-      '<input class="form-input u-w-120" type="number" min="0" max="600" data-a="' + p.location_a_id + '" data-b="' + p.location_b_id + '"' +
-      ' value="' + (p.minutes !== null ? p.minutes : '') + '">' +
-      '</div>';
-  }).join('');
-}
-
-async function saveTravelBlock() {
-  const pairs = Array.from(document.querySelectorAll('#settings-travel input[data-a]')).map(function (el) {
-    return { location_a_id: +el.getAttribute('data-a'), location_b_id: +el.getAttribute('data-b'), minutes: el.value.trim() };
-  });
-  if (!pairs.length) return;
-  try { await SettingsAPI.travelSave(pairs); } catch (e) { return; }
-  showToast('Время на переезд сохранено', 'success');
-  renderTravelTab();
 }
 
 // Выпадающий список филиалов для вкладок «по филиалу»; выбранный филиал общий для вкладок
