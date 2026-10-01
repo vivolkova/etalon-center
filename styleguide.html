@@ -60,8 +60,10 @@
       --kind-other-bg: #F0F4DA;
       --kind-other-ink: #4F5B14;
 
-      /* Своя запись клиента — тёмная, чтобы не сливалась с расписанием */
-      --mine: #0d1117;
+      /* Своя запись клиента — золотая: фон, текст, полоса */
+      --mine: #FFC83D;
+      --mine-ink: #2B2100;
+      --mine-edge: #D99A00;
 
       /* Графика */
       --r-sm: 6px;
@@ -145,10 +147,13 @@
     .t-free { background: var(--brand-bg); border: 1px solid var(--brand); color: var(--brand-dark); font-weight: 700; font-size: 12px; }
     .t-sel { background: var(--brand); color: #fff; font-weight: 700; font-size: 12px; }
     .t-off { background: var(--muted-bg); color: var(--ink-60); }
-    .t-mine { background: var(--mine); border-left: 4px solid var(--brand); color: #fff; font-weight: 700; font-size: 12px; }
+    .t-mine { background: var(--mine); border-left: 4px solid var(--mine-edge); color: var(--mine-ink); font-weight: 700; font-size: 12px; }
+    .t-mine.v-deep { --mine: #006E6A; --mine-ink: #fff; --mine-edge: #00BAB3; }
+    .t-mine.v-violet { --mine: #7C5CE0; --mine-ink: #fff; --mine-edge: #4E42B5; }
+    .t-mine.v-dark { --mine: #0d1117; --mine-ink: #fff; --mine-edge: #00BAB3; }
     .t-mine small { display: block; font-size: 11px; font-weight: 400; opacity: .75; }
     .t-group { background: var(--kind-group-bg); border-left: 3px solid var(--kind-group); color: var(--kind-group-ink); }
-    .badge-mine { background: var(--mine); color: #fff; }
+    .badge-mine { background: var(--mine); color: var(--mine-ink); }
     .t-plus { background: var(--brand-bg); color: var(--brand); font-size: 16px; font-weight: 700; }
 
     .listrow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--k); border-radius: var(--r-lg); max-width: 420px; }
@@ -339,7 +344,7 @@
     <section>
       <h2>5. Время в сетке</h2>
       <p class="note">Одинаковые состояния на экране индивидуальных тренировок, в журнале и в расписании.
-        Своя запись — тёмная с фирменной полосой: единственный тёмный блок в сетке, поэтому сразу бросается в глаза.</p>
+        Своя запись — золотая: яркая, тёплая и единственная такая в сетке, поэтому сразу бросается в глаза.</p>
       <div class="box">
         <span class="tag new">Предлагаю</span>
         <div class="grid">
@@ -355,6 +360,13 @@
           <div style="height:auto;border:none">Недоступно, с причиной</div>
           <div style="height:auto;border:none">Своя запись</div>
           <div style="height:auto;border:none">Наведение на свободное место</div>
+        </div>
+        <p class="cap" style="margin-top:16px">Варианты цвета своей записи: золотой выбран, остальные — для сравнения</p>
+        <div class="grid" style="grid-template-columns:repeat(4,1fr)">
+          <div><div class="t t-mine"><span>✓ Вы записаны<small>Золотой — выбран</small></span></div></div>
+          <div><div class="t t-mine v-deep"><span>✓ Вы записаны<small>Глубокий зелёный</small></span></div></div>
+          <div><div class="t t-mine v-violet"><span>✓ Вы записаны<small>Сиреневый</small></span></div></div>
+          <div><div class="t t-mine v-dark"><span>✓ Вы записаны<small>Чёрный — был</small></span></div></div>
         </div>
         <p class="cap" style="margin-top:16px">Как своя запись выглядит среди расписания</p>
         <div class="grid">

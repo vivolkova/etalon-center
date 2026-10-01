@@ -110,9 +110,14 @@
   border-right: 1px solid var(--border);
 }
 
+/* Шапка дня — компактная: день недели и дата в одну строку (одинаково на сайте и в админке) */
 .wg-day-hdr {
-  padding: 10px 6px;
-  text-align: center;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 4px;
+  white-space: nowrap;
 }
 
 .wg-day-hdr.today {
@@ -124,7 +129,7 @@
 }
 
 .wg-dow {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .4px;
@@ -132,25 +137,14 @@
 }
 
 .wg-date {
-  font-family: var(--font-display);
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.wg-day-sub {
-  font-size: 10px;
-  color: var(--ink-60);
-  margin-top: 2px;
 }
 
 .wg-day-hdr.today .wg-dow,
 .wg-day-hdr.today .wg-date {
   color: #fff;
-}
-
-.wg-day-hdr.today .wg-day-sub {
-  color: rgba(255, 255, 255, .75);
 }
 
 /* Колонка времени: метка у верхней границы часа */
@@ -569,7 +563,7 @@
 
 .indp-dot--free { background: var(--green-light); border: 1px solid var(--green); }
 .indp-dot--busy { background: var(--muted-bg); border: 1px solid var(--muted-strong); }
-.indp-dot--mine { background: var(--mine); border: 1px solid var(--mine); }
+.indp-dot--mine { background: var(--mine); border: 1px solid var(--mine-edge); }
 
 /* Время начала, на которое можно записаться */
 .wg-free {
@@ -616,11 +610,11 @@
   font-weight: 600;
 }
 
-/* Своя запись — тёмная с фирменной полосой: единственный тёмный блок в сетке, не сливается с расписанием */
+/* Своя запись — цветом --mine (css/base.css): единственный такой блок в сетке, не сливается с расписанием */
 .wg-blk--mine {
   background: var(--mine);
-  border-left: 4px solid var(--green);
-  color: #fff;
+  border-left: 4px solid var(--mine-edge);
+  color: var(--mine-ink);
   font-weight: 700;
   cursor: pointer;
 }
@@ -657,7 +651,7 @@
     flex-direction: column;
     align-items: center;
     gap: 1px;
-    min-height: 58px;
+    min-height: 46px;
     padding: 6px 0;
     border: 1px solid var(--border);
     border-radius: var(--r-md);
@@ -678,13 +672,6 @@
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 700;
-  }
-
-  .wg-day-btn-sub {
-    font-size: 11px;
-    line-height: 1.1;
-    text-align: center;
-    color: var(--green-dark);
   }
 
   .wg-day-btn.muted {
@@ -827,12 +814,12 @@
     white-space: nowrap;
   }
 
-  /* Своя запись — тёмный значок, как тёмный блок в сетке */
+  /* Своя запись — значок того же цвета, что блок в сетке */
   .sch-row-state.booked {
     padding: 4px 10px;
     border-radius: var(--r-md);
     background: var(--mine);
-    color: #fff;
+    color: var(--mine-ink);
     font-size: 11px;
     font-weight: 700;
   }
@@ -882,33 +869,33 @@
   color: var(--ink-60);
 }
 
-/* Своя запись — тёмная с фирменной полосой */
+/* Своя запись — цветом --mine */
 .wg--site .wg-slot.booked {
   opacity: 1;
   background: var(--mine);
-  border-left: 4px solid var(--green);
+  border-left: 4px solid var(--mine-edge);
 }
 
-.wg--site .wg-slot.booked .wg-slot-name {
-  color: #fff;
+.wg--site .wg-slot.booked .wg-slot-name,
+.wg--site .wg-slot.booked .wg-slot-time,
+.wg--site .wg-slot.booked .wg-slot-meta {
+  color: var(--mine-ink);
 }
 
 .wg--site .wg-slot.booked .wg-slot-time,
 .wg--site .wg-slot.booked .wg-slot-meta {
-  color: rgba(255, 255, 255, .75);
   font-weight: 400;
+  opacity: .8;
 }
 
 .wg--site .wg-slot.booked .wg-slot-book {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, .4);
-  color: #fff;
+  border: 1px solid var(--mine-edge);
+  color: var(--mine-ink);
   font-size: 11px;
 }
 
-/* Шапка дней и шкала времени на сайте — текст не мельче 11px (в расписании админки остаётся 10px) */
-.wg--site .wg-dow,
-.wg--site .wg-day-sub,
+/* Шкала времени на сайте — текст не мельче 11px (в расписании админки остаётся 10px) */
 .wg--site .wg-time-row {
   font-size: 11px;
 }

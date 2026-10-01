@@ -67,7 +67,7 @@ function wgDefaultDay(weekStart) {
   return diff >= 0 && diff < 7 ? diff : 0;
 }
 
-// Лента дней и выбранный день сетки. days — [{date: Date, sub: подпись под числом, muted: день недоступен}],
+// Лента дней и выбранный день сетки. days — [{date: Date, muted: день недоступен}],
 // onclickFn — имя глобальной функции выбора дня (индекс)
 function wgRenderDayStrip(stripId, grid, days, sel, onclickFn) {
   grid.dataset.day = sel;
@@ -77,8 +77,7 @@ function wgRenderDayStrip(stripId, grid, days, sel, onclickFn) {
     return '<button type="button" class="wg-day-btn' + (i === sel ? ' active' : '') + (x.muted ? ' muted' : '')
       + (x.date.getTime() === today.getTime() ? ' today' : '') + '" onclick="' + onclickFn + '(' + i + ')">'
       + '<span class="wg-day-btn-dow">' + DAYS_RU[i] + '</span>'
-      + '<span class="wg-day-btn-date">' + x.date.getDate() + '</span>'
-      + '<span class="wg-day-btn-sub">' + (x.sub || '') + '</span></button>';
+      + '<span class="wg-day-btn-date">' + x.date.getDate() + '</span></button>';
   }).join('');
 }
 

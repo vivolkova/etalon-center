@@ -168,12 +168,10 @@ function indPgRenderGrid() {
   week.days.forEach(function (day, di) {
     const d = parseLocalDate(day.date);
     const isToday = d.getTime() === today.getTime();
-    const sub = day.state === 'open' ? (day.starts.length ? 'есть время' : 'нет времени')
-      : day.state === 'closed' ? 'выходной' : '—';
+    // Шапка дня — компактная: день недели и дата в одну строку
     h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (day.state === 'past' ? ' past' : '') + '">'
       + '<div class="wg-dow">' + DAYS_RU[di] + '</div>'
-      + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_RU[d.getMonth()] + '</div>'
-      + '<div class="wg-day-sub">' + sub + '</div></div>';
+      + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_RU[d.getMonth()] + '</div></div>';
   });
 
   const rows = hrRange.end - hrRange.start;
@@ -221,10 +219,10 @@ function indPgRenderGrid() {
     });
   }
   grid.innerHTML = h;
-  // Лента дней для вида «один день» на телефоне: под числом — есть ли на что записаться
+  // Лента дней для вида «один день» на телефоне; дни, когда записаться нельзя, приглушены
   if (indPgDayIdx === null) indPgDayIdx = wgDefaultDay(parseLocalDate(week.days[0].date));
   wgRenderDayStrip('indp-days', grid, week.days.map(function (day) {
-    return { date: parseLocalDate(day.date), sub: day.starts.length ? 'есть время' : '', muted: day.state !== 'open' };
+    return { date: parseLocalDate(day.date), muted: day.state !== 'open' };
   }), indPgDayIdx, 'indPgSelectDay');
 }
 

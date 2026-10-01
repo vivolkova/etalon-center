@@ -144,8 +144,7 @@ function renderAdminSchedule() {
     const isTod = d.getTime() === today.getTime();
     h += '<div class="wg-day-hdr' + (isTod ? ' today' : '') + '">' +
       '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>' +
-      '<div class="wg-date">' + d.getDate() + '</div>' +
-      '<div class="wg-day-sub">' + MONTHS_SHORT[d.getMonth()] + '</div>' +
+      '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>' +
       '</div>';
   });
 

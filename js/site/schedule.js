@@ -127,14 +127,11 @@ function renderWeekCal() {
   days.forEach(function (d, di) {
     const isToday = d.getTime() === today.getTime();
     const isPast = d < today;
-    const cnt = weekSlots.filter(function (s) {
-      return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth();
-    }).length;
-    strip.push({ date: d, sub: cnt ? cnt + ' зан.' : '', muted: isPast && !isToday });
+    strip.push({ date: d, muted: isPast && !isToday });
+    // Шапка дня — компактная: день недели и дата в одну строку
     h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (isPast && !isToday ? ' past' : '') + '">'
       + '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>'
       + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>'
-      + '<div class="wg-day-sub">' + (cnt ? cnt + ' зан.' : '—') + '</div>'
       + '</div>';
   });
 

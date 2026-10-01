@@ -142,7 +142,7 @@
 .btn-primary.is-booked-ok,
 .btn-primary.is-booked-ok:hover {
   background: var(--mine);
-  color: #fff;
+  color: var(--mine-ink);
   cursor: default;
   box-shadow: none;
   transform: none;
@@ -616,7 +616,7 @@
   position: fixed;
   z-index: 2000;
   max-width: 280px;
-  background: var(--mine);
+  background: var(--ink);
   color: #fff;
   padding: 10px 12px;
   border-radius: var(--r-md);
