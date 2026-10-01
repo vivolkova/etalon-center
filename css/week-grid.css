@@ -630,3 +630,111 @@
   padding-top: 24px;
   font-size: 11px;
 }
+
+/* ── Сайт на телефоне: вид «один день» (js/week-grid.js wgRenderDayStrip) ──
+   Над сеткой — лента из семи дней; в сетке видна одна колонка — день из data-day сетки. */
+.wg-days {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .wg-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .wg-day-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-height: 58px;
+    padding: 6px 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #fff;
+    font-family: var(--font-body);
+    color: var(--ink);
+    cursor: pointer;
+  }
+
+  .wg-day-btn-dow {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ink-60);
+  }
+
+  .wg-day-btn-date {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .wg-day-btn-sub {
+    font-size: 9px;
+    line-height: 1.1;
+    text-align: center;
+    color: var(--green-dark);
+  }
+
+  .wg-day-btn.muted {
+    opacity: .5;
+  }
+
+  .wg-day-btn.today {
+    border-color: var(--green);
+  }
+
+  .wg-day-btn.active {
+    background: var(--green);
+    border-color: var(--green);
+    opacity: 1;
+  }
+
+  .wg-day-btn.active span {
+    color: #fff;
+  }
+
+  /* Сетка: колонка времени + один день; шапку дней заменяет лента */
+  .wg--site {
+    grid-template-columns: var(--wg-time-w) minmax(0, 1fr);
+    min-width: 0;
+  }
+
+  .wg--site > .wg-corner,
+  .wg--site > .wg-day-hdr,
+  .wg--site > .wg-day-col {
+    display: none;
+  }
+
+  .wg--site[data-day="0"] > .wg-day-col[data-di="0"],
+  .wg--site[data-day="1"] > .wg-day-col[data-di="1"],
+  .wg--site[data-day="2"] > .wg-day-col[data-di="2"],
+  .wg--site[data-day="3"] > .wg-day-col[data-di="3"],
+  .wg--site[data-day="4"] > .wg-day-col[data-di="4"],
+  .wg--site[data-day="5"] > .wg-day-col[data-di="5"],
+  .wg--site[data-day="6"] > .wg-day-col[data-di="6"] {
+    display: block;
+    border-right: none;
+  }
+
+  /* В одной широкой колонке текст слотов и блоков крупнее */
+  .wg--site .wg-slot-time,
+  .wg--site .wg-slot-meta,
+  .wg--site .wg-blk {
+    font-size: 11px;
+  }
+
+  .wg--site .wg-slot-name,
+  .wg--site .wg-free {
+    font-size: 13px;
+  }
+
+  .wg--site .wg-slot-book {
+    font-size: 11px;
+    padding: 5px 0;
+  }
+}

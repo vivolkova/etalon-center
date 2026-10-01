@@ -71,16 +71,26 @@ function indPgSelectItem(id) {
 function indPgSelectSpec(id) { indPg.spec = Number(id); indPgRenderFilters(); indPgLoadWeek(); }
 function indPgSelectDur(m) { indPg.dur = Number(m); indPgRenderFilters(); indPgLoadWeek(); }
 
+// День для вида «один день» на телефоне (0 = Пн); null — по умолчанию для недели (wgDefaultDay)
+let indPgDayIdx = null;
+
 function indPgChangeWeek(dir) {
   indPgWeekStart = new Date(indPgWeekStart);
   indPgWeekStart.setDate(indPgWeekStart.getDate() + dir * 7);
+  indPgDayIdx = null;
   indPgLoadWeek();
 }
 function indPgToday() {
   const d = new Date(today);
   d.setDate(d.getDate() - (d.getDay() + 6) % 7);
   indPgWeekStart = d;
+  indPgDayIdx = null;
   indPgLoadWeek();
+}
+// Данные недели уже загружены — день переключается без запроса
+function indPgSelectDay(i) {
+  indPgDayIdx = i;
+  indPgRenderGrid();
 }
 
 function indPgRenderFilters() {
@@ -169,7 +179,7 @@ function indPgRenderGrid() {
   const rows = hrRange.end - hrRange.start;
   for (let hr = hrRange.start; hr < hrRange.end; hr++) {
     h += '<div class="wg-time-col"><div class="wg-time-row">' + String(hr).padStart(2, '0') + ':00</div></div>';
-    week.days.forEach(function (day) {
+    week.days.forEach(function (day, di) {
       const d = parseLocalDate(day.date);
       let cell = '<div class="wg-cell">';
       // День целиком недоступен — одна подпись на всю колонку (в первой строке)
@@ -205,10 +215,15 @@ function indPgRenderGrid() {
         });
       }
       cell += '</div>';
-      h += '<div class="wg-day-col' + (d.getTime() === today.getTime() ? ' today-col' : '') + (day.state === 'past' ? ' past-col' : '') + '">' + cell + '</div>';
+      h += '<div class="wg-day-col' + (d.getTime() === today.getTime() ? ' today-col' : '') + (day.state === 'past' ? ' past-col' : '') + '" data-di="' + di + '">' + cell + '</div>';
     });
   }
   grid.innerHTML = h;
+  // Лента дней для вида «один день» на телефоне: под числом — есть ли на что записаться
+  if (indPgDayIdx === null) indPgDayIdx = wgDefaultDay(parseLocalDate(week.days[0].date));
+  wgRenderDayStrip('indp-days', grid, week.days.map(function (day) {
+    return { date: parseLocalDate(day.date), sub: day.starts.length ? 'есть время' : '', muted: day.state !== 'open' };
+  }), indPgDayIdx, 'indPgSelectDay');
 }
 
 // ═══ ФОРМА ЗАПИСИ: время выбрано в сетке, клиент выбирает станок ═══

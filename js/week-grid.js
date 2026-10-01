@@ -56,6 +56,32 @@ function wgLaneStyle(pos, gutter) {
   return 'left:calc((100% - ' + g + 'px) * ' + (pos.lane / pos.lanes) + ' + 2px);width:calc((100% - ' + g + 'px) / ' + pos.lanes + ' - 4px);right:auto;';
 }
 
+// ── Вид «один день» на телефоне (сетки сайта) ──
+// На узком экране (css/week-grid.css, @media max-width 700px) сетка показывает одну колонку — день grid.dataset.day
+// (0 = Пн), а над ней — лента из семи дней недели (.wg-days). На широком экране лента скрыта и видна вся неделя.
+// Разметка сетки одна и та же: у колонок дня атрибут data-di, лишние колонки прячет CSS — переключение дня без запросов.
+
+// День по умолчанию для недели: сегодня, если он в этой неделе, иначе понедельник
+function wgDefaultDay(weekStart) {
+  const diff = Math.round((today.getTime() - weekStart.getTime()) / 86400000);
+  return diff >= 0 && diff < 7 ? diff : 0;
+}
+
+// Лента дней и выбранный день сетки. days — [{date: Date, sub: подпись под числом, muted: день недоступен}],
+// onclickFn — имя глобальной функции выбора дня (индекс)
+function wgRenderDayStrip(stripId, grid, days, sel, onclickFn) {
+  grid.dataset.day = sel;
+  const strip = document.getElementById(stripId);
+  if (!strip) return;
+  strip.innerHTML = days.map(function (x, i) {
+    return '<button type="button" class="wg-day-btn' + (i === sel ? ' active' : '') + (x.muted ? ' muted' : '')
+      + (x.date.getTime() === today.getTime() ? ' today' : '') + '" onclick="' + onclickFn + '(' + i + ')">'
+      + '<span class="wg-day-btn-dow">' + DAYS_RU[i] + '</span>'
+      + '<span class="wg-day-btn-date">' + x.date.getDate() + '</span>'
+      + '<span class="wg-day-btn-sub">' + (x.sub || '') + '</span></button>';
+  }).join('');
+}
+
 // Высота одного часа в px — из CSS-переменной --wg-row-h сетки (единый источник с css/week-grid.css)
 function wgRowHeight(grid) {
   return parseFloat(getComputedStyle(grid).getPropertyValue('--wg-row-h')) || 60;

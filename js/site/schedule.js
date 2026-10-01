@@ -63,9 +63,13 @@ function renderSchedule() {
   renderWeekCal();
 }
 
+// День для вида «один день» на телефоне (0 = Пн); null — по умолчанию для недели (wgDefaultDay)
+let schDayIdx = null;
+
 function schChangeWeek(dir) {
   schWeekStart = new Date(schWeekStart);
   schWeekStart.setDate(schWeekStart.getDate() + dir * 7);
+  schDayIdx = null;
   renderWeekCal();
 }
 
@@ -74,6 +78,12 @@ function schGoToday() {
   const dow = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - dow);
   schWeekStart = d;
+  schDayIdx = null;
+  renderWeekCal();
+}
+
+function schSelectDay(i) {
+  schDayIdx = i;
   renderWeekCal();
 }
 
@@ -113,12 +123,14 @@ function renderWeekCal() {
 
   // ── Шапка: угол + заголовки дней ──
   let h = '<div class="wg-corner"></div>';
+  const strip = [];   // лента дней для вида «один день» на телефоне
   days.forEach(function (d, di) {
     const isToday = d.getTime() === today.getTime();
     const isPast = d < today;
     const cnt = weekSlots.filter(function (s) {
       return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth();
     }).length;
+    strip.push({ date: d, sub: cnt ? cnt + ' зан.' : '', muted: isPast && !isToday });
     h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (isPast && !isToday ? ' past' : '') + '">'
       + '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>'
       + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>'
@@ -200,11 +212,13 @@ function renderWeekCal() {
 
       cellHtml += '</div>';
 
-      h += '<div class="wg-day-col' + (isToday ? ' today-col' : '') + (isPast && !isToday ? ' past-col' : '') + '">' + cellHtml + '</div>';
+      h += '<div class="wg-day-col' + (isToday ? ' today-col' : '') + (isPast && !isToday ? ' past-col' : '') + '" data-di="' + di + '">' + cellHtml + '</div>';
     });
   }
 
   grid.innerHTML = h;
+  if (schDayIdx === null) schDayIdx = wgDefaultDay(schWeekStart);
+  wgRenderDayStrip('sch-days', grid, strip, schDayIdx, 'schSelectDay');
   wcBindTip(grid);
 }
 
