@@ -404,7 +404,7 @@ function renderAdminBookings() {
 function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td class="empty-state" colspan="9">Записей нет</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td class="empty-state" colspan="10">Записей нет</td></tr>'; return; }
   const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
   const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
   const muted = function (v) { return v ? escAttr(v) : '<span class="u-muted">—</span>'; };
@@ -414,10 +414,13 @@ function renderAdminBookingsFiltered(list) {
     const station = b.station
       ? escAttr(b.station) + (b.stationType ? '<br><span class="u-muted u-text-caption">' + escAttr(b.stationType) + '</span>' : '')
       : muted('');
+    // Филиал, в котором проходит занятие
+    const loc = b.location_id ? findLocation(b.location_id) : null;
     // Полоса слева — цвет категории занятия (тренировка / байкфит / мастерская)
     return '<tr>' +
       '<td style="border-left:4px solid ' + catColor(b.cat) + '"><strong>' + escAttr(b.name) + '</strong><br><span class="u-muted u-text-caption">' + escAttr(b.email) + '</span></td>' +
       '<td class="u-nowrap">' + muted(b.phone) + '</td>' +
+      '<td>' + muted(loc ? loc.name : '') + '</td>' +
       '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(b.cat) + ';margin-right:6px;vertical-align:middle" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
       '<td>' + muted(b.specialistFull) + '</td>' +
       '<td>' + station + '</td>' +
