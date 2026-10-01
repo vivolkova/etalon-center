@@ -12,7 +12,7 @@ function renderClientChat() {
     <div>${m.text}</div>
     <div class="chat-msg-meta">${m.from === 'admin' ? 'Администратор · ' : 'Вы · '}${m.time}</div>
   </div>`).join('')
-    : `<div style="text-align:center;padding:40px;color:var(--ink-60);font-size:13px">Напишите нам — ответим в течение дня </div>`;
+    : `<div class="empty-state u-text-ui">Напишите нам — ответим в течение дня </div>`;
   area.scrollTop = area.scrollHeight;
   // Clear badge
   document.getElementById('client-chat-badge').style.display = 'none';

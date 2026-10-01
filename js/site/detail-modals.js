@@ -26,9 +26,9 @@ function openSlotDetail(slotId) {
   const usesHall = slotUsesHall(s.cat) && !slotIsIndividual(s);   // индивидуальное — один клиент, места не показываем
   // У байкфита мест в зале нет — показываем только длительность
   document.getElementById('sdm-stats').innerHTML = `
-<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${clockSvg}</div><div class="dm-stat-val">${s.dur}</div><div class="dm-stat-label">минут</div></div>` + (usesHall ? `
-<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${usersSvg}</div><div class="dm-stat-val">${left}</div><div class="dm-stat-label">мест свободно</div></div>
-<div class="dm-stat"><div class="dm-stat-val" style="display:flex;justify-content:center;margin-bottom:4px">${starSvg}</div><div class="dm-stat-val">${slotCap(s)}</div><div class="dm-stat-label">мест всего</div></div>` : '');
+<div class="dm-stat"><div class="dm-stat-val u-flex u-justify-center u-mb-4">${clockSvg}</div><div class="dm-stat-val">${s.dur}</div><div class="dm-stat-label">минут</div></div>` + (usesHall ? `
+<div class="dm-stat"><div class="dm-stat-val u-flex u-justify-center u-mb-4">${usersSvg}</div><div class="dm-stat-val">${left}</div><div class="dm-stat-label">мест свободно</div></div>
+<div class="dm-stat"><div class="dm-stat-val u-flex u-justify-center u-mb-4">${starSvg}</div><div class="dm-stat-val">${slotCap(s)}</div><div class="dm-stat-label">мест всего</div></div>` : '');
 
   document.getElementById('sdm-desc').textContent = descText;
   document.getElementById('sdm-features').innerHTML = (featureList || [])

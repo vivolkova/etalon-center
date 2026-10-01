@@ -48,7 +48,7 @@ function renderLibrary() {
   const grid = document.getElementById('lib-grid');
   if (!grid) return;
   if (!items.length) {
-    grid.innerHTML = '<div class="lib-empty"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Ничего не найдено</div><button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="openLibItemModal(null,\'' + libCurrentType + '\')">' +
+    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary" onclick="openLibItemModal(null,\'' + libCurrentType + '\')">' +
       (libCurrentType === 'trainings' ? 'Добавить тренировку' : 'Добавить услугу') + '</button></div>';
     return;
   }
@@ -69,12 +69,12 @@ function renderLibrary() {
     let maxHtml = (isTraining && item.max) ? '<span class="lib-meta-tag">до ' + item.max + ' чел.</span>' : '';
     const inactive = !Number(item.active);
     const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
-    const delBadge = inactive ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Удалена</span>' : '';
+    const delBadge = inactive ? '<span class="lib-meta-tag tag-muted">Удалена</span>' : '';
     const actionsHtml = inactive
-      ? '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
+      ? '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
       : (libCanSchedule(item) ? '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
-        '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
-        '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
+        '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
+        '<button class="action-btn cancel btn-sm" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
     return '<div class="lib-card"' + cardStyle + '>' +
       difficultyHtml +
       '<div class="lib-card-header"><div>' +

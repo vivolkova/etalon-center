@@ -125,15 +125,15 @@ function openStationModal(id, x, y) {
     '<div class="form-field"><label class="form-label">Тип станка</label><select class="form-input" id="stm-type">' +
     types.map(function (t) { return '<option value="' + t.id + '"' + (s && Number(t.id) === s.type_id ? ' selected' : '') + '>' + escAttr(t.name) + '</option>'; }).join('') +
     '</select></div>' +
-    '<div class="set-hint" style="margin-bottom:10px">Место: ряд ' + ((s ? s.pos_y : y) + 1) + ', колонка ' + ((s ? s.pos_x : x) + 1) +
+    '<div class="set-hint u-mb-10">Место: ряд ' + ((s ? s.pos_y : y) + 1) + ', колонка ' + ((s ? s.pos_x : x) + 1) +
     (isOutside ? ' — вне схемы зала; при сохранении станок встанет на первую свободную клетку' : '') + '</div>' +
-    '<div class="form-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">' +
+    '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="stm-active"' + (isOn ? ' checked' : '') + (!canActivate && !isOn ? ' disabled' : '') + '> Активен (доступен для записи)</label>' +
     (!canActivate && !isOn
-      ? '<div class="set-hint" style="margin-top:4px">Активных станков уже ' + activeOthers + ' — это вместимость филиала (' + cap + '). Станок можно добавить только выключенным (в запас); чтобы включить — выключите другой или увеличьте вместимость.</div>'
+      ? '<div class="set-hint u-mt-4">Активных станков уже ' + activeOthers + ' — это вместимость филиала (' + cap + '). Станок можно добавить только выключенным (в запас); чтобы включить — выключите другой или увеличьте вместимость.</div>'
       : '') +
     '</div>';
-  const delBtn = s ? '<button class="btn-ghost btn-danger" style="margin-right:auto" data-act="delete">Удалить</button>' : '';
+  const delBtn = s ? '<button class="btn-ghost btn-danger u-mr-auto" data-act="delete">Удалить</button>' : '';
 
   const modal = openFormModal('station-modal', s ? 'Станок' : 'Новый станок', body, async function () {
     const label = document.getElementById('stm-label').value.trim();
@@ -175,14 +175,14 @@ async function renderStationTypesTab() {
   grid.innerHTML = STATION_TYPES.map(function (t) {
     const inactive = !Number(t.active);
     return '<div class="lib-card' + (inactive ? ' card-inactive' : '') + '">' +
-      '<div style="display:flex;gap:12px;align-items:center">' +
+      '<div class="u-flex u-gap-12 u-items-center">' +
       '<div class="st-type-ico">' + (t.icon || '') + '</div>' +
-      '<div style="min-width:0"><div class="lib-card-title">' + escAttr(t.name) + '</div></div></div>' +
+      '<div class="u-min-w-0"><div class="lib-card-title">' + escAttr(t.name) + '</div></div></div>' +
       '<div class="lib-card-meta">' + (inactive ? '<span class="lib-meta-tag tag-muted">Выключен</span>' : '') +
       '<span class="lib-meta-tag">Станков: ' + (parseInt(t.stations_count) || 0) + '</span></div>' +
       '<div class="lib-card-footer"><div></div><div class="lib-card-actions">' +
-      '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openStationTypeModal(' + t.id + ')">Ред.</button>' +
-      '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteStationType(' + t.id + ')">Уд.</button>' +
+      '<button class="action-btn confirm btn-sm" onclick="openStationTypeModal(' + t.id + ')">Ред.</button>' +
+      '<button class="action-btn cancel btn-sm" onclick="deleteStationType(' + t.id + ')">Уд.</button>' +
       '</div></div></div>';
   }).join('');
 }
@@ -194,8 +194,8 @@ function openStationTypeModal(id) {
     '<input class="form-input" id="stt-name" value="' + escAttr(t ? t.name : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Иконка (SVG)</label>' +
     '<textarea class="form-input" id="stt-icon" rows="4" style="height:auto;font-family:monospace;font-size:11px" placeholder="<svg viewBox=&quot;0 0 64 64&quot;>…</svg>">' + escAttr(t && t.icon ? t.icon : '') + '</textarea>' +
-    '<div class="st-type-ico" id="stt-preview" style="margin-top:6px">' + (t && t.icon ? t.icon : '') + '</div></div>' +
-    '<div class="form-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">' +
+    '<div class="st-type-ico u-mt-6" id="stt-preview">' + (t && t.icon ? t.icon : '') + '</div></div>' +
+    '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="stt-active"' + (!t || Number(t.active) ? ' checked' : '') + '> Активен</label></div>';
   openFormModal('station-type-modal', t ? 'Тип станка' : 'Новый тип станка', body, async function () {
     const name = document.getElementById('stt-name').value.trim();

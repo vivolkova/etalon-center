@@ -29,7 +29,7 @@ function renderSpecialists() {
   const grid = document.getElementById('adm-specialists-grid');
   if (!grid) return;
   if (!items.length) {
-    grid.innerHTML = '<div class="lib-empty"><div style="font-size:13px;font-weight:600;margin-bottom:8px">Ничего не найдено</div><button class="btn-primary" style="font-size:12px;padding:8px 16px" onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
+    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary" onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
     return;
   }
   grid.innerHTML = items.map(function (t) {
@@ -45,12 +45,12 @@ function renderSpecialists() {
     }).join('');
     const inactive = !t.active;
     const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
-    const badge = inactive ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Неактивен</span>' : '';
+    const badge = inactive ? '<span class="lib-meta-tag tag-muted">Неактивен</span>' : '';
     const actionsHtml =
-      '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
+      '<button class="action-btn confirm btn-sm" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
     return '<div class="lib-card"' + cardStyle + '>' +
       '<div class="lib-card-header"><div>' +
-      '<div style="display:flex;gap:4px;flex-wrap:wrap">' + typesHtml + '</div>' +
+      '<div class="u-flex u-gap-4 u-wrap">' + typesHtml + '</div>' +
       '<div class="lib-card-title">' + t.full + '</div>' +
       '</div></div>' +
       '<div class="lib-card-meta">' + badge + locTags +
@@ -96,7 +96,7 @@ function weekSummaryHtml(week) {
   return rows.map(function (r) {
     const days = LOC_DAYS_SHORT[r.from] + (r.to !== r.from ? '–' + LOC_DAYS_SHORT[r.to] : '');
     return '<div style="display:flex;justify-content:space-between;gap:8px;font-size:12px;line-height:1.7;color:' + (r.text ? '#00BAB3' : '#9ca3af') + '">' +
-      '<span>' + days + '</span><span style="text-align:right">' + (r.text || 'выходной') + '</span></div>';
+      '<span>' + days + '</span><span class="u-right">' + (r.text || 'выходной') + '</span></div>';
   }).join('');
 }
 
@@ -116,20 +116,20 @@ function excText(e) {
 // График на карточке специалиста: текущий период + ближайшие исключения
 function specHoursCardHtml(t) {
   const s = currentSchedule(t.schedules);
-  let html = '<div style="margin-top:10px;border-top:1px solid var(--line,#eee);padding-top:8px">';
+  let html = '<div class="u-mt-10 u-border-top u-pt-8">';
   if (!s) {
-    html += '<div style="font-size:12px;color:#ef4444">График работы не задан</div>';
+    html += '<div class="u-text-small u-danger">График работы не задан</div>';
   } else {
-    html += '<div style="font-size:12px;color:var(--ink-60);margin-bottom:2px">' +
+    html += '<div class="u-text-small u-muted u-mb-2">' +
       (s.date_from <= todayStr() ? 'График' : 'График с ' + fmtDateRu(s.date_from)) +
       ' «' + escAttr(s.name) + '»' + (s.date_to ? ' до ' + fmtDateRu(s.date_to) : '') + '</div>' +
       weekSummaryHtml(s.work_hours);
   }
   const exc = t.exceptions || [];
   exc.slice(0, 2).forEach(function (e) {
-    html += '<div style="font-size:12px;line-height:1.7;color:#d97706">' + excText(e) + '</div>';
+    html += '<div class="u-text-small u-warning u-lh-relaxed">' + excText(e) + '</div>';
   });
-  if (exc.length > 2) html += '<div style="font-size:12px;color:var(--ink-60)">и ещё ' + (exc.length - 2) + '</div>';
+  if (exc.length > 2) html += '<div class="u-text-small u-muted">и ещё ' + (exc.length - 2) + '</div>';
   return html + '</div>';
 }
 
@@ -156,9 +156,9 @@ function openTrainerModal(id, tab) {
   // График и отсутствия — только у сохранённого специалиста
   var tabOff = t ? '' : ' disabled title="Сначала сохраните специалиста" style="opacity:.5;cursor:not-allowed"';
   el.innerHTML =
-    '<div class="admin-modal" style="max-width:560px">' +
+    '<div class="admin-modal u-max-w-560">' +
     '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
-    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">' +
+    '<div class="u-flex u-gap-6 u-wrap u-mb-16">' +
     '<button type="button" class="chip" data-trm-tab="main">Основное</button>' +
     '<button type="button" class="chip" data-trm-tab="hours"' + tabOff + '>График работы</button>' +
     '<button type="button" class="chip" data-trm-tab="off"' + tabOff + '>Отсутствия</button>' +
@@ -171,7 +171,7 @@ function openTrainerModal(id, tab) {
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
     '</div>' +
-    '<div class="form-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">' +
+    '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="trm-active"' + (!t || t.active ? ' checked' : '') + '> Активен</label></div>' +
     '<div class="admin-modal-actions">' +
     '<button class="btn-ghost" id="trm-cancel">Отмена</button>' +
@@ -179,10 +179,10 @@ function openTrainerModal(id, tab) {
     '</div></div>' +
     // ── График работы: периоды с недельным шаблоном
     '<div data-trm-pane="hours" style="display:none">' +
-    '<div style="font-size:12px;color:var(--ink-60);margin-bottom:10px">Недельный график на период (например, по месяцам). ' +
+    '<div class="u-text-small u-muted u-mb-10">Недельный график на период (например, по месяцам). ' +
     'Вне периодов специалист не работает. У каждого интервала — филиал; часы — в пределах режима работы этого филиала.</div>' +
     '<div id="trm-sched-list"></div>' +
-    '<button type="button" class="btn-primary" id="trm-sched-add" style="font-size:12px;padding:8px 16px">+ Добавить период</button>' +
+    '<button type="button" class="btn-primary" id="trm-sched-add">+ Добавить период</button>' +
     '</div>' +
     // ── Исключения: отсутствия (off) и особые часы работы (custom) — отдельные вкладки
     trmExcPaneHtml('off', 'Даты, когда специалист не работает: сборы, соревнования, отпуск, больничный.', '+ Добавить отсутствие') +
@@ -280,9 +280,9 @@ async function trmHoursChanged(specId) {
 }
 
 function trmItemButtons(attr, id) {
-  return '<div style="display:flex;gap:4px;flex-shrink:0">' +
-    '<button type="button" class="action-btn confirm" style="font-size:11px;padding:4px 8px" data-' + attr + '-edit="' + id + '">Ред.</button>' +
-    '<button type="button" class="action-btn cancel" style="font-size:11px;padding:4px 8px" data-' + attr + '-del="' + id + '">✕</button></div>';
+  return '<div class="u-flex u-gap-4 u-shrink-0">' +
+    '<button type="button" class="action-btn confirm btn-sm" data-' + attr + '-edit="' + id + '">Ред.</button>' +
+    '<button type="button" class="action-btn cancel btn-sm" data-' + attr + '-del="' + id + '">✕</button></div>';
 }
 
 function trmRenderSchedules() {
@@ -290,7 +290,7 @@ function trmRenderSchedules() {
   if (!el) return;
   const list = trmHours.schedules || [];
   if (!list.length) {
-    el.innerHTML = '<div style="font-size:13px;color:#ef4444;margin-bottom:12px">Периодов нет — специалист не будет доступен в расписании.</div>';
+    el.innerHTML = '<div class="u-text-ui u-danger u-mb-12">Периодов нет — специалист не будет доступен в расписании.</div>';
     return;
   }
   const d = todayStr();
@@ -298,13 +298,13 @@ function trmRenderSchedules() {
     const past = s.date_to && s.date_to < d;
     const now = s.date_from <= d && !past;
     return '<div class="lib-card" style="margin-bottom:8px;padding:12px' + (past ? ';opacity:.55' : '') + '">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">' +
+      '<div class="u-flex u-justify-between u-items-start u-gap-8 u-mb-6">' +
       // название и плашка статуса — одной строкой по центру, чтобы плашка не наезжала на даты
-      '<div><div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;font-weight:600;font-size:13px;line-height:1.4">' +
+      '<div><div class="u-flex u-items-center u-wrap u-gap-6 u-strong u-text-ui u-lh-tight">' +
       '<span>' + escAttr(s.name) + '</span>' +
-      (now ? '<span class="lib-meta-tag" style="margin:0;background:var(--green-light);color:var(--green-dark)">действует</span>' : '') +
-      (past ? '<span class="lib-meta-tag" style="margin:0;background:#e5e7eb;color:#6b7280">завершён</span>' : '') + '</div>' +
-      '<div style="font-size:12px;color:var(--ink-60);margin-top:6px">' + fmtDateRu(s.date_from) + ' – ' + (s.date_to ? fmtDateRu(s.date_to) : 'бессрочно') + '</div></div>' +
+      (now ? '<span class="lib-meta-tag u-m-0 u-brand-dark u-bg-brand-light">действует</span>' : '') +
+      (past ? '<span class="lib-meta-tag tag-muted u-m-0">завершён</span>' : '') + '</div>' +
+      '<div class="u-text-small u-muted u-mt-6">' + fmtDateRu(s.date_from) + ' – ' + (s.date_to ? fmtDateRu(s.date_to) : 'бессрочно') + '</div></div>' +
       trmItemButtons('sched', s.id) + '</div>' +
       weekSummaryHtml(s.work_hours) + '</div>';
   }).join('');
@@ -313,12 +313,12 @@ function trmRenderSchedules() {
 // Вкладка исключений одного типа: off — «Отсутствия», custom — «Особые часы работы»
 function trmExcPaneHtml(type, hint, addLabel) {
   return '<div data-trm-pane="' + type + '" style="display:none">' +
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:10px">' +
-    '<div style="font-size:12px;color:var(--ink-60)">' + hint + '</div>' +
-    '<label style="display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;cursor:pointer"><input type="checkbox" id="trm-exc-past-' + type + '"> Прошедшие</label>' +
+    '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
+    '<div class="u-text-small u-muted">' + hint + '</div>' +
+    '<label class="u-flex u-items-center u-gap-6 u-text-small u-nowrap u-pointer"><input type="checkbox" id="trm-exc-past-' + type + '"> Прошедшие</label>' +
     '</div>' +
     '<div id="trm-exc-list-' + type + '"></div>' +
-    '<button type="button" class="btn-primary" id="trm-exc-add-' + type + '" style="font-size:12px;padding:8px 16px">' + addLabel + '</button>' +
+    '<button type="button" class="btn-primary" id="trm-exc-add-' + type + '">' + addLabel + '</button>' +
     '</div>';
 }
 
@@ -335,7 +335,7 @@ function trmRenderExceptionsOfType(type) {
   const list = (trmHours.exceptions || []).filter(function (e) { return e.type === type && (showPast || e.date_to >= d); });
   if (!list.length) {
     const what = off ? 'отсутствий' : 'особых часов';
-    el.innerHTML = '<div style="font-size:13px;color:var(--ink-60);margin-bottom:12px">' + (showPast ? 'Нет ' + what : 'Предстоящих ' + what + ' нет') + '</div>';
+    el.innerHTML = '<div class="u-text-ui u-muted u-mb-12">' + (showPast ? 'Нет ' + what : 'Предстоящих ' + what + ' нет') + '</div>';
     return;
   }
   el.innerHTML = list.map(function (e) {
@@ -343,9 +343,9 @@ function trmRenderExceptionsOfType(type) {
     // Отсутствие — причина; особые часы — интервалы и причина. Причины нет — не выводим
     const details = off
       ? (e.reason ? escAttr(e.reason) : '')
-      : ivText(e.work_hours) + (e.reason ? '<span style="color:var(--ink-60)"> · ' + escAttr(e.reason) + '</span>' : '');
+      : ivText(e.work_hours) + (e.reason ? '<span class="u-muted"> · ' + escAttr(e.reason) + '</span>' : '');
     return '<div class="lib-card" style="margin-bottom:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:8px' + (past ? ';opacity:.55' : '') + '">' +
-      '<div style="min-width:0"><div style="font-weight:600;font-size:13px">' + fmtDateRange(e.date_from, e.date_to) + '</div>' +
+      '<div class="u-min-w-0"><div class="u-strong u-text-ui">' + fmtDateRange(e.date_from, e.date_to) + '</div>' +
       (details ? '<div style="font-size:12px;color:' + (off ? '#d97706' : '#00BAB3') + '">' + details + '</div>' : '') + '</div>' +
       trmItemButtons('exc', e.id) + '</div>';
   }).join('');
@@ -425,12 +425,12 @@ function ivRowHtml(iv, ctx) {
   const h = ivCtxHours(ctx, locId);
   const range = h.range || null;
   const locSelect = '<select class="form-input iv-loc" style="width:auto;max-width:170px;padding:4px 8px' + (multiLocations() ? '' : ';display:none') + '">' + locOpts + '</select>';
-  return '<div class="iv-row" style="display:flex;align-items:center;gap:4px;margin-bottom:4px">' +
+  return '<div class="iv-row u-flex u-items-center u-gap-4 u-mb-4">' +
     locSelect +
-    '<select class="form-input iv-from" style="width:auto;padding:4px 8px">' + ivTimeOptions(range, iv.from || '', false) + '</select>' +
+    '<select class="form-input iv-from u-w-auto u-p-4-8">' + ivTimeOptions(range, iv.from || '', false) + '</select>' +
     '<span>–</span>' +
-    '<select class="form-input iv-to" style="width:auto;padding:4px 8px">' + ivTimeOptions(range, iv.to || '', true) + '</select>' +
-    '<button type="button" class="action-btn cancel" style="font-size:11px;padding:4px 8px" data-iv-del title="Удалить интервал">✕</button>' +
+    '<select class="form-input iv-to u-w-auto u-p-4-8">' + ivTimeOptions(range, iv.to || '', true) + '</select>' +
+    '<button type="button" class="action-btn cancel btn-sm" data-iv-del title="Удалить интервал">✕</button>' +
     '</div>';
 }
 
@@ -439,7 +439,7 @@ function ivRowHtml(iv, ctx) {
 function ivListHtml(list, ctx) {
   return '<div class="iv-list" data-ctx=\'' + JSON.stringify(ctx) + '\'>' +
     (list || []).map(function (iv) { return ivRowHtml(iv, ctx); }).join('') + '</div>' +
-    '<button type="button" class="btn-ghost" style="font-size:11px;padding:3px 8px" data-iv-add>+ интервал</button>';
+    '<button type="button" class="btn-ghost btn-sm" data-iv-add>+ интервал</button>';
 }
 
 function readIntervals(container) {
@@ -461,15 +461,15 @@ function weekEditorHtml(week) {
     const closed = !ivOpenLocations(ctx).length;   // в этот день не работает ни один филиал
     let cell;
     if (closed && !intervals.length) {
-      cell = '<div style="font-size:12px;color:#9ca3af;padding:6px 0">' + (multiLocations() ? 'филиалы не работают' : 'филиал не работает') + '</div>';
+      cell = '<div class="u-text-small u-faint u-py-6">' + (multiLocations() ? 'филиалы не работают' : 'филиал не работает') + '</div>';
     } else {
       // Интервалы, сохранённые до изменения режима филиала, — показываем, чтобы их можно было исправить или удалить
-      cell = (closed ? '<div style="font-size:12px;color:#ef4444;padding:6px 0">филиал не работает — удалите интервалы</div>' : '') +
+      cell = (closed ? '<div class="u-text-small u-danger u-py-6">филиал не работает — удалите интервалы</div>' : '') +
         ivListHtml(intervals, ctx);
     }
-    return '<div class="iv-day" data-day="' + d + '" style="display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line,#eee)">' +
+    return '<div class="iv-day u-flex u-gap-8 u-items-start u-py-6 u-border-bottom" data-day="' + d + '">' +
       '<div style="width:100px;flex-shrink:0;font-size:13px;padding-top:6px;color:' + (closed ? '#9ca3af' : '#00BAB3') + '">' + d + '</div>' +
-      '<div style="flex:1">' + cell + '</div></div>';
+      '<div class="u-flex-1">' + cell + '</div></div>';
   }).join('');
 }
 
@@ -535,9 +535,9 @@ function openScheduleModal(specId, s) {
   // Заполняются только отмеченные дни, остальные не меняются
   const fillLoc = '<select class="form-input" id="sch-fill-loc" style="width:auto;max-width:170px;padding:4px 8px;font-size:12px' + (multiLocations() ? '' : ';display:none') + '">' +
     LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + escAttr(l.name) + '</option>'; }).join('') + '</select>';
-  const fillDays = '<span id="sch-fill-days" style="display:flex;gap:4px;flex-wrap:wrap">' +
+  const fillDays = '<span class="u-flex u-gap-4 u-wrap" id="sch-fill-days">' +
     LOC_DAYS.map(function (d, i) {
-      return '<label class="sch-fill-day" style="display:flex;align-items:center;gap:3px;font-size:12px;cursor:pointer">' +
+      return '<label class="sch-fill-day u-flex u-items-center u-text-small u-pointer u-gap-4">' +
         '<input type="checkbox" data-i="' + i + '">' + LOC_DAYS_SHORT[d] + '</label>';
     }).join('') + '</span>';
   const body =
@@ -548,11 +548,11 @@ function openScheduleModal(specId, s) {
     '<div class="form-field"><label class="form-label">По</label>' +
     '<input type="date" class="form-input" id="sch-to" value="' + (s && s.date_to ? s.date_to : '') + '"></div>' +
     '</div>' +
-    '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 4px">' +
+    '<div class="u-flex u-gap-8 u-wrap u-items-center u-my-4">' +
     fillLoc + fillDays +
     '<button type="button" class="btn-ghost" style="' + small + '" data-sch-fill="loc">Заполнить по филиалу</button>' +
     '</div>' +
-    '<div style="margin:0 0 6px"><button type="button" class="btn-ghost" style="' + small + '" data-sch-fill="weekdays">Пн → на все будни</button></div>' +
+    '<div class="u-mb-6"><button type="button" class="btn-ghost" style="' + small + '" data-sch-fill="weekdays">Пн → на все будни</button></div>' +
     '<div id="sch-week">' + weekEditorHtml(s ? s.work_hours : null) + '</div>';
   const el = openFormModal('sched-modal', s ? 'Период графика' : 'Новый период графика', body, async function () {
     const name = document.getElementById('sch-name').value.trim();
@@ -644,7 +644,7 @@ function openExceptionModal(specId, e, type) {
 
   // Интервалы — в часах своего филиала, общих для выбранных дат; пересобираем при смене дат, сохраняя введённое
   const ivBody = document.getElementById('exc-iv-body');
-  const hint = function (text) { return '<div style="font-size:12px;color:var(--ink-60);padding:4px 0">' + text + '</div>'; };
+  const hint = function (text) { return '<div class="u-text-small u-muted u-py-4">' + text + '</div>'; };
   let saved = e && e.work_hours && e.work_hours.length ? e.work_hours : [];
   const renderIntervals = function () {
     if (ivBody.querySelector('.iv-list')) saved = readIntervals(ivBody);

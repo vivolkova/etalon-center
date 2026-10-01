@@ -30,11 +30,11 @@ async function renderParamsTab() {
   if (!list.length) { box.innerHTML = '<div class="set-hint">Параметров нет</div>'; return; }
   box.innerHTML = list.map(function (p) {
     const input = p.type === 'int'
-      ? '<input class="form-input" type="number" data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
-        (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + ' style="width:120px">'
-      : '<input class="form-input" data-param="' + p.code + '" value="' + escAttr(p.value) + '" style="width:260px">';
-    return '<div class="form-field" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-      '<label class="form-label" style="margin:0;width:380px;max-width:100%">' + escAttr(p.name) + '</label>' + input + '</div>';
+      ? '<input class="form-input u-w-120" type="number" data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
+        (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + '>'
+      : '<input class="form-input u-w-260" data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
+    return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
+      '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.name) + '</label>' + input + '</div>';
   }).join('');
 }
 
@@ -56,10 +56,10 @@ async function renderTravelTab() {
   document.getElementById('settings-travel-save').style.display = list.length ? 'flex' : 'none';
   if (!list.length) { box.innerHTML = '<div class="set-hint">Нужно хотя бы два действующих филиала</div>'; return; }
   box.innerHTML = list.map(function (p) {
-    return '<div class="form-field" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">' +
-      '<label class="form-label" style="margin:0;width:380px;max-width:100%">' + escAttr(p.a_name) + ' ↔ ' + escAttr(p.b_name) + ', мин</label>' +
-      '<input class="form-input" type="number" min="0" max="600" data-a="' + p.location_a_id + '" data-b="' + p.location_b_id + '"' +
-      ' value="' + (p.minutes !== null ? p.minutes : '') + '" style="width:120px">' +
+    return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
+      '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.a_name) + ' ↔ ' + escAttr(p.b_name) + ', мин</label>' +
+      '<input class="form-input u-w-120" type="number" min="0" max="600" data-a="' + p.location_a_id + '" data-b="' + p.location_b_id + '"' +
+      ' value="' + (p.minutes !== null ? p.minutes : '') + '">' +
       '</div>';
   }).join('');
 }
@@ -95,7 +95,7 @@ function openFormModal(id, title, body, onSave, extraButtons) {
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = id;
-  el.innerHTML = '<div class="admin-modal" style="max-width:460px">' +
+  el.innerHTML = '<div class="admin-modal u-max-w-460">' +
     '<div class="admin-modal-title">' + title + '</div>' + body +
     '<div class="admin-modal-actions">' + (extraButtons || '') +
     '<button class="btn-ghost" data-act="cancel">Отмена</button>' +
@@ -202,12 +202,12 @@ function renderLocHours(hours) {
     const h = map[d] || { open: false, from: '', to: '' };
     const weekend = (d === 'Суббота' || d === 'Воскресенье');
     const dayColor = weekend ? '#9ca3af' : '#00BAB3';
-    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">' +
+    return '<div class="u-flex u-items-center u-gap-8 u-mb-6">' +
       '<label style="width:120px;font-size:13px;display:flex;align-items:center;gap:6px;color:' + dayColor + '">' +
       '<input type="checkbox" class="loc-h-open" data-i="' + i + '"' + (h.open ? ' checked' : '') + '>' + d + '</label>' +
-      '<select class="form-input loc-h-from" data-i="' + i + '" style="width:auto;padding:4px 8px">' + timeOptions15(h.from || '') + '</select>' +
+      '<select class="form-input loc-h-from u-w-auto u-p-4-8" data-i="' + i + '">' + timeOptions15(h.from || '') + '</select>' +
       '<span>–</span>' +
-      '<select class="form-input loc-h-to" data-i="' + i + '" style="width:auto;padding:4px 8px">' + timeOptions15(h.to || '') + '</select>' +
+      '<select class="form-input loc-h-to u-w-auto u-p-4-8" data-i="' + i + '">' + timeOptions15(h.to || '') + '</select>' +
       '</div>';
   }).join('');
 }
@@ -223,14 +223,14 @@ function locHoursSummary(wh) {
       '<span>' + (LOC_DAYS_SHORT[h.day] || h.day) + '</span>' +
       '<span>' + (h.open ? (h.from + '–' + h.to) : 'выходной') + '</span></div>';
   }).join('');
-  return '<div style="margin-top:10px;border-top:1px solid var(--line,#eee);padding-top:8px">' + rows + '</div>';
+  return '<div class="u-mt-10 u-border-top u-pt-8">' + rows + '</div>';
 }
 
 function renderLocations() {
   const el = document.getElementById('settings-locations');
   if (!el) return;
   if (!LOCATIONS_ALL.length) {
-    el.innerHTML = '<div style="color:var(--ink-60);font-size:13px">Филиалов пока нет. Нажмите «Добавить филиал».</div>';
+    el.innerHTML = '<div class="u-muted u-text-ui">Филиалов пока нет. Нажмите «Добавить филиал».</div>';
     return;
   }
   const infoLine = 'font-size:13px;color:var(--ink-60);line-height:1.6';
@@ -238,19 +238,19 @@ function renderLocations() {
     const inactive = !Number(l.active);
     const cardBg = inactive ? ';background:#f3f4f6' : '';
     const statusBadge = inactive
-      ? '<span class="lib-meta-tag" style="background:#e5e7eb;color:#6b7280">Недействующий</span>'
-      : '<span class="lib-meta-tag" style="background:var(--green-light);color:var(--green-dark)">Действующий</span>';
+      ? '<span class="lib-meta-tag tag-muted">Недействующий</span>'
+      : '<span class="lib-meta-tag u-brand-dark u-bg-brand-light">Действующий</span>';
     return '<div class="lib-card" style="margin-bottom:0;padding:14px' + cardBg + '">' +
-      '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">' +
-      '<div style="min-width:0">' +
-      '<div style="font-weight:600;font-size:14px;line-height:1.6">' + l.name + '</div>' +
+      '<div class="u-flex u-justify-between u-items-start u-gap-8">' +
+      '<div class="u-min-w-0">' +
+      '<div class="u-strong u-text-body u-lh-relaxed">' + l.name + '</div>' +
       (l.address ? '<div style="' + infoLine + '">' + l.address + '</div>' : '') +
       (l.phone ? '<div style="' + infoLine + '">Тел.: ' + l.phone + '</div>' : '') +
       (l.email ? '<div style="' + infoLine + '">Email: ' + l.email + '</div>' : '') +
       '</div>' +
-      '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px;white-space:nowrap" onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
+      '<button class="action-btn confirm btn-sm u-nowrap" onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
       '</div>' +
-      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">' +
+      '<div class="u-flex u-gap-6 u-wrap u-mt-8">' +
       statusBadge +
       '<span class="lib-meta-tag">Зал ' + l.hall_cols + '×' + l.hall_rows + '</span>' +
       '<span class="lib-meta-tag">Вместимость: ' + l.max_people + '</span>' +
@@ -397,37 +397,37 @@ function renderAdminBookings() {
       { val: bookings.length, label: 'Всего', color: 'var(--ink)' },
       { val: bookings.filter(b => b.status === 'booked').length, label: 'Активные', color: 'var(--green)' },
       { val: bookings.filter(b => b.status === 'cancelled').length, label: 'Отменены', color: '#ef4444' },
-    ].map(k => '<div class="adm-kpi" style="padding:12px"><div class="adm-kpi-val" style="color:' + k.color + ';font-size:20px">' + k.val + '</div><div class="adm-kpi-label">' + k.label + '</div></div>').join('');
+    ].map(k => '<div class="adm-kpi u-p-12"><div class="adm-kpi-val" style="color:' + k.color + ';font-size:20px">' + k.val + '</div><div class="adm-kpi-label">' + k.label + '</div></div>').join('');
   }
 }
 
 function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--ink-60)">Записей нет</td></tr>'; return; }
+  if (!list.length) { tbody.innerHTML = '<tr><td class="empty-state" colspan="9">Записей нет</td></tr>'; return; }
   const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
   const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
-  const muted = function (v) { return v ? escAttr(v) : '<span style="color:var(--ink-60)">—</span>'; };
+  const muted = function (v) { return v ? escAttr(v) : '<span class="u-muted">—</span>'; };
   tbody.innerHTML = [...list].reverse().map(b => {
     const date = new Date(b.date);
     // Станок: название + тип станка
     const station = b.station
-      ? escAttr(b.station) + (b.stationType ? '<br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.stationType) + '</span>' : '')
+      ? escAttr(b.station) + (b.stationType ? '<br><span class="u-muted u-text-caption">' + escAttr(b.stationType) + '</span>' : '')
       : muted('');
     // Полоса слева — цвет категории занятия (тренировка / байкфит / мастерская)
     return '<tr>' +
-      '<td style="border-left:4px solid ' + catColor(b.cat) + '"><strong>' + escAttr(b.name) + '</strong><br><span style="color:var(--ink-60);font-size:11px">' + escAttr(b.email) + '</span></td>' +
-      '<td style="white-space:nowrap">' + muted(b.phone) + '</td>' +
+      '<td style="border-left:4px solid ' + catColor(b.cat) + '"><strong>' + escAttr(b.name) + '</strong><br><span class="u-muted u-text-caption">' + escAttr(b.email) + '</span></td>' +
+      '<td class="u-nowrap">' + muted(b.phone) + '</td>' +
       '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(b.cat) + ';margin-right:6px;vertical-align:middle" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
       '<td>' + muted(b.specialistFull) + '</td>' +
       '<td>' + station + '</td>' +
-      '<td style="white-space:nowrap">' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +
-      '<td style="font-weight:600;white-space:nowrap">' + b.price.toLocaleString('ru') + ' ₽</td>' +
+      '<td class="u-nowrap">' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +
+      '<td class="u-strong u-nowrap">' + b.price.toLocaleString('ru') + ' ₽</td>' +
       '<td><span class="status-badge ' + statusMap[b.status] + '">' + statusLabel[b.status] + '</span></td>' +
-      '<td style="display:flex;gap:4px;flex-wrap:wrap">' +
+      '<td class="u-flex u-gap-4 u-wrap">' +
 
-      (b.status !== 'cancelled' ? '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
-      '<button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" data-chat-email="' + (b.email || '') + '" data-chat-name="' + (b.name || '') + '" onclick="this.dispatchEvent(new CustomEvent(\'admchat\',{bubbles:true}))">Чат</button>' +
+      (b.status !== 'cancelled' ? '<button class="action-btn cancel btn-sm" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
+      '<button class="action-btn btn-sm btn-soft" data-chat-email="' + (b.email || '') + '" data-chat-name="' + (b.name || '') + '" onclick="this.dispatchEvent(new CustomEvent(\'admchat\',{bubbles:true}))">Чат</button>' +
       '</td></tr>';
   }).join('');
 }

@@ -1,0 +1,198 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Набор готовых стилей («кит»). Подключается последним — его классы сильнее остальных.
+
+   Правило: в разметке и в скриптах стили в элемент не вписываем (style="…"), а берём класс отсюда.
+   Нужного класса нет — добавляем его сюда, а не пишем стиль в элемент. Тогда любое исправление — одна строка здесь.
+   В элементе остаются только вычисляемые значения (позиция и высота блока в сетке, цвет из данных)
+   и display:none, которым скрипт переключает видимость.
+
+   Значения — из общей палитры css/base.css (цвета, скругления). Образец — styleguide.html.
+
+   Классы u-* помечены !important: они заменяют стиль, вписанный в элемент, и должны быть так же сильны
+   (иначе их перебьёт, например, правило таблицы). Исключение — u-flex / u-grid / u-block: видимость таких
+   элементов скрипт переключает через display в самом элементе.
+
+   1. Готовые элементы (кнопки, поля, подписи) — смысловые классы без приставки.
+   2. Текст: размер, насыщенность, цвет — u-text-*, u-strong, u-muted …
+   3. Расположение: строка, сетка, выравнивание — u-flex, u-grid, u-items-center …
+   4. Отступы и расстояния — u-gap-*, u-mt-*, u-mb-*
+   5. Размеры — u-w-*, u-max-w-*
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Готовые элементы ── */
+
+/* Малая кнопка — в таблицах, карточках, строках списка. К любому виду: btn-primary, btn-ghost, action-btn */
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+/* Мягкая кнопка: светлый фирменный фон без рамки (второстепенное действие рядом с основной) */
+.btn-soft {
+  background: var(--green-light);
+  border-color: transparent;
+  color: var(--green-dark);
+}
+
+/* Подпись с флажком или переключателем: «☑ Действующий филиал» */
+.check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Значок внутри строки текста */
+.ico-inline {
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 3px;
+}
+
+/* Многострочное поле: высота по содержимому, тянется только вниз */
+.form-textarea {
+  height: auto;
+  resize: vertical;
+}
+
+/* Компактное поле или список в панели фильтров */
+.input-sm {
+  height: 36px;
+}
+
+/* Пустой список: «Записей нет» */
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--ink-60);
+}
+
+/* ── 2. Текст ── */
+.u-text-caption { font-size: 11px !important; }   /* мелкие подписи */
+.u-text-small { font-size: 12px !important; }     /* подписи */
+.u-text-ui { font-size: 13px !important; }        /* кнопки, таблицы, чипы */
+.u-text-body { font-size: 14px !important; }      /* основной текст */
+.u-text-lead { font-size: 16px !important; }      /* название в карточке */
+.u-text-title { font-size: 20px !important; }     /* заголовок раздела */
+
+.u-medium { font-weight: 500 !important; }
+.u-strong { font-weight: 600 !important; }
+.u-bold { font-weight: 700 !important; }
+
+.u-muted { color: var(--ink-60) !important; }     /* второстепенный текст */
+.u-faint { color: var(--ink-40) !important; }     /* отключённое, подсказки */
+.u-brand { color: var(--green) !important; }
+.u-brand-dark { color: var(--green-dark) !important; }
+.u-danger { color: var(--danger) !important; }
+.u-success { color: var(--success) !important; }
+.u-warning { color: var(--warning) !important; }
+
+.u-center { text-align: center !important; }
+.u-right { text-align: right !important; }
+.u-nowrap { white-space: nowrap !important; }
+
+/* ── 3. Расположение ── */
+.u-flex { display: flex; }
+.u-inline-flex { display: inline-flex; }
+.u-grid { display: grid; }
+.u-block { display: block; }
+.u-inline-block { display: inline-block; }
+
+.u-col { flex-direction: column !important; }
+.u-wrap { flex-wrap: wrap !important; }
+.u-items-center { align-items: center !important; }
+.u-items-start { align-items: flex-start !important; }
+.u-items-end { align-items: flex-end !important; }
+.u-justify-between { justify-content: space-between !important; }
+.u-justify-center { justify-content: center !important; }
+.u-justify-end { justify-content: flex-end !important; }
+.u-flex-1 { flex: 1 !important; }
+.u-shrink-0 { flex-shrink: 0 !important; }
+.u-min-w-0 { min-width: 0 !important; }
+.u-v-middle { vertical-align: middle !important; }
+.u-pointer { cursor: pointer !important; }
+
+.u-cols-2 { grid-template-columns: 1fr 1fr !important; }                                   /* две равные колонки */
+.u-cols-cards { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; } /* карточки в ряд */
+
+/* ── 4. Отступы и расстояния ── */
+.u-gap-4 { gap: 4px !important; }
+.u-gap-6 { gap: 6px !important; }
+.u-gap-8 { gap: 8px !important; }
+.u-gap-10 { gap: 10px !important; }
+.u-gap-12 { gap: 12px !important; }
+.u-gap-14 { gap: 14px !important; }
+.u-gap-16 { gap: 16px !important; }
+.u-gap-20 { gap: 20px !important; }
+
+.u-m-0 { margin: 0 !important; }
+.u-mt-2 { margin-top: 2px !important; }
+.u-mt-4 { margin-top: 4px !important; }
+.u-mt-6 { margin-top: 6px !important; }
+.u-mt-8 { margin-top: 8px !important; }
+.u-mt-10 { margin-top: 10px !important; }
+.u-mt-12 { margin-top: 12px !important; }
+.u-mt-16 { margin-top: 16px !important; }
+.u-mt-20 { margin-top: 20px !important; }
+.u-mb-4 { margin-bottom: 4px !important; }
+.u-mb-6 { margin-bottom: 6px !important; }
+.u-mb-8 { margin-bottom: 8px !important; }
+.u-mb-10 { margin-bottom: 10px !important; }
+.u-mb-12 { margin-bottom: 12px !important; }
+.u-mb-16 { margin-bottom: 16px !important; }
+.u-mb-20 { margin-bottom: 20px !important; }
+.u-ml-auto { margin-left: auto !important; }
+.u-mr-auto { margin-right: auto !important; }
+
+/* ── 5. Размеры ── */
+.u-w-full { width: 100% !important; }
+.u-w-auto { width: auto !important; }
+.u-max-w-full { max-width: 100% !important; }
+.u-w-120 { width: 120px !important; }
+.u-w-150 { width: 150px !important; }
+.u-w-220 { width: 220px !important; }
+.u-w-280 { width: 280px !important; }
+.u-max-w-200 { max-width: 200px !important; }
+
+/* ── Дополнение: редкие значения (тоже без стилей в элементе) ── */
+.u-light { font-weight: 300 !important; }
+.u-lh-1 { line-height: 1 !important; }
+.u-lh-tight { line-height: 1.4 !important; }
+.u-lh-relaxed { line-height: 1.6 !important; }
+
+.u-round { border-radius: 50% !important; }
+.u-radius-md { border-radius: var(--r-md) !important; }
+.u-bg-brand-light { background: var(--green-light) !important; }
+.u-bg-white-20 { background: rgba(255, 255, 255, .2) !important; }
+.u-border-top { border-top: 1px solid var(--border) !important; }
+.u-border-bottom { border-bottom: 1px solid var(--border) !important; }
+.u-opacity-35 { opacity: .35 !important; }
+.u-opacity-75 { opacity: .75 !important; }
+
+.u-p-4-8 { padding: 4px 8px !important; }
+.u-p-12 { padding: 12px !important; }
+.u-p-20 { padding: 20px !important; }
+.u-py-4 { padding-top: 4px !important; padding-bottom: 4px !important; }
+.u-py-6 { padding-top: 6px !important; padding-bottom: 6px !important; }
+.u-py-10 { padding-top: 10px !important; padding-bottom: 10px !important; }
+.u-py-16 { padding-top: 16px !important; padding-bottom: 16px !important; }
+.u-pt-8 { padding-top: 8px !important; }
+.u-mb-2 { margin-bottom: 2px !important; }
+.u-my-4 { margin-top: 4px !important; margin-bottom: 4px !important; }
+
+.u-w-32 { width: 32px !important; }
+.u-w-36 { width: 36px !important; }
+.u-w-40 { width: 40px !important; }
+.u-w-200 { width: 200px !important; }
+.u-w-240 { width: 240px !important; }
+.u-w-260 { width: 260px !important; }
+.u-w-380 { width: 380px !important; }
+.u-min-w-220 { min-width: 220px !important; }
+.u-h-32 { height: 32px !important; }
+.u-max-w-220 { max-width: 220px !important; }
+.u-max-w-280 { max-width: 280px !important; }
+.u-max-w-380 { max-width: 380px !important; }
+.u-max-w-460 { max-width: 460px !important; }
+.u-max-w-520 { max-width: 520px !important; }
+.u-max-w-560 { max-width: 560px !important; }

@@ -70,7 +70,7 @@ function renderAdminClients(list) {
   // Table
   const tbody = document.getElementById('clients-tbody');
   if (!rows.length) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--ink-60)">Клиентов не найдено</td></tr>`;
+    tbody.innerHTML = `<tr><td class="empty-state" colspan="7">Клиентов не найдено</td></tr>`;
     return;
   }
   tbody.innerHTML = rows.map(c => {
@@ -88,23 +88,23 @@ function renderAdminClients(list) {
     <div class="client-name-cell">
       <div class="client-avatar" style="background:${av}20;color:${av}">${init}</div>
       <div>
-        <div style="font-weight:600;font-size:13px">${c.name}</div>
-        <div style="color:var(--ink-60);font-size:11px">${c.hasAccount ? c.email : 'без личного кабинета'}</div>
-        <div style="color:var(--ink-60);font-size:11px;margin-top:1px">${bikeLbl}</div>
+        <div class="u-strong u-text-ui">${c.name}</div>
+        <div class="u-muted u-text-caption">${c.hasAccount ? c.email : 'без личного кабинета'}</div>
+        <div class="u-muted u-text-caption u-mt-2">${bikeLbl}</div>
       </div>
     </div>
   </td>
-  <td style="font-size:13px">${c.phone || '—'}</td>
-  <td style="font-weight:600;text-align:center">${stats.total}</td>
-  <td style="font-weight:600;color:var(--green)">${stats.spent ? stats.spent.toLocaleString('ru') + ' ₽' : '—'}</td>
-  <td style="font-size:12px;color:var(--ink-60)">${lastStr}<br><span style="font-size:10px">рег. ${regStr}</span></td>
+  <td class="u-text-ui">${c.phone || '—'}</td>
+  <td class="u-strong u-center">${stats.total}</td>
+  <td class="u-strong u-brand">${stats.spent ? stats.spent.toLocaleString('ru') + ' ₽' : '—'}</td>
+  <td class="u-text-small u-muted">${lastStr}<br><span class="u-text-caption">рег. ${regStr}</span></td>
   <td><span class="c-badge ${c.type}">${{ new: 'Новый', vip: 'VIP' }[c.type] || c.type}</span></td>
   <td>
-    <div style="display:flex;gap:4px;flex-wrap:wrap">
-      <button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" onclick="openClientProfile('${c.email}')">Просмотр</button>
-      <button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openClientModal('${c.email}')">Ред.</button>
-      <button class="action-btn" style="background:var(--green-light);color:var(--green);font-size:11px;padding:4px 8px" onclick="openChatWith('${c.email}','${c.name}')">Чат</button>
-      <button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deleteClient('${c.email}')">Уд.</button>
+    <div class="u-flex u-gap-4 u-wrap">
+      <button class="action-btn btn-sm btn-soft" onclick="openClientProfile('${c.email}')">Просмотр</button>
+      <button class="action-btn confirm btn-sm" onclick="openClientModal('${c.email}')">Ред.</button>
+      <button class="action-btn btn-sm btn-soft" onclick="openChatWith('${c.email}','${c.name}')">Чат</button>
+      <button class="action-btn cancel btn-sm" onclick="deleteClient('${c.email}')">Уд.</button>
     </div>
   </td>
 </tr>`;
@@ -204,13 +204,13 @@ function openClientProfile(email) {
   const MONTHS_FULL3 = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
   document.getElementById('cp-header').innerHTML = `
-<div style="display:flex;align-items:center;gap:14px">
+<div class="u-flex u-items-center u-gap-14">
   <div class="client-avatar" style="width:52px;height:52px;font-size:20px;background:${av}20;color:${av}">${init}</div>
   <div>
-    <div style="font-size:17px;font-weight:700">${c.name}</div>
-    <div style="font-size:12px;color:var(--ink-60);margin-top:2px">${c.email} · ${c.phone || '—'}</div>
-    <div style="font-size:12px;color:var(--ink-60);margin-top:2px">${bikeLbl}${c.birth ? ' · ДР: ' + c.birth : ''}</div>
-    ${c.notes ? `<div style="font-size:12px;color:var(--ink-60);margin-top:4px;max-width:380px;line-height:1.4"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${c.notes}</div>` : ''}
+    <div class="u-bold u-text-lead">${c.name}</div>
+    <div class="u-text-small u-muted u-mt-2">${c.email} · ${c.phone || '—'}</div>
+    <div class="u-text-small u-muted u-mt-2">${bikeLbl}${c.birth ? ' · ДР: ' + c.birth : ''}</div>
+    ${c.notes ? `<div class="u-text-small u-muted u-mt-4 u-max-w-380 u-lh-tight"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${c.notes}</div>` : ''}
   </div>
 </div>`;
 
@@ -224,16 +224,16 @@ function openClientProfile(email) {
   const history = bookings.filter(b => b.clientId === email).sort((a, b) => new Date(b.date) - new Date(a.date));
   const histEl = document.getElementById('cp-history');
   if (!history.length) {
-    histEl.innerHTML = `<div style="text-align:center;padding:20px;color:var(--ink-60);font-size:13px">Записей нет</div>`;
+    histEl.innerHTML = `<div class="u-text-ui empty-state">Записей нет</div>`;
   } else {
     histEl.innerHTML = history.map(b => {
       const d = new Date(b.date);
       const sMap = { confirmed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', pending: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M6 3v4l6 5-6 5v4M18 3v4l-6 5 6 5v4"/></svg>', cancelled: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' };
       return `<div class="cp-history-row">
-    <div style="width:40px;text-align:center;font-size:18px">${sMap[b.status] || sMap.confirmed || '•'}</div>
-    <div style="flex:1">
-      <div style="font-weight:600;font-size:13px">${b.service}</div>
-      <div style="font-size:11px;color:var(--ink-60)">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
+    <div class="u-center u-w-40 u-text-title">${sMap[b.status] || sMap.confirmed || '•'}</div>
+    <div class="u-flex-1">
+      <div class="u-strong u-text-ui">${b.service}</div>
+      <div class="u-text-caption u-muted">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
     </div>
     <div style="font-weight:700;font-size:13px;color:${catColor(b.cat)}">${b.price.toLocaleString('ru')} ₽</div>
   </div>`;

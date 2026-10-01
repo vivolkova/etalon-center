@@ -229,7 +229,7 @@ function showPage(name) {
   if (name === 'services') renderServices();
   if (name === 'bookings') renderBookings();
   if (name === 'client') renderClientPanel();
-  if (name === 'admin') { renderAdmin(); admNav('dashboard', document.querySelector('.adm-nav-item')); }
+  if (name === 'admin') { renderAdmin(); admNav('journal', document.querySelector('.adm-nav-item')); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

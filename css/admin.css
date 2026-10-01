@@ -1039,3 +1039,14 @@
 .jb-picked .jb-link {
   margin-top: 0;
 }
+
+/* Группа «В разработке» в меню панели: разделы, которые ещё не проработаны, — приглушены */
+.adm-nav-section--later {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.adm-nav-section--later ~ .adm-nav-item:not(.active) {
+  opacity: .6;
+}

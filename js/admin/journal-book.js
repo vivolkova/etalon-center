@@ -38,12 +38,12 @@ async function jbOpen(preset) {
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = 'jb-modal';
-  el.innerHTML = '<div class="admin-modal" style="max-width:560px">'
+  el.innerHTML = '<div class="admin-modal u-max-w-560">'
     + '<div class="admin-modal-title">Запись клиента</div>'
     + '<div class="jr-card-sub" id="jb-sub"></div>'
     + '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>'
     + '<div id="jb-body"></div>'
-    + '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input" id="jb-notes" rows="2" style="height:auto;resize:vertical"></textarea></div>'
+    + '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="2"></textarea></div>'
     + '<div class="ind-total" id="jb-total"></div>'
     + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="jbClose()">Отмена</button>'
     + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">Записать</button></div></div>';

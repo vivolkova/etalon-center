@@ -205,7 +205,7 @@ function jrOpenSlot(slotId) {
     return '<div class="jr-card-row"><div><div class="jr-card-name">' + (st ? escAttr(st) + ' · ' : '') + escAttr(b.name) + '</div>'
       + '<div class="jr-card-meta">' + [b.phone, JR_PAY[b.payment_status] || b.payment_status].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (b.notes ? '<div class="jr-card-meta">«' + escAttr(b.notes) + '»</div>' : '') + '</div>'
-      + '<button class="action-btn cancel" style="font-size:12px;padding:5px 10px" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div>';
+      + '<button class="action-btn cancel u-text-small" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div>';
   }).join('');
   // У групповой — что свободно и что заблокировано
   let seats = '';
@@ -219,7 +219,7 @@ function jrOpenSlot(slotId) {
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = 'jr-slot-modal';
-  el.innerHTML = '<div class="admin-modal" style="max-width:520px">'
+  el.innerHTML = '<div class="admin-modal u-max-w-520">'
     + '<div class="admin-modal-title">' + escAttr(s.name) + '</div>'
     + '<div class="jr-card-sub">' + [d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(s.from) + '–' + minToTime(s.to),
       s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : s.price.toLocaleString('ru') + ' ₽'].filter(Boolean).map(escAttr).join(' · ') + '</div>'
