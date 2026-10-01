@@ -86,10 +86,12 @@ function slotIsIndividual(s) { return !(s.cat === 'training' && s.type === 'grou
 function slotCap(s) { return slotIsIndividual(s) ? 1 : Math.max((s.max || 0) - (s.blocked || 0), 0); }
 function slotFree(s) { return Math.max(slotCap(s) - (s.taken || 0), 0); }
 
-// Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); неизвестная — серый
+// Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); у категории без своего цвета
+// (новая услуга) — общий --cat-other
 function catColor(code) {
-  const v = code ? getComputedStyle(document.documentElement).getPropertyValue('--cat-' + code).trim() : '';
-  return v || '#888';
+  const cs = getComputedStyle(document.documentElement);
+  const v = code ? cs.getPropertyValue('--cat-' + code).trim() : '';
+  return v || cs.getPropertyValue('--cat-other').trim() || '#888';
 }
 async function loadActivityCats() {
   try {

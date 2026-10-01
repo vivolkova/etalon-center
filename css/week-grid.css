@@ -26,7 +26,7 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1.5px solid var(--border);
+  border: 1px solid var(--border);
   background: #fff;
   cursor: pointer;
   display: flex;
@@ -50,20 +50,21 @@
 }
 
 .wg-today-btn {
-  padding: 6px 14px;
-  border-radius: 10px;
-  border: 1.5px solid var(--border);
+  padding: 7px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
   background: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-60);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
   transition: .15s;
 }
 
 .wg-today-btn:hover {
   border-color: var(--green);
-  color: var(--green);
+  color: var(--green-dark);
 }
 
 /* ── Сетка ── */
@@ -79,14 +80,14 @@
   grid-template-columns: var(--wg-time-w) repeat(7, 1fr);
   min-width: var(--wg-min-w);
   border: 1.5px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   background: #fff;
 }
 
 .wg--site {
   --wg-time-w: 48px;
-  --wg-row-h: 96px;      /* на сайте крупнее: в слоте тренер, места и кнопка «Записаться» */
+  --wg-row-h: 104px;     /* на сайте крупнее: в слоте тренер, места и кнопка «Записаться», текст не мельче 11px */
   --wg-min-w: 760px;
 }
 
@@ -206,7 +207,7 @@
   position: absolute;
   left: 2px;
   right: 2px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 4px 6px;
   overflow: hidden;
   cursor: pointer;
@@ -286,7 +287,7 @@
 }
 
 .wg-slot.full .wg-slot-book {
-  background: #9ca3af;
+  background: var(--muted-strong);
   cursor: default;
 }
 
@@ -452,7 +453,7 @@
 
 /* Тренер в слоте групповой тренировки */
 .wg-slot-spec {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink);
 }
 
@@ -481,7 +482,7 @@
   min-width: 58px;
 }
 
-.ind-dow { font-size: 10px; opacity: .75; }
+.ind-dow { font-size: 11px; opacity: .75; }
 
 .ind-hint {
   font-size: 13px;
@@ -567,8 +568,8 @@
 }
 
 .indp-dot--free { background: var(--green-light); border: 1px solid var(--green); }
-.indp-dot--busy { background: #eef0f2; border: 1px solid #d9dde1; }
-.indp-dot--mine { background: var(--cat-training-bg); border: 1px solid var(--cat-training); }
+.indp-dot--busy { background: var(--muted-bg); border: 1px solid var(--muted-strong); }
+.indp-dot--mine { background: var(--mine); border: 1px solid var(--mine); }
 
 /* Время начала, на которое можно записаться */
 .wg-free {
@@ -577,7 +578,7 @@
   right: 2px;
   z-index: 2;
   border: 1px solid var(--green);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: var(--green-light);
   color: var(--green-dark);
   font-family: var(--font-body);
@@ -602,27 +603,33 @@
   align-items: center;
   justify-content: center;
   padding: 2px 4px;
-  border-radius: 6px;
-  background: #eef0f2;
+  border-radius: var(--r-sm);
+  background: var(--muted-bg);
   color: var(--ink-60);
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.25;
   text-align: center;
   overflow: hidden;
 }
 
 .wg-blk--group {
-  background: #e3e6ea;
   font-weight: 600;
 }
 
+/* Своя запись — тёмная с фирменной полосой: единственный тёмный блок в сетке, не сливается с расписанием */
 .wg-blk--mine {
-  background: var(--cat-training-bg);
-  border-left: 3px solid var(--cat-training);
-  border-radius: 6px;
-  color: var(--cat-training-ink);
+  background: var(--mine);
+  border-left: 4px solid var(--green);
+  color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.wg-blk--mine small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  opacity: .75;
 }
 
 .wg-blk--day {
@@ -653,7 +660,7 @@
     min-height: 58px;
     padding: 6px 0;
     border: 1px solid var(--border);
-    border-radius: 10px;
+    border-radius: var(--r-md);
     background: #fff;
     font-family: var(--font-body);
     color: var(--ink);
@@ -661,7 +668,7 @@
   }
 
   .wg-day-btn-dow {
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--ink-60);
@@ -674,7 +681,7 @@
   }
 
   .wg-day-btn-sub {
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.1;
     text-align: center;
     color: var(--green-dark);
@@ -764,7 +771,7 @@
     background: #fff;
     border: 1px solid var(--border);
     border-left: 4px solid var(--cat, var(--green));
-    border-radius: 12px;
+    border-radius: var(--r-lg);
     cursor: pointer;
   }
 
@@ -820,8 +827,14 @@
     white-space: nowrap;
   }
 
+  /* Своя запись — тёмный значок, как тёмный блок в сетке */
   .sch-row-state.booked {
-    color: var(--green-dark);
+    padding: 4px 10px;
+    border-radius: var(--r-md);
+    background: var(--mine);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
   }
 
   .sch-list-empty {
@@ -830,4 +843,72 @@
     font-size: 14px;
     color: var(--ink-60);
   }
+}
+
+/* ── Сайт: слоты групповых тренировок по единому образцу (styleguide.html).
+   Только .wg--site — недельное расписание админки (.wg--admin) эти правила не затрагивают. ── */
+.wg--site .wg-slot {
+  border-radius: var(--r-sm);
+}
+
+.wg--site .wg-slot-time,
+.wg--site .wg-slot-meta {
+  font-size: 11px;
+}
+
+.wg--site .wg-slot-name {
+  font-size: 12px;
+}
+
+.wg--site .wg-slot-book,
+.wg--site .wg-slot.slot-sm .wg-slot-book {
+  font-size: 11px;
+  border-radius: var(--r-sm);
+}
+
+/* Мест нет — серое «недоступно» */
+.wg--site .wg-slot.full {
+  opacity: 1;
+  background: var(--muted-bg);
+  border-left-color: var(--muted-strong);
+}
+
+.wg--site .wg-slot.full .wg-slot-name {
+  color: var(--ink-60);
+}
+
+.wg--site .wg-slot.full .wg-slot-book {
+  background: var(--muted-strong);
+  color: var(--ink-60);
+}
+
+/* Своя запись — тёмная с фирменной полосой */
+.wg--site .wg-slot.booked {
+  opacity: 1;
+  background: var(--mine);
+  border-left: 4px solid var(--green);
+}
+
+.wg--site .wg-slot.booked .wg-slot-name {
+  color: #fff;
+}
+
+.wg--site .wg-slot.booked .wg-slot-time,
+.wg--site .wg-slot.booked .wg-slot-meta {
+  color: rgba(255, 255, 255, .75);
+  font-weight: 400;
+}
+
+.wg--site .wg-slot.booked .wg-slot-book {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, .4);
+  color: #fff;
+  font-size: 11px;
+}
+
+/* Шапка дней и шкала времени на сайте — текст не мельче 11px (в расписании админки остаётся 10px) */
+.wg--site .wg-dow,
+.wg--site .wg-day-sub,
+.wg--site .wg-time-row {
+  font-size: 11px;
 }

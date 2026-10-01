@@ -133,7 +133,7 @@ function openStationModal(id, x, y) {
       ? '<div class="set-hint" style="margin-top:4px">Активных станков уже ' + activeOthers + ' — это вместимость филиала (' + cap + '). Станок можно добавить только выключенным (в запас); чтобы включить — выключите другой или увеличьте вместимость.</div>'
       : '') +
     '</div>';
-  const delBtn = s ? '<button class="btn-ghost" style="color:#dc2626;margin-right:auto" data-act="delete">Удалить</button>' : '';
+  const delBtn = s ? '<button class="btn-ghost btn-danger" style="margin-right:auto" data-act="delete">Удалить</button>' : '';
 
   const modal = openFormModal('station-modal', s ? 'Станок' : 'Новый станок', body, async function () {
     const label = document.getElementById('stm-label').value.trim();

@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261001-16">
-  <link rel="stylesheet" href="css/site.css?v=20261001-16">
-  <link rel="stylesheet" href="css/panels.css?v=20261001-16">
-  <link rel="stylesheet" href="css/library.css?v=20261001-16">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261001-16">
-  <link rel="stylesheet" href="css/admin.css?v=20261001-16">
+  <link rel="stylesheet" href="css/base.css?v=20261001-22">
+  <link rel="stylesheet" href="css/site.css?v=20261001-22">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-22">
+  <link rel="stylesheet" href="css/library.css?v=20261001-22">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-22">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-22">
 </head>
 
 <body>
@@ -303,7 +303,7 @@
               </div>
               <div class="form-field">
                 <label class="form-label">Телефон</label>
-                <input class="form-input" id="pf-phone" placeholder="+7 (___) ___-__-__">
+                <input class="form-input" id="pf-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
               </div>
             </div>
             <div class="form-field">
@@ -597,7 +597,8 @@
           </div>
           <div class="jr-legend">
             <span><i class="jr-dot jr-dot--group"></i>Групповая</span>
-            <span><i class="jr-dot jr-dot--ind"></i>Персональная и самостоятельная</span>
+            <span><i class="jr-dot jr-dot--ind kind-personal"></i>Персональная</span>
+            <span><i class="jr-dot jr-dot--ind kind-free"></i>Самостоятельная</span>
             <span><i class="jr-dot jr-dot--svc"></i>Услуга</span>
             <span><i class="jr-dot jr-dot--off"></i>Специалист не работает</span>
           </div>
@@ -1138,36 +1139,36 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261001-16"></script>
-  <script src="js/core.js?v=20261001-16"></script>
-  <script src="js/week-grid.js?v=20261001-16"></script>
-  <script src="js/auth.js?v=20261001-16"></script>
-  <script src="js/site/schedule.js?v=20261001-16"></script>
-  <script src="js/site/booking.js?v=20261001-16"></script>
-  <script src="js/site/individual.js?v=20261001-16"></script>
-  <script src="js/site/individual-page.js?v=20261001-16"></script>
-  <script src="js/site/services-bookings.js?v=20261001-16"></script>
-  <script src="js/admin/admin.js?v=20261001-16"></script>
-  <script src="js/admin/schedule.js?v=20261001-16"></script>
-  <script src="js/admin/journal.js?v=20261001-16"></script>
-  <script src="js/admin/journal-book.js?v=20261001-16"></script>
-  <script src="js/admin/chat.js?v=20261001-16"></script>
-  <script src="js/admin/notifications.js?v=20261001-16"></script>
-  <script src="js/client/panel.js?v=20261001-16"></script>
-  <script src="js/client/payment.js?v=20261001-16"></script>
-  <script src="js/client/chat-profile.js?v=20261001-16"></script>
-  <script src="js/site/detail-modals.js?v=20261001-16"></script>
-  <script src="js/admin/library.js?v=20261001-16"></script>
-  <script src="js/admin/data-nav.js?v=20261001-16"></script>
-  <script src="js/admin/dashboard.js?v=20261001-16"></script>
-  <script src="js/admin/specialists.js?v=20261001-16"></script>
-  <script src="js/admin/sales.js?v=20261001-16"></script>
-  <script src="js/admin/settings.js?v=20261001-16"></script>
-  <script src="js/admin/stations.js?v=20261001-16"></script>
-  <script src="js/admin/dictionaries.js?v=20261001-16"></script>
-  <script src="js/ui.js?v=20261001-16"></script>
-  <script src="js/loaders.js?v=20261001-16"></script>
-  <script src="js/init.js?v=20261001-16"></script>
+  <script src="js/api.js?v=20261001-22"></script>
+  <script src="js/core.js?v=20261001-22"></script>
+  <script src="js/week-grid.js?v=20261001-22"></script>
+  <script src="js/auth.js?v=20261001-22"></script>
+  <script src="js/site/schedule.js?v=20261001-22"></script>
+  <script src="js/site/booking.js?v=20261001-22"></script>
+  <script src="js/site/individual.js?v=20261001-22"></script>
+  <script src="js/site/individual-page.js?v=20261001-22"></script>
+  <script src="js/site/services-bookings.js?v=20261001-22"></script>
+  <script src="js/admin/admin.js?v=20261001-22"></script>
+  <script src="js/admin/schedule.js?v=20261001-22"></script>
+  <script src="js/admin/journal.js?v=20261001-22"></script>
+  <script src="js/admin/journal-book.js?v=20261001-22"></script>
+  <script src="js/admin/chat.js?v=20261001-22"></script>
+  <script src="js/admin/notifications.js?v=20261001-22"></script>
+  <script src="js/client/panel.js?v=20261001-22"></script>
+  <script src="js/client/payment.js?v=20261001-22"></script>
+  <script src="js/client/chat-profile.js?v=20261001-22"></script>
+  <script src="js/site/detail-modals.js?v=20261001-22"></script>
+  <script src="js/admin/library.js?v=20261001-22"></script>
+  <script src="js/admin/data-nav.js?v=20261001-22"></script>
+  <script src="js/admin/dashboard.js?v=20261001-22"></script>
+  <script src="js/admin/specialists.js?v=20261001-22"></script>
+  <script src="js/admin/sales.js?v=20261001-22"></script>
+  <script src="js/admin/settings.js?v=20261001-22"></script>
+  <script src="js/admin/stations.js?v=20261001-22"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-22"></script>
+  <script src="js/ui.js?v=20261001-22"></script>
+  <script src="js/loaders.js?v=20261001-22"></script>
+  <script src="js/init.js?v=20261001-22"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1596,7 +1597,7 @@
         </div>
         <div class="form-field">
           <label class="form-label">Телефон</label>
-          <input class="form-input" id="cm-phone" placeholder="+7 (___) ___-__-__">
+          <input class="form-input" id="cm-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
         </div>
       </div>
       <div class="form-row">

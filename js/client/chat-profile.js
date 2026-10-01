@@ -52,7 +52,7 @@ function renderProfileForm() {
   const spent = myB.reduce((s, b) => s + b.price, 0);
   document.getElementById('profile-stats-line').textContent = myB.length + ' записей · ' + spent.toLocaleString('ru') + ' ₽ потрачено';
   document.getElementById('pf-name').value = currentUser.name;
-  document.getElementById('pf-phone').value = currentUser.phone || cData.phone || '';
+  document.getElementById('pf-phone').value = maskPhone(currentUser.phone || cData.phone || '');   // единый вид +7 (XXX) XXX-XX-XX
   document.getElementById('pf-email').value = currentUser.email;
   document.getElementById('pf-birth').value = cData.birth || '';
   document.getElementById('pf-bike').value = cData.bike || '';

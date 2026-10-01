@@ -24,7 +24,7 @@ function switchAuthTab(mode) {
     f.innerHTML = `
   <div class="form-row">
     <div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="a-name" type="text" placeholder="Иван Петров"></div>
-    <div class="form-field"><label class="form-label">Телефон</label><input class="form-input" id="a-phone" type="tel" placeholder="+7 (___) ___-__-__"></div>
+    <div class="form-field"><label class="form-label">Телефон</label><input class="form-input" id="a-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__"></div>
   </div>
   <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" placeholder="ivan@mail.ru"></div>
   <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" placeholder="Минимум 6 символов"></div>`;

@@ -134,7 +134,7 @@ function openClientModal(emailOrNull) {
     document.getElementById('client-modal-title').textContent = 'Редактировать клиента';
     document.getElementById('cm-email-orig').value = c.email;
     document.getElementById('cm-name').value = c.name;
-    document.getElementById('cm-phone').value = c.phone || '';
+    document.getElementById('cm-phone').value = maskPhone(c.phone || '');   // единый вид +7 (XXX) XXX-XX-XX
     document.getElementById('cm-email').value = c.email;
     document.getElementById('cm-type').value = c.type;
     document.getElementById('cm-birth').value = c.birth || '';

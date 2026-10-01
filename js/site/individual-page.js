@@ -200,7 +200,9 @@ function indPgRenderGrid() {
           const from = Math.max(b.from, hrRange.start * 60), to = Math.min(b.to, hrRange.end * 60);
           if (Math.floor(from / 60) !== hr || to <= from) return;
           const height = px(to - from) - 2;
-          const label = b.reason === 'mine' && b.name && height >= 34 ? 'Вы записаны<br>' + escAttr(b.name) : IND_REASONS[b.reason] || '';
+          const label = b.reason === 'mine'
+            ? '<span>✓ Вы записаны' + (b.name && height >= 34 ? '<small>' + escAttr(b.name) + '</small>' : '') + '</span>'
+            : IND_REASONS[b.reason] || '';
           const click = b.reason === 'mine' && b.slot_id ? ' onclick="openSlotDetail(' + b.slot_id + ')"' : '';
           cell += '<div class="wg-blk wg-blk--' + b.reason + '" style="top:' + px(from - hr * 60) + 'px;height:' + height + 'px"'
             + click + ' title="' + minToTime(b.from) + '–' + minToTime(b.to) + ' · ' + (IND_REASONS[b.reason] || '') + '">'

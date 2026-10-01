@@ -19,6 +19,12 @@ function phoneDigits(string $phone): ?string {
     return strlen($d) >= 11 && strlen($d) <= 15 ? $d : null;
 }
 
+// Телефон в том же виде, что даёт маска ввода на сайте (maskPhone): +7 (XXX) XXX-XX-XX; не российский номер — +цифры
+function phoneView(string $digits): string {
+    if (strlen($digits) !== 11 || $digits[0] !== '7') return '+' . $digits;
+    return '+7 (' . substr($digits, 1, 3) . ') ' . substr($digits, 4, 3) . '-' . substr($digits, 7, 2) . '-' . substr($digits, 9, 2);
+}
+
 // Возвращает ['id', 'name', 'by_admin'] или завершает запрос ошибкой
 function bookingClient(PDO $db, array $actor, array $d): array {
     if (($actor['role'] ?? '') !== 'admin') {
@@ -48,6 +54,6 @@ function bookingClient(PDO $db, array $actor, array $d): array {
 
     $db->prepare("INSERT INTO users (email, password, name, phone, type, has_account, role_id)
                   VALUES (?, ?, ?, ?, 'new', 0, (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'client'))")
-       ->execute([$digits . '@' . PHONE_EMAIL_DOMAIN, password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT), $name, '+' . $digits]);
+       ->execute([$digits . '@' . PHONE_EMAIL_DOMAIN, password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT), $name, phoneView($digits)]);
     return ['id' => (int)$db->lastInsertId(), 'name' => $name, 'by_admin' => true, 'created' => true];
 }

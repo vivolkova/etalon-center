@@ -40,7 +40,7 @@
 
 .nav-link {
   padding: 6px 14px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 13px;
   font-weight: 500;
   color: var(--ink-60);
@@ -66,7 +66,7 @@
 
 .btn-ghost {
   padding: 7px 16px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
@@ -74,26 +74,47 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--ink);
-  transition: all .15s;
+  transition: background .15s, color .15s, border-color .15s;
 }
 
 .btn-ghost:hover {
-  background: var(--ink);
-  color: #fff;
-  border-color: var(--ink);
+  border-color: var(--green);
+  color: var(--green-dark);
 }
 
 .btn-primary {
   padding: 7px 16px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   background: var(--green);
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
   color: #fff;
-  transition: all .15s;
+  transition: background .15s, color .15s, border-color .15s;
+}
+
+/* Опасное действие (удалить, отменить): тот же контур, красный текст */
+.btn-danger,
+.btn-ghost.btn-danger {
+  padding: 7px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--danger);
+  transition: background .15s, border-color .15s;
+}
+
+.btn-danger:hover,
+.btn-ghost.btn-danger:hover {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .btn-primary:hover {
@@ -106,8 +127,8 @@
 
 .btn-primary:disabled,
 .btn-primary[disabled] {
-  background: #d1d5db;
-  color: #6b7280;
+  background: var(--muted-strong);
+  color: var(--ink-40);
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
@@ -115,12 +136,12 @@
 
 .btn-primary:disabled:hover,
 .btn-primary[disabled]:hover {
-  background: #d1d5db;
+  background: var(--muted-strong);
 }
 
 .btn-primary.is-booked-ok,
 .btn-primary.is-booked-ok:hover {
-  background: var(--green);
+  background: var(--mine);
   color: #fff;
   cursor: default;
   box-shadow: none;
@@ -144,7 +165,7 @@
   background: var(--green-light);
   color: var(--green-dark);
   padding: 5px 12px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: .4px;
@@ -189,8 +210,8 @@
 
 .btn-lg {
   padding: 13px 28px;
-  border-radius: 12px;
-  font-size: 15px;
+  border-radius: var(--r-md);
+  font-size: 16px;
   font-weight: 600;
   font-family: var(--font-body);
 }
@@ -254,12 +275,12 @@
 }
 
 .chip {
-  padding: 5px 12px;
-  border-radius: 10px;
+  padding: 6px 14px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: transparent;
   font-family: var(--font-body);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all .15s;
@@ -268,7 +289,7 @@
 
 .chip:hover {
   border-color: var(--green);
-  color: var(--green);
+  color: var(--green-dark);
 }
 
 .chip.active {
@@ -425,7 +446,7 @@
 
 .modal {
   background: var(--card);
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   padding: 2rem;
   width: 100%;
   max-width: 480px;
@@ -461,7 +482,7 @@
 .modal-close {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: transparent;
   cursor: pointer;
@@ -482,7 +503,7 @@
   gap: 1rem;
   flex-wrap: wrap;
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 12px 16px;
   margin-bottom: 1.5rem;
 }
@@ -499,7 +520,7 @@
   width: 36px;
   height: 36px;
   background: var(--surface);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   flex-shrink: 0;
 }
 
@@ -535,25 +556,26 @@
   width: 100%;
   padding: 10px 14px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--r-md);
   background: #fff;
   font-family: var(--font-body);
   font-size: 14px;
   color: var(--ink);
   outline: none;
-  transition: border-color .15s;
+  transition: border-color .15s, box-shadow .15s;
 }
 
 .form-input:focus {
   border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-light);
 }
 
 .form-input:disabled,
 .form-input[readonly],
 .form-input.is-locked,
 .form-input.form-view {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--muted-bg);
+  color: var(--ink-60);
   border-color: var(--border);
   cursor: not-allowed;
 }
@@ -586,7 +608,7 @@
   flex: 2;
   padding: 12px;
   font-size: 15px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 
 /* Всплывающее описание тренировки при наведении на слот расписания */
@@ -594,10 +616,10 @@
   position: fixed;
   z-index: 2000;
   max-width: 280px;
-  background: #111;
+  background: var(--mine);
   color: #fff;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   font-size: 12px;
   line-height: 1.45;
   text-align: left;
@@ -634,7 +656,7 @@
 .auth-tabs {
   display: flex;
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 4px;
   margin-bottom: 1.5rem;
 }
@@ -642,7 +664,7 @@
 .auth-tab {
   flex: 1;
   padding: 8px;
-  border-radius: 7px;
+  border-radius: var(--r-sm);
   border: none;
   background: transparent;
   cursor: pointer;
@@ -675,7 +697,7 @@
   background: var(--ink);
   color: #fff;
   padding: 12px 18px;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   font-size: 13px;
   font-weight: 500;
   display: flex;
@@ -691,7 +713,7 @@
 }
 
 .toast.error {
-  background: #c0392b;
+  background: var(--danger);
 }
 
 .toast-icon {
@@ -738,7 +760,7 @@
 
 .booking-date-block {
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 8px 12px;
   text-align: center;
   min-width: 52px;
@@ -777,7 +799,7 @@
   font-size: 11px;
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
 }
 
 .status-confirmed {
@@ -786,26 +808,26 @@
 }
 
 .status-cancelled {
-  background: #fde8e8;
-  color: #c0392b;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
 .btn-cancel {
-  padding: 7px 14px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: transparent;
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 500;
-  color: var(--ink-60);
+  color: var(--danger);
   cursor: pointer;
-  transition: all .15s;
+  transition: background .15s, border-color .15s;
 }
 
 .btn-cancel:hover {
-  border-color: #c0392b;
-  color: #c0392b;
+  border-color: var(--danger);
+  background: var(--danger-bg);
 }
 
 /* ─── ADMIN ─── */
@@ -850,19 +872,21 @@
 }
 
 .action-btn {
-  padding: 5px 12px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: transparent;
   font-family: var(--font-body);
   font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
   cursor: pointer;
   transition: all .15s;
   margin-right: 4px;
 }
 
 .action-btn.confirm {
-  color: var(--green);
+  color: var(--green-dark);
   border-color: var(--green);
 }
 
@@ -872,13 +896,13 @@
 }
 
 .action-btn.cancel {
-  color: #c0392b;
-  border-color: #e8b0b0;
+  color: var(--danger);
+  border-color: var(--border);
 }
 
 .action-btn.cancel:hover {
-  background: #c0392b;
-  color: #fff;
+  border-color: var(--danger);
+  background: var(--danger-bg);
 }
 
 /* ─── PAGES ─── */

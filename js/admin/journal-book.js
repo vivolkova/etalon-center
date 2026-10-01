@@ -69,7 +69,7 @@ function jbRenderClient() {
       + '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button></div>';
   } else if (jb.isNew) {
     box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name"></div>'
-      + '<div><label class="form-label">Телефон</label><input class="form-input" id="jb-new-phone" inputmode="tel"></div></div>'
+      + '<div><label class="form-label">Телефон</label><input class="form-input" id="jb-new-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)"></div></div>'
       + '<button class="btn-ghost jb-link" onclick="jbSetNew(false)">Найти по телефону</button>';
   } else {
     box.innerHTML = '<input class="form-input" id="jb-search" inputmode="tel" oninput="jbSearch(this.value)" autocomplete="off">'
@@ -112,7 +112,7 @@ function jbSetNew(on) {
   const q = s ? s.value.trim() : '';
   jb.isNew = on; jb.client = null;
   jbRenderClient();
-  if (on && q) document.getElementById('jb-new-phone').value = q;
+  if (on && q) document.getElementById('jb-new-phone').value = maskPhone(q);   // маска +7 (XXX) XXX-XX-XX — как у телефона филиала
   jbLoadTimes();
 }
 

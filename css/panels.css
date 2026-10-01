@@ -4,7 +4,7 @@
 
 .atab {
   padding: 9px 16px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 13px;
   font-weight: 600;
   border: 1.5px solid var(--border);
@@ -40,7 +40,7 @@
   grid-template-columns: 250px 1fr;
   gap: 0;
   border: 1.5px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   min-height: 480px;
 }
@@ -74,7 +74,7 @@
 
 .chat-item:hover,
 .chat-item.active {
-  background: #e8f9f8;
+  background: var(--green-light);
 }
 
 .chat-item-name {
@@ -94,8 +94,8 @@
 .chat-item-badge {
   background: var(--green);
   color: #fff;
-  font-size: 10px;
-  border-radius: 10px;
+  font-size: 11px;
+  border-radius: var(--r-md);
   padding: 1px 6px;
   float: right;
   margin-top: 2px;
@@ -121,14 +121,14 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: #fafafa;
+  background: var(--surface);
   min-height: 320px;
 }
 
 .chat-msg {
   max-width: 75%;
   padding: 10px 14px;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -148,7 +148,7 @@
 }
 
 .chat-msg-meta {
-  font-size: 10px;
+  font-size: 11px;
   opacity: .65;
   margin-top: 4px;
 }
@@ -171,7 +171,7 @@
 .notif-card {
   background: #fff;
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 16px;
   display: flex;
   gap: 14px;
@@ -240,7 +240,7 @@
 
 .admin-modal {
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   padding: 28px;
   width: 100%;
   max-width: 480px;
@@ -288,7 +288,7 @@
 .cs-card {
   background: #fff;
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 14px 16px;
 }
 
@@ -325,36 +325,36 @@
 .c-badge {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 10px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .4px;
 }
 
 .c-badge.active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .c-badge.vip {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--warning-bg);
+  color: var(--warning-ink);
 }
 
 .c-badge.new {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--green-light);
+  color: var(--green-dark);
 }
 
 .c-badge.inactive {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--muted-bg);
+  color: var(--ink-60);
 }
 
 .cp-stat-card {
   background: var(--surface);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 14px;
   text-align: center;
 }
@@ -430,8 +430,8 @@
   display: inline-block;
   margin-top: 6px;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 10px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
   font-weight: 700;
 }
 
@@ -474,11 +474,11 @@
 }
 
 .cp-nav-badge {
-  background: #ef4444;
+  background: var(--danger);
   color: #fff;
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 1px 5px;
   margin-left: auto;
 }
@@ -516,22 +516,22 @@
 
 .ann-card {
   background: #fff;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   padding: 20px;
   border-left: 4px solid var(--green);
   box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
 }
 
 .ann-card.promo {
-  border-left-color: #c07a10;
+  border-left-color: var(--warning);
 }
 
 .ann-card.info {
-  border-left-color: #0284c7;
+  border-left-color: var(--kind-personal);
 }
 
 .ann-card-tag {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .5px;
@@ -566,7 +566,7 @@
 
 .cp-slot-row {
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 14px 18px;
   display: flex;
   align-items: center;
@@ -609,7 +609,7 @@
   display: flex;
   flex-direction: column;
   background: #fff;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   overflow: hidden;
   border: 1.5px solid var(--border);
 }
@@ -634,7 +634,7 @@
   min-height: 320px;
   max-height: 420px;
   overflow-y: auto;
-  background: #fafafa;
+  background: var(--surface);
 }
 
 .client-chat-inp {
@@ -648,7 +648,7 @@
 /* profile form */
 .profile-card {
   background: #fff;
-  border-radius: 14px;
+  border-radius: var(--r-lg);
   padding: 24px;
   max-width: 560px;
 }
@@ -712,7 +712,7 @@
 
 .detail-modal {
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--r-lg);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
@@ -740,7 +740,7 @@
 .dm-tag {
   display: inline-block;
   padding: 3px 10px;
-  border-radius: 10px;
+  border-radius: var(--r-md);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -774,7 +774,7 @@
 
 .dm-stat {
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   padding: 14px;
   text-align: center;
 }
@@ -786,7 +786,7 @@
 }
 
 .dm-stat-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--ink-60);
   margin-top: 3px;
   text-transform: uppercase;
@@ -876,28 +876,27 @@
 }
 
 .btn-pay {
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1.5px solid var(--green);
-  background: var(--green-light);
+  padding: 5px 10px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: var(--green);
   font-family: var(--font-body);
   font-size: 12px;
   font-weight: 600;
-  color: var(--green-dark);
+  color: #fff;
   cursor: pointer;
   transition: all .15s;
   white-space: nowrap;
 }
 
 .btn-pay:hover {
-  background: var(--green);
-  color: #fff;
+  background: var(--green-dark);
 }
 
 .btn-pay.paid {
-  background: #f0fdf4;
-  border-color: #86efac;
-  color: #166534;
+  background: var(--success-bg);
+  border-color: transparent;
+  color: var(--success);
   cursor: default;
 }
 
@@ -905,20 +904,20 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 9px;
-  border-radius: 10px;
-  font-size: 10px;
+  padding: 4px 10px;
+  border-radius: var(--r-md);
+  font-size: 11px;
   font-weight: 700;
 }
 
 .pay-badge.unpaid {
-  background: #fef9c3;
-  color: #854d0e;
+  background: var(--warning-bg);
+  color: var(--warning-ink);
 }
 
 .pay-badge.paid {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 /* ── PAYMENT MODAL ── */
@@ -953,7 +952,7 @@
   gap: 12px;
   padding: 14px 16px;
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   cursor: pointer;
   transition: border-color .15s, background .15s;
 }
@@ -967,7 +966,7 @@
 .pay-method-icon {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: var(--surface);
   display: flex;
   align-items: center;
@@ -1034,7 +1033,7 @@
   display: inline-block;
   padding: 4px 0;
   font-size: 12px;
-  color: #9ca3af;
+  color: var(--ink-40);
 }
 
 /* Выпадающий список с выбором нескольких значений (msHtml в js/ui.js) */
@@ -1048,7 +1047,7 @@
   padding-right: 32px;
   background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23888' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 12px center;
 }
-.ms-ph { color: #9ca3af; }
+.ms-ph { color: var(--ink-40); }
 .ms-panel {
   display: none;
   position: absolute;
@@ -1071,7 +1070,7 @@
   gap: 8px;
   padding: 7px 10px;
   font-size: 13px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 .ms-opt:hover { background: var(--green-light); }

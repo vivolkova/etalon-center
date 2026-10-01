@@ -28,21 +28,58 @@
   --cat-training: #00BAB3;
   --cat-training-bg: #e0f7f6;
   --cat-training-ink: #006E6A;
-  --cat-bikefit: #c07a10;
-  --cat-bikefit-bg: #fef3c7;
-  --cat-bikefit-ink: #92400e;
+  --cat-bikefit: #E8730C;
+  --cat-bikefit-bg: #FFEAD5;
+  --cat-bikefit-ink: #B84E00;
   --cat-workshop: #4e42b5;
   --cat-workshop-bg: #ede9fe;
   --cat-workshop-ink: #4c1d95;
+  /* Новая услуга, которой свой цвет ещё не назначен, — общий оливковый */
+  --cat-other: #7A8B2E;
+  --cat-other-bg: #F0F4DA;
+  --cat-other-ink: #4F5B14;
+  --cat: var(--cat-other);
+  --cat-bg: var(--cat-other-bg);
+  --cat-ink: var(--cat-other-ink);
+
+  /* Виды индивидуальных тренировок (групповая — цвет категории training, фирменный) */
+  --kind-personal: #3D7DCA;
+  --kind-personal-bg: #E6F0FB;
+  --kind-personal-ink: #1F4F96;
+  --kind-free: #B5479B;
+  --kind-free-bg: #F9E8F5;
+  --kind-free-ink: #7A2A67;
+
+  /* ── Единая палитра (утверждённый образец — styleguide.html). Новые стили берут цвета и скругления отсюда ── */
+  /* Серые */
+  --ink-40: rgba(13, 17, 23, .4);     /* отключённое */
+  --muted-bg: #EEF1F2;                /* «недоступно», пустые места */
+  --muted-strong: #D5DADD;            /* неактивная кнопка, рамка серого */
+  /* Смысловые: цвет и светлый фон */
+  --danger: #C0392B;
+  --danger-bg: #FDECEC;
+  --success: #1B8A5A;
+  --success-bg: #E2F5EC;
+  --warning: #C07A10;
+  --warning-bg: #FDF0D8;
+  --warning-ink: #92400E;
+  --mine: #0d1117;                    /* своя запись клиента — тёмная, чтобы не сливалась с расписанием */
+  /* Скругления: 6 — слоты и блоки в сетке, 10 — кнопки, поля, чипы, 14 — карточки, окна, сетки */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
 }
 
 /* Класс категории .cat-<код> задаёт элементу цвета --cat / --cat-bg / --cat-ink,
-   их используют слоты, плашки, теги, точки. Неизвестная категория — нейтральный серый
-   (значения по умолчанию в компонентах). Новая категория (например, massage) —
+   их используют слоты, плашки, теги, точки. Категория без своего цвета (новая услуга) — общий
+   оливковый (--cat-other, значение --cat по умолчанию). Свой цвет новой категории (например, massage) —
    три переменные выше + одна строка здесь. */
 .cat-training { --cat: var(--cat-training); --cat-bg: var(--cat-training-bg); --cat-ink: var(--cat-training-ink); }
 .cat-bikefit  { --cat: var(--cat-bikefit);  --cat-bg: var(--cat-bikefit-bg);  --cat-ink: var(--cat-bikefit-ink); }
 .cat-workshop { --cat: var(--cat-workshop); --cat-bg: var(--cat-workshop-bg); --cat-ink: var(--cat-workshop-ink); }
+/* Вид тренировки .kind-<вид> — те же три переменные: персональная — синяя, самостоятельная — малиновая */
+.kind-personal { --cat: var(--kind-personal); --cat-bg: var(--kind-personal-bg); --cat-ink: var(--kind-personal-ink); }
+.kind-free { --cat: var(--kind-free); --cat-bg: var(--kind-free-bg); --cat-ink: var(--kind-free-ink); }
 
 *,
 *::before,

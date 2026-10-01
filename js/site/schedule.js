@@ -171,7 +171,7 @@ function renderWeekCal() {
         const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
         const full = slotFree(s) <= 0;
         const booked = alreadyBooked.has(s.id);
-        const spotsText = booked ? '✓ Записан' : full ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
+        const spotsText = full && !booked ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
@@ -179,7 +179,7 @@ function renderWeekCal() {
         if (booked) cls += ' booked';
         else if (full) cls += ' full';
 
-        var bookLabel = booked ? '✓ Записан' : full ? 'Мест нет' : 'Записаться';
+        var bookLabel = booked ? '✓ Вы записаны' : full ? 'Мест нет' : 'Записаться';
         var bookOnclick = (!full && !booked)
           ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
           : 'event.stopPropagation()';
@@ -198,11 +198,11 @@ function renderWeekCal() {
         if (heightPx >= 20) {
           cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
         }
-        // Тренер — когда хватает высоты (занятие от 45 минут)
-        if (heightPx >= 70 && s.specialist) {
+        // Тренер — когда хватает высоты (занятие от часа); места — от 45 минут
+        if (heightPx >= 88 && s.specialist) {
           cellHtml += '<div class="wg-slot-meta wg-slot-spec">' + escAttr(s.specialist) + '</div>';
         }
-        if (heightPx >= 44) {
+        if (heightPx >= 60) {
           cellHtml += '<div class="wg-slot-meta">' + spotsText + '</div>';
         }
         // Кнопка всегда — адаптируется по размеру через CSS
@@ -239,7 +239,7 @@ function schListRowHtml(s, booked) {
   const full = slotFree(s) <= 0;
   const meta = [s.specialist, full ? 'мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест', s.price.toLocaleString('ru') + ' ₽']
     .filter(Boolean).map(escAttr).join(' · ');
-  const action = booked ? '<span class="sch-row-state booked">✓ Записан</span>'
+  const action = booked ? '<span class="sch-row-state booked">✓ Вы записаны</span>'
     : full ? '<span class="sch-row-state">Мест нет</span>'
       : '<button class="btn-primary sch-row-btn" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>';
   return '<div class="sch-row cat-' + s.cat + (booked ? ' booked' : full ? ' full' : '') + '" onclick="openSlotDetail(' + s.id + ')">'

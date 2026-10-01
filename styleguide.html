@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Эталон — образец стилей</title>
+  <!-- Страница-образец для обсуждения единых стилей. На сайт не влияет: свои стили, ничего из css/ не подключает.
+       Слева в каждом разделе — что есть сейчас (значения собраны из css/ и js/), справа — предложение. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;600;700&family=Golos+Text:wght@400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ══ ПРЕДЛАГАЕМЫЕ ПЕРЕМЕННЫЕ ══ */
+    :root {
+      /* Фирменный зелёный (цвет логотипа) и его оттенки — без изменений */
+      --brand: #00BAB3;
+      --brand-dark: #008F89;
+      --brand-ink: #006E6A;
+      --brand-bg: #E0F7F6;
+
+      /* Текст и поверхности */
+      --ink: #0d1117;
+      --ink-60: rgba(13, 17, 23, .6);
+      --ink-40: rgba(13, 17, 23, .4);
+      --page: #F4FAFA;
+      --card: #ffffff;
+      --line: rgba(13, 17, 23, .1);
+      --muted-bg: #EEF1F2;
+      --muted-strong: #D5DADD;
+
+      /* Смысловые цвета: основной / фон / текст на фоне */
+      --danger: #C0392B;
+      --danger-bg: #FDECEC;
+      --success: #1B8A5A;
+      --success-bg: #E2F5EC;
+      --warning: #C07A10;
+      --warning-bg: #FDF0D8;
+      --warning-ink: #92400E;
+
+      /* Виды занятий */
+      --kind-group: #00BAB3;
+      --kind-group-bg: #E0F7F6;
+      --kind-group-ink: #006E6A;
+      --kind-personal: #3D7DCA;
+      --kind-personal-bg: #E6F0FB;
+      --kind-personal-ink: #1F4F96;
+      --kind-free: #B5479B;
+      --kind-free-bg: #F9E8F5;
+      --kind-free-ink: #7A2A67;
+      --kind-bikefit: #E8730C;
+      --kind-bikefit-bg: #FFEAD5;
+      --kind-bikefit-ink: #B84E00;
+      --kind-workshop: #4E42B5;
+      --kind-workshop-bg: #EDE9FE;
+      --kind-workshop-ink: #4C1D95;
+      --kind-other: #7A8B2E;
+      --kind-other-bg: #F0F4DA;
+      --kind-other-ink: #4F5B14;
+
+      /* Своя запись клиента — тёмная, чтобы не сливалась с расписанием */
+      --mine: #0d1117;
+
+      /* Графика */
+      --r-sm: 6px;
+      --r-md: 10px;
+      --r-lg: 14px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 4px 16px rgba(0, 0, 0, .06);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, .12);
+      --font-display: 'Unbounded', sans-serif;
+      --font-body: 'Golos Text', sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-body); font-size: 14px; line-height: 1.5; color: var(--ink); background: var(--page); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 16px 80px; }
+    h1 { font-family: var(--font-display); font-size: 28px; font-weight: 700; letter-spacing: -.5px; }
+    .lead { margin: 8px 0 28px; color: var(--ink-60); max-width: 760px; }
+    section { margin-top: 36px; }
+    h2 { font-family: var(--font-display); font-size: 20px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 4px; }
+    .note { color: var(--ink-60); font-size: 13px; margin-bottom: 14px; max-width: 760px; }
+    .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .box { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-lg); padding: 18px; box-shadow: var(--shadow); }
+    .tag { display: inline-block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-60); margin-bottom: 12px; }
+    .tag.new { color: var(--brand-dark); }
+    .sw { display: flex; flex-wrap: wrap; gap: 10px; }
+    .sw div { width: 104px; font-size: 11px; color: var(--ink-60); }
+    .sw i { display: block; height: 44px; border-radius: var(--r-md); border: 1px solid var(--line); margin-bottom: 4px; }
+    .sw b { display: block; font-size: 12px; font-weight: 600; color: var(--ink); }
+    .sw.sm div { width: 62px; }
+    .sw.sm i { height: 30px; }
+    .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+    .cap { font-size: 12px; color: var(--ink-60); margin: 14px 0 8px; }
+    .cap:first-of-type { margin-top: 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    td, th { text-align: left; padding: 7px 8px; border-top: 1px solid var(--line); vertical-align: middle; }
+    th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-60); border-top: none; }
+
+    /* ══ ОБРАЗЦЫ КОМПОНЕНТОВ (в предлагаемых стилях) ══ */
+    .btn { font-family: var(--font-body); font-size: 13px; font-weight: 600; padding: 8px 16px; border-radius: var(--r-md); border: 1px solid transparent; cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-secondary { background: transparent; border-color: var(--line); color: var(--ink); font-weight: 500; }
+    .btn-secondary:hover { border-color: var(--brand); color: var(--brand-dark); }
+    .btn-danger { background: transparent; border-color: var(--line); color: var(--danger); font-weight: 500; }
+    .btn-danger:hover { border-color: var(--danger); background: var(--danger-bg); }
+    .btn:disabled { background: var(--muted-strong); color: var(--ink-40); border-color: transparent; cursor: not-allowed; }
+    .btn-sm { font-size: 12px; padding: 5px 10px; }
+    .btn-round { width: 34px; height: 34px; padding: 0; border-radius: 50%; background: #fff; border-color: var(--line); color: var(--ink-60); }
+    .btn-round:hover { border-color: var(--brand); color: var(--brand); }
+
+    .chip { font-family: var(--font-body); font-size: 13px; font-weight: 500; padding: 6px 14px; border-radius: var(--r-md); border: 1px solid var(--line); background: transparent; color: var(--ink-60); cursor: pointer; }
+    .chip:hover { border-color: var(--brand); color: var(--brand-dark); }
+    .chip.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+    .input { font-family: var(--font-body); font-size: 14px; padding: 9px 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: #fff; color: var(--ink); width: 220px; }
+    .input:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-bg); }
+    .label { display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--ink-60); margin-bottom: 4px; }
+
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-md); }
+    .badge-ok { background: var(--brand-bg); color: var(--brand-dark); }
+    .badge-danger { background: var(--danger-bg); color: var(--danger); }
+    .badge-success { background: var(--success-bg); color: var(--success); }
+    .badge-warning { background: var(--warning-bg); color: var(--warning-ink); }
+    .badge-muted { background: var(--muted-bg); color: var(--ink-60); }
+
+    /* Вид занятия: один класс задаёт три цвета */
+    .k-group { --k: var(--kind-group); --k-bg: var(--kind-group-bg); --k-ink: var(--kind-group-ink); }
+    .k-personal { --k: var(--kind-personal); --k-bg: var(--kind-personal-bg); --k-ink: var(--kind-personal-ink); }
+    .k-free { --k: var(--kind-free); --k-bg: var(--kind-free-bg); --k-ink: var(--kind-free-ink); }
+    .k-bikefit { --k: var(--kind-bikefit); --k-bg: var(--kind-bikefit-bg); --k-ink: var(--kind-bikefit-ink); }
+    .k-workshop { --k: var(--kind-workshop); --k-bg: var(--kind-workshop-bg); --k-ink: var(--kind-workshop-ink); }
+    .k-other { --k: var(--kind-other); --k-bg: var(--kind-other-bg); --k-ink: var(--kind-other-ink); }
+    .slot { width: 150px; padding: 6px 8px; border-radius: var(--r-sm); border-left: 3px solid var(--k); background: var(--k-bg); color: var(--k-ink); font-size: 11px; line-height: 1.3; }
+    .slot b { display: block; font-size: 12px; color: var(--ink); }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--k); margin-right: 6px; }
+
+    /* Время в сетке */
+    .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: #fff; }
+    .grid > div { height: 64px; border-right: 1px solid var(--line); padding: 3px; display: flex; align-items: stretch; }
+    .grid > div:last-child { border-right: none; }
+    .t { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; border-radius: var(--r-sm); font-size: 11px; line-height: 1.25; }
+    .t-free { background: var(--brand-bg); border: 1px solid var(--brand); color: var(--brand-dark); font-weight: 700; font-size: 12px; }
+    .t-sel { background: var(--brand); color: #fff; font-weight: 700; font-size: 12px; }
+    .t-off { background: var(--muted-bg); color: var(--ink-60); }
+    .t-mine { background: var(--mine); border-left: 4px solid var(--brand); color: #fff; font-weight: 700; font-size: 12px; }
+    .t-mine small { display: block; font-size: 11px; font-weight: 400; opacity: .75; }
+    .t-group { background: var(--kind-group-bg); border-left: 3px solid var(--kind-group); color: var(--kind-group-ink); }
+    .badge-mine { background: var(--mine); color: #fff; }
+    .t-plus { background: var(--brand-bg); color: var(--brand); font-size: 16px; font-weight: 700; }
+
+    .listrow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--k); border-radius: var(--r-lg); max-width: 420px; }
+    .listrow .time { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
+    .listrow .time span { display: block; font-family: var(--font-body); font-size: 11px; font-weight: 400; color: var(--ink-60); }
+    .listrow .info { flex: 1; }
+    .listrow .info b { display: block; font-size: 14px; }
+    .listrow .info span { font-size: 12px; color: var(--ink-60); }
+
+    .rad { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+    .rad div { text-align: center; font-size: 11px; color: var(--ink-60); }
+    .rad i { display: block; width: 72px; height: 48px; background: var(--brand-bg); border: 1px solid var(--brand); margin-bottom: 4px; }
+    .type p { margin-bottom: 6px; }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>Эталон — образец стилей</h1>
+    <p class="lead">Черновик для обсуждения. В каждом разделе слева — что есть на сайте сейчас, справа — что
+      предлагаю оставить как единый набор. Сайт эта страница не меняет. Основа — фирменный зелёный логотипа.</p>
+
+    <section>
+      <h2>1. Фирменный цвет</h2>
+      <p class="note">Набор уже единый — оставляем без изменений, только закрепляем, для чего какой оттенок.</p>
+      <div class="box">
+        <span class="tag new">Оставляем</span>
+        <div class="sw">
+          <div><i style="background:#00BAB3"></i><b>Фирменный</b>#00BAB3 · логотип, основные кнопки, выбранное</div>
+          <div><i style="background:#008F89"></i><b>Тёмный</b>#008F89 · наведение, текст на светлом фоне</div>
+          <div><i style="background:#006E6A"></i><b>Глубокий</b>#006E6A · текст в цветных плашках</div>
+          <div><i style="background:#E0F7F6"></i><b>Светлый</b>#E0F7F6 · фон «свободно», «выбрано»</div>
+          <div><i style="background:#F4FAFA"></i><b>Фон страницы</b>#F4FAFA</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>2. Серые: текст, линии, «недоступно»</h2>
+      <p class="note">Сейчас 18 разных серых. Предлагаю пять значений с понятным назначением.</p>
+      <div class="cols">
+        <div class="box">
+          <span class="tag">Сейчас — 18 оттенков</span>
+          <div class="sw sm">
+            <div><i style="background:#111"></i>#111</div>
+            <div><i style="background:#374151"></i>#374151</div>
+            <div><i style="background:#666"></i>#666</div>
+            <div><i style="background:#6b7280"></i>#6b7280</div>
+            <div><i style="background:#888"></i>#888</div>
+            <div><i style="background:#999"></i>#999</div>
+            <div><i style="background:#9ca3af"></i>#9ca3af</div>
+            <div><i style="background:#d1d5db"></i>#d1d5db</div>
+            <div><i style="background:#d9dde1"></i>#d9dde1</div>
+            <div><i style="background:#dcdcd7"></i>#dcdcd7</div>
+            <div><i style="background:#ddd"></i>#ddd</div>
+            <div><i style="background:#e3e6ea"></i>#e3e6ea</div>
+            <div><i style="background:#e5e7eb"></i>#e5e7eb</div>
+            <div><i style="background:#eee"></i>#eee</div>
+            <div><i style="background:#eef0f2"></i>#eef0f2</div>
+            <div><i style="background:#f3f4f6"></i>#f3f4f6</div>
+            <div><i style="background:#f6f6f4"></i>#f6f6f4</div>
+            <div><i style="background:#fafafa"></i>#fafafa</div>
+          </div>
+        </div>
+        <div class="box">
+          <span class="tag new">Предлагаю — 5</span>
+          <div class="sw">
+            <div><i style="background:#0d1117"></i><b>Текст</b>основной</div>
+            <div><i style="background:rgba(13,17,23,.6)"></i><b>Текст 60%</b>подписи, второстепенное</div>
+            <div><i style="background:rgba(13,17,23,.4)"></i><b>Текст 40%</b>отключённое</div>
+            <div><i style="background:#EEF1F2"></i><b>Серый фон</b>«недоступно», пустые места</div>
+            <div><i style="background:#D5DADD"></i><b>Серый плотный</b>неактивная кнопка</div>
+          </div>
+          <p class="cap">Линии и рамки — текст с прозрачностью 10%, как сейчас.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Смысловые цвета</h2>
+      <p class="note">Один цвет на один смысл: отмена и ошибка, успех и оплата, предупреждение. Каждый — парой «цвет и
+        светлый фон».</p>
+      <div class="cols">
+        <div class="box">
+          <span class="tag">Сейчас</span>
+          <p class="cap">Отмена, ошибка — 3 красных и 6 фонов</p>
+          <div class="sw sm">
+            <div><i style="background:#c0392b"></i>#c0392b</div>
+            <div><i style="background:#ef4444"></i>#ef4444</div>
+            <div><i style="background:#dc2626"></i>#dc2626</div>
+            <div><i style="background:#fde8e8"></i>#fde8e8</div>
+            <div><i style="background:#fdecec"></i>#fdecec</div>
+            <div><i style="background:#fef2f2"></i>#fef2f2</div>
+            <div><i style="background:#fecaca"></i>#fecaca</div>
+            <div><i style="background:#f3c2c2"></i>#f3c2c2</div>
+            <div><i style="background:#e8b0b0"></i>#e8b0b0</div>
+          </div>
+          <p class="cap">Успех, оплачено — 4 зелёных и 2 фона</p>
+          <div class="sw sm">
+            <div><i style="background:#166534"></i>#166534</div>
+            <div><i style="background:#059669"></i>#059669</div>
+            <div><i style="background:#22c55e"></i>#22c55e</div>
+            <div><i style="background:#86efac"></i>#86efac</div>
+            <div><i style="background:#dcfce7"></i>#dcfce7</div>
+            <div><i style="background:#f0fdf4"></i>#f0fdf4</div>
+          </div>
+          <p class="cap">Предупреждение, не оплачено — 5 жёлто-коричневых и 3 фона</p>
+          <div class="sw sm">
+            <div><i style="background:#c07a10"></i>#c07a10</div>
+            <div><i style="background:#d97706"></i>#d97706</div>
+            <div><i style="background:#f59e0b"></i>#f59e0b</div>
+            <div><i style="background:#854d0e"></i>#854d0e</div>
+            <div><i style="background:#92400e"></i>#92400e</div>
+            <div><i style="background:#fef9c3"></i>#fef9c3</div>
+            <div><i style="background:#fef3c7"></i>#fef3c7</div>
+            <div><i style="background:#fdf0d8"></i>#fdf0d8</div>
+          </div>
+        </div>
+        <div class="box">
+          <span class="tag new">Предлагаю</span>
+          <table>
+            <tr><th>Смысл</th><th>Цвет</th><th>Как выглядит</th></tr>
+            <tr><td>Отмена, ошибка</td><td>#C0392B / #FDECEC</td><td><span class="badge badge-danger">Отменена</span>
+                <button class="btn btn-danger btn-sm">Отменить</button></td></tr>
+            <tr><td>Успех, оплачено</td><td>#1B8A5A / #E2F5EC</td><td><span class="badge badge-success">Оплачено</span></td></tr>
+            <tr><td>Предупреждение, не оплачено</td><td>#C07A10 / #FDF0D8</td><td><span class="badge badge-warning">Не оплачено</span></td></tr>
+            <tr><td>Действует, активна</td><td>фирменный</td><td><span class="badge badge-ok">Активна</span></td></tr>
+            <tr><td>Нейтральное</td><td>серый фон</td><td><span class="badge badge-muted">Черновик</span></td></tr>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>4. Виды занятий</h2>
+      <p class="note">Цвет показывает, что это за занятие, одинаково на сайте, в журнале, в расписании и в списках.
+        Групповая — фирменный зелёный, персональная — синий, самостоятельная — малиновый, байкфит — оранжевый
+        (надпись и фон из одной оранжевой серии).</p>
+      <div class="cols">
+        <div class="box">
+          <span class="tag">Сейчас</span>
+          <p class="cap">Категории из справочника — три набора (основной, фон, текст), они уже едины</p>
+          <div class="row">
+            <div class="slot k-group"><b>Тренировка</b>#00BAB3</div>
+            <div class="slot" style="--k:#C07A10;--k-bg:#FEF3C7;--k-ink:#92400E"><b>Байкфит</b>#C07A10</div>
+            <div class="slot k-workshop"><b>Мастерская</b>#4E42B5</div>
+          </div>
+          <p class="cap">Индивидуальная тренировка в журнале — отдельные значения в коде, плюс ещё 2 синих в других
+            местах</p>
+          <div class="sw sm">
+            <div><i style="background:#5b8fd9"></i>#5b8fd9</div>
+            <div><i style="background:#e8f1fd"></i>#e8f1fd</div>
+            <div><i style="background:#1f4f96"></i>#1f4f96</div>
+            <div><i style="background:#1d4ed8"></i>#1d4ed8</div>
+            <div><i style="background:#0284c7"></i>#0284c7</div>
+            <div><i style="background:#dbeafe"></i>#dbeafe</div>
+          </div>
+        </div>
+        <div class="box">
+          <span class="tag new">Предлагаю — 6 цветов</span>
+          <p class="cap">Тренировки</p>
+          <div class="row">
+            <div class="slot k-group"><b>Групповая</b>Анна К. · 3 из 7</div>
+            <div class="slot k-personal"><b>Персональная</b>с тренером</div>
+            <div class="slot k-free"><b>Самостоятельная</b>без тренера</div>
+          </div>
+          <p class="cap">Услуги</p>
+          <div class="row">
+            <div class="slot k-bikefit"><b>Байкфит</b>Игорь Б.</div>
+            <div class="slot k-workshop"><b>Мастерская</b>услуга</div>
+            <div class="slot k-other"><b>Новая услуга</b>массаж и другие</div>
+          </div>
+          <p class="cap">Оливковый — общий цвет для всех новых услуг, пока услуге не назначен свой. Так новая услуга
+            сразу выглядит цветной, а не серой, как сейчас.</p>
+          <p class="cap">Точки в легендах и списках</p>
+          <div class="row" style="font-size:13px">
+            <span class="k-group"><i class="dot"></i>Групповая</span>
+            <span class="k-personal"><i class="dot"></i>Персональная</span>
+            <span class="k-free"><i class="dot"></i>Самостоятельная</span>
+            <span class="k-bikefit"><i class="dot"></i>Байкфит</span>
+            <span class="k-workshop"><i class="dot"></i>Мастерская</span>
+            <span class="k-other"><i class="dot"></i>Новая услуга</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>5. Время в сетке</h2>
+      <p class="note">Одинаковые состояния на экране индивидуальных тренировок, в журнале и в расписании.
+        Своя запись — тёмная с фирменной полосой: единственный тёмный блок в сетке, поэтому сразу бросается в глаза.</p>
+      <div class="box">
+        <span class="tag new">Предлагаю</span>
+        <div class="grid">
+          <div><div class="t t-free">09:00</div></div>
+          <div><div class="t t-sel">09:30</div></div>
+          <div><div class="t t-off">Тренер не работает</div></div>
+          <div><div class="t t-mine"><span>✓ Вы записаны<small>Персональная</small></span></div></div>
+          <div><div class="t t-plus">+</div></div>
+        </div>
+        <div class="grid" style="border:none;background:none;margin-top:6px;font-size:12px;color:var(--ink-60)">
+          <div style="height:auto;border:none">Свободно</div>
+          <div style="height:auto;border:none">Выбрано</div>
+          <div style="height:auto;border:none">Недоступно, с причиной</div>
+          <div style="height:auto;border:none">Своя запись</div>
+          <div style="height:auto;border:none">Наведение на свободное место</div>
+        </div>
+        <p class="cap" style="margin-top:16px">Как своя запись выглядит среди расписания</p>
+        <div class="grid">
+          <div><div class="t t-group">Утренний сайкл<br>5/7 мест</div></div>
+          <div><div class="t t-free">09:00</div></div>
+          <div><div class="t t-mine"><span>✓ Вы записаны<small>Endurance Ride</small></span></div></div>
+          <div><div class="t t-off">Групповая тренировка</div></div>
+          <div><div class="t t-free">11:00</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. Кнопки</h2>
+      <p class="note">Сейчас больше десяти разных классов кнопок с разными размерами, скруглениями и поведением при наведении.
+        Предлагаю три вида и два размера.</p>
+      <div class="cols">
+        <div class="box">
+          <span class="tag">Сейчас</span>
+          <table>
+            <tr><th>Класс</th><th>Скругление</th><th>Где</th></tr>
+            <tr><td>btn-primary</td><td>10</td><td>основные действия</td></tr>
+            <tr><td>btn-ghost</td><td>10</td><td>«Отмена», при наведении становится чёрной</td></tr>
+            <tr><td>btn-cancel</td><td>8</td><td>«Отменить» в записях клиента</td></tr>
+            <tr><td>btn-pay</td><td>—</td><td>«Оплатить»</td></tr>
+            <tr><td>action-btn</td><td>6</td><td>действия в таблицах админки</td></tr>
+            <tr><td>wg-today-btn, wg-nav-btn</td><td>—</td><td>навигация по неделям</td></tr>
+            <tr><td>wg-slot-btn, wg-slot-book</td><td>4</td><td>кнопки внутри слота</td></tr>
+            <tr><td>ms-btn, lts-day-btn</td><td>—</td><td>выпадающий список, дни</td></tr>
+          </table>
+        </div>
+        <div class="box">
+          <span class="tag new">Предлагаю</span>
+          <p class="cap">Обычный размер</p>
+          <div class="row">
+            <button class="btn btn-primary">Записаться</button>
+            <button class="btn btn-secondary">Отмена</button>
+            <button class="btn btn-danger">Отменить запись</button>
+            <button class="btn btn-primary" disabled>Недоступно</button>
+          </div>
+          <p class="cap">Малый — в таблицах, карточках, слотах</p>
+          <div class="row">
+            <button class="btn btn-primary btn-sm">Записаться</button>
+            <button class="btn btn-secondary btn-sm">Ред.</button>
+            <button class="btn btn-danger btn-sm">Отменить</button>
+          </div>
+          <p class="cap">Круглая — стрелки навигации</p>
+          <div class="row">
+            <button class="btn btn-round">‹</button>
+            <button class="btn btn-round">›</button>
+            <button class="btn btn-secondary">Сегодня</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>7. Переключатели, поля, строки списка</h2>
+      <div class="cols">
+        <div class="box">
+          <span class="tag new">Переключатель (чип)</span>
+          <div class="row">
+            <button class="chip active">Основной филиал</button>
+            <button class="chip">Юг</button>
+          </div>
+          <div class="row">
+            <button class="chip active">Персональная</button>
+            <button class="chip">Самостоятельная</button>
+          </div>
+          <span class="tag new" style="margin-top:8px">Поле ввода</span>
+          <div class="row">
+            <div><label class="label">Телефон</label><input class="input" id="sg-phone" type="tel" inputmode="tel" maxlength="18"
+                value="+7 (900) 123-45-67" oninput="this.value=sgMaskPhone(this.value)"></div>
+          </div>
+          <p class="cap">Телефон везде вводится с маской +7 (XXX) XXX-XX-XX — попробуйте набрать номер. Маска та же,
+            что уже стоит на телефоне филиала (maskPhone).</p>
+        </div>
+        <div class="box">
+          <span class="tag new">Строка списка занятий</span>
+          <div class="listrow k-group" style="margin-bottom:8px">
+            <div class="time">10:00<span>1 ч 30 мин</span></div>
+            <div class="info"><b>Endurance Ride</b><span>Максим Р. · 7/7 мест · 1 500 ₽</span></div>
+            <button class="btn btn-primary btn-sm">Записаться</button>
+          </div>
+          <div class="listrow k-personal" style="margin-bottom:8px">
+            <div class="time">12:00<span>1 ч</span></div>
+            <div class="info"><b>Персональная тренировка</b><span>Анна К. · Smart Bike 2</span></div>
+            <span class="badge badge-mine">✓ Записан</span>
+          </div>
+          <div class="listrow k-free">
+            <div class="time">14:00<span>1 ч 30 мин</span></div>
+            <div class="info"><b>Самостоятельная тренировка</b><span>Smart Bike 4 · 1 300 ₽</span></div>
+            <button class="btn btn-secondary btn-sm">Подробнее</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>8. Графика: скругления, тени, шрифты</h2>
+      <div class="cols">
+        <div class="box">
+          <span class="tag">Сейчас</span>
+          <p class="cap">Скругления: 3, 4, 6, 8, 10, 12, 14 пикселей и круг</p>
+          <p class="cap">Размеры текста: 14 разных, от 8 до 36 пикселей. Чаще всего 13, 12 и 11; мельче 11 — в слотах
+            сетки (8–10)</p>
+          <p class="cap">Шрифты: Unbounded для заголовков и цифр, Golos Text для остального — единые</p>
+        </div>
+        <div class="box">
+          <span class="tag new">Предлагаю</span>
+          <p class="cap">Три скругления и круг</p>
+          <div class="rad">
+            <div><i style="border-radius:6px"></i>6 · слоты и блоки в сетке</div>
+            <div><i style="border-radius:10px"></i>10 · кнопки, поля, чипы</div>
+            <div><i style="border-radius:14px"></i>14 · карточки, окна, сетки</div>
+            <div><i style="border-radius:50%;width:48px"></i>круг · стрелки</div>
+          </div>
+          <p class="cap">Семь размеров текста, не мельче 11</p>
+          <div class="type">
+            <p style="font-family:var(--font-display);font-size:28px;font-weight:700;letter-spacing:-.5px">28 Заголовок страницы</p>
+            <p style="font-family:var(--font-display);font-size:20px;font-weight:700">20 Заголовок раздела</p>
+            <p style="font-size:16px;font-weight:600">16 Название в карточке</p>
+            <p style="font-size:14px">14 Основной текст</p>
+            <p style="font-size:13px">13 Кнопки, чипы, таблицы</p>
+            <p style="font-size:12px;color:var(--ink-60)">12 Подписи</p>
+            <p style="font-size:11px;color:var(--ink-60)">11 Мелкие подписи, слоты сетки</p>
+          </div>
+          <p class="cap">Две тени: обычная для карточек и крупная для окон — как сейчас</p>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+    // Та же маска, что maskPhone в js/admin/settings.js: +7 (XXX) XXX-XX-XX
+    function sgMaskPhone(v) {
+      let d = (v || '').replace(/\D/g, '');
+      if (!d) return '';
+      if (d[0] === '8') d = '7' + d.slice(1);
+      if (d[0] !== '7') d = '7' + d;
+      d = d.slice(0, 11);
+      const rest = d.slice(1);
+      let r = '+7';
+      if (rest.length > 0) r += ' (' + rest.slice(0, 3);
+      if (rest.length >= 3) r += ')';
+      if (rest.length > 3) r += ' ' + rest.slice(3, 6);
+      if (rest.length > 6) r += '-' + rest.slice(6, 8);
+      if (rest.length > 8) r += '-' + rest.slice(8, 10);
+      return r;
+    }
+  </script>
+</body>
+
+</html>

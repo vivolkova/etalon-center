@@ -158,7 +158,7 @@ function renderPromos() {
     '<div style="display:flex;gap:6px;margin-top:12px">' +
     '<button class="action-btn confirm" style="font-size:11px;padding:4px 8px" onclick="openPromoModal(' + p.id + ')">Ред.</button>' +
     '<button class="action-btn cancel" style="font-size:11px;padding:4px 8px" onclick="deletePromo(' + p.id + ')">Уд.</button>' +
-    '<button class="action-btn" style="font-size:11px;padding:4px 8px;background:' + (p.active ? '#fef2f2' : 'var(--green-light)') + ';color:' + (p.active ? '#dc2626' : 'var(--green)') + ';border:1.5px solid ' + (p.active ? '#fecaca' : 'var(--green)') + '" onclick="togglePromo(' + p.id + ')">' + (p.active ? 'Отключить' : 'Включить') + '</button>' +
+    '<button class="action-btn ' + (p.active ? 'cancel' : 'confirm') + '" style="font-size:11px;padding:4px 8px" onclick="togglePromo(' + p.id + ')">' + (p.active ? 'Отключить' : 'Включить') + '</button>' +
     '</div>' +
     '</div>').join('');
 }

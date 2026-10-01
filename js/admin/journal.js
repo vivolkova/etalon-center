@@ -104,7 +104,7 @@ function renderJournal() {
       // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
       const b = s.bookings[0];
       const idx = Math.max(0, stations.findIndex(function (st) { return b && st.id === b.station_id; }));
-      hallBlocks += '<div class="jr-blk jr-blk--ind" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+      hallBlocks += '<div class="jr-blk jr-blk--ind kind-' + (s.type === 'free' ? 'free' : 'personal') + '" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
         + '<div class="jr-blk-title">' + escAttr(b ? jrShortName(b.name) : '—') + '</div>'
         + '<div class="jr-blk-sub">' + (s.specialist ? 'тренер ' + escAttr(jrShortName(s.specialist)) : 'самостоятельно') + '</div></div>';
     }
@@ -144,7 +144,9 @@ function renderJournal() {
       return escAttr(b.name) + (st ? ' <span>' + escAttr(st) + '</span>' : '');
     }).join(', ');
     const kind = jrKind(s);
-    return '<div class="jr-row jr-row--' + kind + ' cat-' + s.cat + '" onclick="jrOpenSlot(' + s.id + ')">'
+    // Цвет полосы — по виду: групповая и услуга — цвет категории, персональная и самостоятельная — свой
+    const color = kind === 'ind' ? 'kind-' + (s.type === 'free' ? 'free' : 'personal') : 'cat-' + s.cat;
+    return '<div class="jr-row ' + color + '" onclick="jrOpenSlot(' + s.id + ')">'
       + '<div class="jr-row-time">' + minToTime(s.from) + '<span>' + minToTime(s.to) + '</span></div>'
       + '<div class="jr-row-info"><div class="jr-row-name">' + escAttr(s.name) + '</div>'
       + '<div class="jr-row-meta">' + [s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : ''].filter(Boolean).map(escAttr).join(' · ') + '</div>'
