@@ -13,10 +13,12 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
-               s.location_id, t.name AS specialist_name, st.label AS station_label
+               dt.code AS type, s.location_id, t.name AS specialist_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         JOIN dictionaries dc ON s.category_id = dc.id
+        LEFT JOIN library l ON l.id = s.library_id
+        LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
         LEFT JOIN specialists t ON s.specialist_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
         WHERE b.user_id = ?
@@ -40,13 +42,15 @@ if ($method === 'GET' && $action === 'all') {
 
     $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
                    s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, s.location_id,
-                   dc.code AS category,
+                   dc.code AS category, dt.code AS type,
                    t.name AS specialist_name, t.full_name AS specialist_full,
                    st.label AS station_label, stt.name AS station_type_name
             FROM bookings b
             JOIN users u ON b.user_id = u.id
             JOIN slots s ON b.slot_id = s.id
             JOIN dictionaries dc       ON s.category_id = dc.id
+            LEFT JOIN library l        ON l.id = s.library_id
+            LEFT JOIN dictionaries dt  ON dt.id = l.slot_type_id
             LEFT JOIN specialists t    ON s.specialist_id = t.id
             LEFT JOIN stations st      ON b.station_id = st.id
             LEFT JOIN station_type stt ON st.type_id = stt.id

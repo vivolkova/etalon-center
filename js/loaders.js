@@ -187,7 +187,7 @@ async function loadAdminBookings(opts) {
     bookings = data.map(function (b) {
       return {
         id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email, phone: b.user_phone || '',
-        service: b.slot_name, cat: b.category, location_id: b.location_id != null ? Number(b.location_id) : null,
+        service: b.slot_name, cat: b.category, type: b.type || null, location_id: b.location_id != null ? Number(b.location_id) : null,
         date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
         specialist: b.specialist_name || '', specialistFull: b.specialist_full || b.specialist_name || '',
         station: b.station_label || '', stationType: b.station_type_name || '',

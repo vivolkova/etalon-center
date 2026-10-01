@@ -172,7 +172,7 @@ function renderWeekCal() {
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
-        let cls = 'wg-slot cat-' + s.cat + ' ' + sizeClass;
+        let cls = 'wg-slot ' + colorClass(s.cat, s.type) + ' ' + sizeClass;
         if (booked) cls += ' booked';
         else if (full) cls += ' full';
 
@@ -239,7 +239,7 @@ function schListRowHtml(s, booked) {
   const action = booked ? '<span class="sch-row-state booked">✓ Вы записаны</span>'
     : full ? '<span class="sch-row-state">Мест нет</span>'
       : '<button class="btn-primary sch-row-btn" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>';
-  return '<div class="sch-row cat-' + s.cat + (booked ? ' booked' : full ? ' full' : '') + '" onclick="openSlotDetail(' + s.id + ')">'
+  return '<div class="sch-row ' + colorClass(s.cat, s.type) + (booked ? ' booked' : full ? ' full' : '') + '" onclick="openSlotDetail(' + s.id + ')">'
     + '<div class="sch-row-time">' + s.time + '<span>' + fmtDurShort(s.dur) + '</span></div>'
     + '<div class="sch-row-info"><div class="sch-row-name">' + escAttr(s.name) + '</div><div class="sch-row-meta">' + meta + '</div></div>'
     + action + '</div>';

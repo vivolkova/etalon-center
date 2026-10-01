@@ -53,7 +53,6 @@ function renderLibrary() {
     return;
   }
   grid.innerHTML = items.map(function (item) {
-    const col = catColor(item.cat);
     const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
     const locName = locObj ? locObj.name : '';
     const features = (item.features || []).slice(0, 3);
@@ -63,22 +62,22 @@ function renderLibrary() {
     if (features.length) {
       featuresHtml = '<div class="lib-card-features">' +
         features.map(function (f) {
-          return '<div class="lib-card-feature"><div class="lib-card-feature-dot" style="background:' + col + '"></div><span>' + f + '</span></div>';
+          return '<div class="lib-card-feature"><div class="lib-card-feature-dot"></div><span>' + f + '</span></div>';
         }).join('') + '</div>';
     }
     let maxHtml = (isTraining && item.max) ? '<span class="lib-meta-tag">до ' + item.max + ' чел.</span>' : '';
     const inactive = !Number(item.active);
-    const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
     const delBadge = inactive ? '<span class="lib-meta-tag tag-muted">Удалена</span>' : '';
     const actionsHtml = inactive
       ? '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
       : (libCanSchedule(item) ? '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
         '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
         '<button class="action-btn cancel btn-sm" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
-    return '<div class="lib-card"' + cardStyle + '>' +
+    // Цвет плашки и точек — по категории и виду тренировки
+    return '<div class="lib-card ' + colorClass(item.cat, item.type) + (inactive ? ' is-inactive' : '') + '">' +
       difficultyHtml +
       '<div class="lib-card-header"><div>' +
-      '<div class="lib-card-cat cat-' + item.cat + '">' + catName(item.cat) + '</div>' +
+      '<div class="lib-card-cat">' + catName(item.cat) + '</div>' +
       '<div class="lib-card-title">' + item.name + '</div>' +
       '</div></div>' +
       '<div class="lib-card-desc">' + item.desc + '</div>' +

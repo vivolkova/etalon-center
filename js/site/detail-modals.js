@@ -14,7 +14,7 @@ function openSlotDetail(slotId) {
   }
   const catLabel = catName(s.cat);
   const tagEl = document.getElementById('sdm-tag');
-  tagEl.textContent = catLabel; tagEl.className = 'dm-tag cat-' + s.cat;
+  tagEl.textContent = catLabel; tagEl.className = 'dm-tag ' + colorClass(s.cat, s.type);
   document.getElementById('sdm-title').textContent = s.name;
   document.getElementById('sdm-subtitle').textContent = [DAYS_FULL[s.dayOfWeek], s.time, s.specialist, siteLocName(s.location_id)].filter(Boolean).join(' · ');
   const left = slotFree(s);

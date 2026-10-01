@@ -235,7 +235,7 @@ function openClientProfile(email) {
       <div class="u-strong u-text-ui">${b.service}</div>
       <div class="u-text-caption u-muted">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
     </div>
-    <div style="font-weight:700;font-size:13px;color:${catColor(b.cat)}">${b.price.toLocaleString('ru')} ₽</div>
+    <div class="u-bold u-text-ui cat-text ${colorClass(b.cat, b.type)}">${b.price.toLocaleString('ru')} ₽</div>
   </div>`;
     }).join('');
   }

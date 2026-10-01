@@ -68,6 +68,21 @@
   color: var(--ink-60);
 }
 
+/* Цвет занятия. Сам элемент или его родитель несёт классы цвета — их даёт colorClass(cat, type) в js/core.js:
+   .cat-<код> — категория, .kind-personal / .kind-free — вид тренировки (css/base.css) */
+.cat-edge { border-left: 4px solid var(--cat) !important; }   /* цветная полоса слева: строка таблицы, карточка */
+.cat-text { color: var(--cat) !important; }                   /* текст цветом занятия */
+.cat-dot {                                                    /* точка перед названием занятия */
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--cat);
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
 /* ── 2. Текст ── */
 .u-text-caption { font-size: 11px !important; }   /* мелкие подписи */
 .u-text-small { font-size: 12px !important; }     /* подписи */

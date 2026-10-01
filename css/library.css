@@ -75,6 +75,13 @@
   height: 5px;
   border-radius: 50%;
   flex-shrink: 0;
+  background: var(--cat);   /* цвет — от классов цвета на карточке (colorClass в js/core.js) */
+}
+
+/* Удалённая запись библиотеки */
+.lib-card.is-inactive {
+  background: var(--muted-bg);
+  opacity: .65;
 }
 
 .lib-card-meta {
@@ -104,7 +111,7 @@
 .lib-card-price {
   font-size: 15px;
   font-weight: 700;
-  color: var(--green);
+  color: var(--cat);   /* цвет занятия, как плашка и точки */
 }
 
 .lib-card-actions {

@@ -93,6 +93,12 @@ function catColor(code) {
   const v = code ? cs.getPropertyValue('--cat-' + code).trim() : '';
   return v || cs.getPropertyValue('--cat-other').trim() || '#888';
 }
+// Классы цвета занятия — единое правило для всех экранов: цвет категории (.cat-<код>), а у тренировки
+// персональной и самостоятельной — цвет вида (.kind-personal — синяя, .kind-free — малиновая; css/base.css).
+// type — slot_type записи библиотеки: group / personal / free
+function colorClass(cat, type) {
+  return 'cat-' + cat + (cat === 'training' && (type === 'personal' || type === 'free') ? ' kind-' + type : '');
+}
 async function loadActivityCats() {
   try {
     const res = await LibraryAPI.categories();

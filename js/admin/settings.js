@@ -416,12 +416,12 @@ function renderAdminBookingsFiltered(list) {
       : muted('');
     // Филиал, в котором проходит занятие
     const loc = b.location_id ? findLocation(b.location_id) : null;
-    // Полоса слева — цвет категории занятия (тренировка / байкфит / мастерская)
-    return '<tr>' +
-      '<td style="border-left:4px solid ' + catColor(b.cat) + '"><strong>' + escAttr(b.name) + '</strong><br><span class="u-muted u-text-caption">' + escAttr(b.email) + '</span></td>' +
+    // Полоса слева и точка — цвет занятия: категория, у тренировки — её вид (персональная / самостоятельная)
+    return '<tr class="' + colorClass(b.cat, b.type) + '">' +
+      '<td class="cat-edge"><strong>' + escAttr(b.name) + '</strong><br><span class="u-muted u-text-caption">' + escAttr(b.email) + '</span></td>' +
       '<td class="u-nowrap">' + muted(b.phone) + '</td>' +
       '<td>' + muted(loc ? loc.name : '') + '</td>' +
-      '<td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + catColor(b.cat) + ';margin-right:6px;vertical-align:middle" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
+      '<td><span class="cat-dot" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
       '<td>' + muted(b.specialistFull) + '</td>' +
       '<td>' + station + '</td>' +
       '<td class="u-nowrap">' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +

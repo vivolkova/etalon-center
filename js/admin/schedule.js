@@ -184,7 +184,7 @@ function renderAdminSchedule() {
         // Пересекающиеся занятия — рядом по колонкам, чтобы были видны все
         const colStyle = wgLaneStyle(dayLayouts[di].get(s.id), ADM_ADD_GUTTER);
         const locName = admSlotLocName(s);
-        cellHtml += '<div class="wg-slot cat-' + s.cat + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + escAttr(s.name + ' · ' + s.time + (locName ? ' · ' + locName : '')) + ' (перетащите, чтобы изменить время)">';
+        cellHtml += '<div class="wg-slot ' + colorClass(s.cat, s.type) + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + escAttr(s.name + ' · ' + s.time + (locName ? ' · ' + locName : '')) + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
         // Филиал (зал) · специалист · цена · свободно/мест (у байкфита мест в зале нет); пустые части не показываем
