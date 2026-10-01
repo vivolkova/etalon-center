@@ -220,6 +220,32 @@ function renderWeekCal() {
   if (schDayIdx === null) schDayIdx = wgDefaultDay(schWeekStart);
   wgRenderDayStrip('sch-days', grid, strip, schDayIdx, 'schSelectDay');
   wcBindTip(grid);
+
+  // На телефоне вместо сетки — список занятий выбранного дня (css/week-grid.css: .sch-list, @media max-width 700px)
+  const list = document.getElementById('sch-day-list');
+  if (list) {
+    const sd = days[schDayIdx];
+    const daySlots = weekSlots.filter(function (s) { return s.date.getTime() === sd.getTime(); })
+      .sort(function (a, b) { return timeToMin(a.time) - timeToMin(b.time); });
+    list.innerHTML = daySlots.length
+      ? daySlots.map(function (s) { return schListRowHtml(s, alreadyBooked.has(s.id)); }).join('')
+      : '<div class="sch-list-empty">В этот день групповых тренировок нет</div>';
+  }
+}
+
+// Строка списка занятий дня (телефон): время и длительность, название, тренер · места · цена, кнопка записи.
+// Нажатие на строку — карточка занятия с описанием; на кнопку — запись
+function schListRowHtml(s, booked) {
+  const full = slotFree(s) <= 0;
+  const meta = [s.specialist, full ? 'мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест', s.price.toLocaleString('ru') + ' ₽']
+    .filter(Boolean).map(escAttr).join(' · ');
+  const action = booked ? '<span class="sch-row-state booked">✓ Записан</span>'
+    : full ? '<span class="sch-row-state">Мест нет</span>'
+      : '<button class="btn-primary sch-row-btn" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>';
+  return '<div class="sch-row cat-' + s.cat + (booked ? ' booked' : full ? ' full' : '') + '" onclick="openSlotDetail(' + s.id + ')">'
+    + '<div class="sch-row-time">' + s.time + '<span>' + fmtDurShort(s.dur) + '</span></div>'
+    + '<div class="sch-row-info"><div class="sch-row-name">' + escAttr(s.name) + '</div><div class="sch-row-meta">' + meta + '</div></div>'
+    + action + '</div>';
 }
 
 // ── Всплывающее описание тренировки над слотом расписания ──

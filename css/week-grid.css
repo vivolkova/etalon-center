@@ -738,3 +738,96 @@
     padding: 5px 0;
   }
 }
+
+/* ── Сайт на телефоне: групповые тренировки — список занятий выбранного дня вместо сетки
+   (js/site/schedule.js schListRowHtml). На широком экране список скрыт. ── */
+.sch-list {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .sch-grid-wrap {
+    display: none;
+  }
+
+  .sch-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .sch-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--cat, var(--green));
+    border-radius: 12px;
+    cursor: pointer;
+  }
+
+  .sch-row.full {
+    opacity: .6;
+  }
+
+  .sch-row-time {
+    flex: 0 0 auto;
+    min-width: 46px;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .sch-row-time span {
+    display: block;
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--ink-60);
+  }
+
+  .sch-row-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sch-row-name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .sch-row-meta {
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--ink-60);
+  }
+
+  .sch-row-btn {
+    flex: 0 0 auto;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .sch-row-state {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink-60);
+    white-space: nowrap;
+  }
+
+  .sch-row-state.booked {
+    color: var(--green-dark);
+  }
+
+  .sch-list-empty {
+    padding: 28px 0;
+    text-align: center;
+    font-size: 14px;
+    color: var(--ink-60);
+  }
+}
