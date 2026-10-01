@@ -27,8 +27,10 @@ CREATE TABLE locations (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Единый справочник ───────────────────────────────────────
--- group_code — код справочника (user_role, activity_category,
+-- group_code — код справочника (user_role, activity_category, service_category,
 -- slot_type, specialist_type); неизменяем — защищён триггером ниже.
+-- Категории занятий — две группы: activity_category (только training — тренировки) и service_category
+-- (услуги: bikefit, workshop, massage…). Код категории уникален в обеих группах (проверка в API).
 -- station_type вынесен в отдельную таблицу (см. ниже).
 -- ref_id — связанное значение другого справочника. Сейчас используется так:
 -- activity_category -> specialist_type (какой специалист ведёт активность:
@@ -180,7 +182,7 @@ CREATE TABLE specialist_exceptions (
 CREATE TABLE library (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     name        VARCHAR(255) NOT NULL,
-    activity_category_id INT NOT NULL,           -- dictionaries.activity_category
+    activity_category_id INT NOT NULL,           -- dictionaries: activity_category (training) или service_category (услуга)
     slot_type_id         INT NULL,               -- dictionaries.slot_type: group / personal / free — только у тренировок; у услуг NULL
     duration    INT NOT NULL DEFAULT 60,
     price       INT NOT NULL,
@@ -204,7 +206,7 @@ CREATE TABLE slots (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     library_id  INT,                             -- источник описания (nullable)
     name        VARCHAR(255) NOT NULL,
-    category_id INT NOT NULL,                    -- dictionaries.activity_category
+    category_id INT NOT NULL,                    -- dictionaries: activity_category (training) или service_category (услуга)
     slot_date   DATE NOT NULL,
     start_time  TIME NOT NULL,
     duration    INT NOT NULL DEFAULT 60,
@@ -317,23 +319,6 @@ CREATE TABLE subscriptions (
     KEY plan_id (plan_id),
     CONSTRAINT fk_subs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
     CONSTRAINT fk_subs_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Услуги (карточки на главной) ────────────────────────────
-CREATE TABLE services (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    location_id INT NOT NULL DEFAULT 1,
-    icon        TEXT,
-    name        VARCHAR(255) NOT NULL,
-    description TEXT,
-    price       VARCHAR(64),                             -- маркетинговый текст
-    features    JSON,
-    sort_order  INT DEFAULT 0,
-    active      TINYINT(1)   DEFAULT 1,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY fk_services_location (location_id),
-    CONSTRAINT fk_services_location FOREIGN KEY (location_id) REFERENCES locations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Чат ─────────────────────────────────────────────────────

@@ -34,55 +34,6 @@
   display: block;
 }
 
-/* ── SERVICES EDIT ── */
-.services-edit-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-.svc-edit-card {
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 18px;
-}
-
-.svc-edit-card .se-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 12px;
-}
-
-.svc-edit-card .se-icon {
-  font-size: 28px;
-}
-
-.svc-edit-card .se-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.svc-edit-card .se-name {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.svc-edit-card .se-desc {
-  font-size: 12px;
-  color: var(--ink-60);
-  line-height: 1.5;
-  margin-bottom: 8px;
-}
-
-.svc-edit-card .se-price {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--green);
-}
-
 /* ── CHAT ── */
 .chat-layout {
   display: grid;

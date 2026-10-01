@@ -67,7 +67,6 @@ async function admNav(name, el) {
     chat: renderChat,
     notif: renderNotifications,
     mailing: renderMailing,
-    services: renderAdminServices,
     settings: renderSettings,
   };
   if (renders[name]) renders[name]();

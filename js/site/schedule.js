@@ -1,4 +1,4 @@
-// Сайт: расписание (недельный календарь, подсказки, список слотов)
+// Сайт: групповые тренировки (недельная сетка занятий выбранного филиала, запись на занятие)
 
 // ═══ SCHEDULE ════════════════════════════════════════════════════
 
@@ -22,12 +22,12 @@ function schLoc() {
   return LOCATIONS.find(function (l) { return Number(l.id) === schLocId; }) || LOCATIONS[0] || null;
 }
 
+// Переключатель рисуется на каждом экране, зависящем от филиала (.sch-loc): тренировки и услуги
 function renderSchLoc() {
-  const box = document.getElementById('sch-loc');
-  if (!box) return;
+  const boxes = document.querySelectorAll('.sch-loc');
   const loc = schLoc();
-  if (!loc) { box.innerHTML = ''; return; }
   let h = '';
+  if (!loc) { boxes.forEach(function (b) { b.innerHTML = ''; }); return; }
   if (LOCATIONS.length > 1) {
     h += '<div class="filter-chips sch-loc-chips">' + LOCATIONS.map(function (l) {
       return '<button class="chip' + (l.id === loc.id ? ' active' : '') + '" onclick="selectSchLoc(' + l.id + ')">' + escAttr(l.name) + '</button>';
@@ -35,13 +35,20 @@ function renderSchLoc() {
   }
   const info = [loc.address, loc.phone].filter(Boolean).map(escAttr).join(' · ');
   if (info) h += '<div class="sch-loc-info">' + info + '</div>';
-  box.innerHTML = h;
+  boxes.forEach(function (b) { b.innerHTML = h; });
 }
 
 function selectSchLoc(id) {
   schLocId = Number(id);
   try { localStorage.setItem(SCH_LOC_KEY, String(schLocId)); } catch (e) { /* хранилище недоступно — выбор до перезагрузки */ }
+  renderSitePages();
+}
+
+// Перерисовать экраны, зависящие от филиала и от того, кто вошёл: групповые тренировки и открытый сейчас экран
+function renderSitePages() {
   renderSchedule();
+  if (currentPage === 'individual') renderIndividualPage();
+  if (currentPage === 'services') renderServices();
 }
 
 // Название филиала слота/записи — только когда филиалов несколько (при одном это лишний шум)
@@ -53,12 +60,6 @@ function siteLocName(locId) {
 
 function renderSchedule() {
   renderSchLoc();
-  const loc = schLoc();
-  // Категории — доступные в выбранном филиале (location_dictionaries)
-  const cats = loc ? catsAt(loc.id) : ACTIVITY_CATS;
-  currentCat = validCat(currentCat, cats);
-  const f = document.getElementById('sch-cat-filter'); if (f) f.innerHTML = catChipsHtml(currentCat, 'filterCat', cats);
-  const lg = document.getElementById('sch-legend'); if (lg) lg.innerHTML = catLegendHtml(cats);
   renderWeekCal();
 }
 
@@ -101,13 +102,13 @@ function renderWeekCal() {
     const d = new Date(schWeekStart); d.setDate(schWeekStart.getDate() + i); return d;
   });
 
-  // Слоты недели выбранного филиала
+  // Групповые тренировки недели в выбранном филиале (индивидуальные занятия — на своём экране)
   const loc = schLoc();
   const locId = loc ? Number(loc.id) : null;
   const weekSlots = SLOTS.filter(function (s) {
     return s.date >= schWeekStart && s.date <= weekEnd &&
       (locId === null || Number(s.location_id) === locId) &&
-      (currentCat === 'all' || s.cat === currentCat);
+      !slotIsIndividual(s);
   });
 
   // ── Шапка: угол + заголовки дней ──
@@ -158,12 +159,7 @@ function renderWeekCal() {
         const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
         const full = slotFree(s) <= 0;
         const booked = alreadyBooked.has(s.id);
-        // У байкфита мест в зале нет — вместо «x/y мест» показываем специалиста
-        const hallless = !slotUsesHall(s.cat);
-        const spotsText = booked ? '✓ Записан'
-          : full ? (hallless ? 'Занято' : 'Мест нет')
-            : hallless ? (s.specialist || '')
-              : slotFree(s) + '/' + slotCap(s) + ' мест';
+        const spotsText = booked ? '✓ Записан' : full ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
 
         // Размер слота: xs<28, sm<44, md<70, lg>=70
         var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
@@ -171,16 +167,16 @@ function renderWeekCal() {
         if (booked) cls += ' booked';
         else if (full) cls += ' full';
 
-        var bookLabel = booked ? '✓ Записан' : full ? (hallless ? 'Занято' : 'Мест нет') : 'Записаться';
+        var bookLabel = booked ? '✓ Записан' : full ? 'Мест нет' : 'Записаться';
         var bookOnclick = (!full && !booked)
           ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
           : 'event.stopPropagation()';
 
         var feats = [];
         if (s.features) { try { feats = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { } }
-        // Подсказка при наведении — всегда время и название (узкий слот при нескольких занятиях
+        // Подсказка при наведении — всегда время, название и тренер (узкий слот при нескольких занятиях
         // в одно время не вмещает текст), плюс описание и особенности, если есть
-        var tipAttr = ' data-name="' + escAttr(s.time + ' · ' + s.name) + '"';
+        var tipAttr = ' data-name="' + escAttr([s.time, s.name, s.specialist].filter(Boolean).join(' · ')) + '"';
         if (s.description) tipAttr += ' data-desc="' + escAttr(s.description) + '"';
         if (feats && feats.length) tipAttr += ' data-feat="' + escAttr(JSON.stringify(feats)) + '"';
         cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + wgLaneStyle(dayLayouts[di].get(s.id)) + '"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
@@ -189,6 +185,10 @@ function renderWeekCal() {
         }
         if (heightPx >= 20) {
           cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
+        }
+        // Тренер — когда хватает высоты (занятие от 45 минут)
+        if (heightPx >= 70 && s.specialist) {
+          cellHtml += '<div class="wg-slot-meta wg-slot-spec">' + escAttr(s.specialist) + '</div>';
         }
         if (heightPx >= 44) {
           cellHtml += '<div class="wg-slot-meta">' + spotsText + '</div>';
@@ -253,12 +253,5 @@ function wcBindTip(grid) {
     if (e.relatedTarget && slot.contains(e.relatedTarget)) return;
     t.classList.remove('show');
   });
-}
-
-function filterCat(cat, btn) {
-  currentCat = cat;
-  document.querySelectorAll('#sch-cat-filter .chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  renderWeekCal();
 }
 

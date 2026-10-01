@@ -15,7 +15,7 @@ if ($method === 'GET' && $action === 'messages') {
     // Клиент видит переписку с администратором
     if ($auth['role'] !== 'admin') {
         // Найти первого администратора
-        $stmt = $db->prepare('SELECT id FROM users WHERE role="admin" LIMIT 1');
+        $stmt = $db->prepare('SELECT id FROM users WHERE role_id = (SELECT id FROM dictionaries WHERE group_code = "user_role" AND code = "admin") ORDER BY id LIMIT 1');
         $stmt->execute();
         $admin = $stmt->fetch();
         $otherId = $admin['id'] ?? 1;
@@ -81,7 +81,7 @@ if ($method === 'POST' && $action === 'send') {
 
     // Клиент пишет первому администратору
     if ($auth['role'] !== 'admin' || !$toUser) {
-        $stmt = $db->prepare('SELECT id FROM users WHERE role="admin" LIMIT 1');
+        $stmt = $db->prepare('SELECT id FROM users WHERE role_id = (SELECT id FROM dictionaries WHERE group_code = "user_role" AND code = "admin") ORDER BY id LIMIT 1');
         $stmt->execute();
         $admin  = $stmt->fetch();
         $toUser = $admin['id'] ?? 1;

@@ -41,31 +41,35 @@ async function renderHall(slotId) {
   let data;
   try { data = await StationsAPI.availability(slotId); }
   catch (e) { hint.textContent = 'Не удалось загрузить схему зала'; return; }
-  const cols = data.cols || 6, rows = data.rows || 2;
-  const stations = data.stations || [];
-  const free = stations.filter(x => x.state === 'free').length;
+  const free = (data.stations || []).filter(x => x.state === 'free').length;
   // «Свободно» в шапке — из слота (всего мест − занято), как и в деталях слота
   const fe = document.getElementById('bm-free');
   if (fe && selectedSlot) fe.textContent = slotFree(selectedSlot);
 
-  // Станки по координатам сетки: ключ "x,y" (pos_x = колонка, pos_y = ряд)
-  const byPos = {};
-  stations.forEach(st => { byPos[st.pos_x + ',' + st.pos_y] = st; });
+  hallFill(hall, data, selectedStation, 'selectStation');
+  hint.textContent = free > 0 ? ('Свободно: ' + free + '. Кликните место.') : 'Свободных мест нет';
+}
 
+// Схема зала в элементе hall: сетка cols × rows, станки по координатам (pos_x — колонка, pos_y — ряд).
+// data — {cols, rows, stations: [{id, label, pos_x, pos_y, icon, state}]}; свободный станок вызывает onSelect(id).
+// Общая для записи на групповую тренировку и индивидуальной записи (js/site/individual-page.js)
+function hallFill(hall, data, selectedId, onSelect) {
+  const cols = data.cols || 6, rows = data.rows || 2;
+  const byPos = {};
+  (data.stations || []).forEach(st => { byPos[st.pos_x + ',' + st.pos_y] = st; });
   hall.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
   let html = '';
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const st = byPos[x + ',' + y];
       if (!st) { html += '<div class="cell-empty"></div>'; continue; }
-      const sel = (st.id === selectedStation) ? ' selected' : '';
+      const sel = (Number(st.id) === Number(selectedId)) ? ' selected' : '';
       const ico = st.icon || '';
-      const on = st.state === 'free' ? `onclick="selectStation(${st.id})"` : 'disabled';
-      html += `<button type="button" class="station ${st.state}${sel}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
+      const on = st.state === 'free' ? `onclick="${onSelect}(${st.id})"` : 'disabled';
+      html += `<button type="button" class="station ${st.state}${sel}" data-station="${st.id}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
     }
   }
   hall.innerHTML = html;
-  hint.textContent = free > 0 ? ('Свободно: ' + free + '. Кликните место.') : 'Свободных мест нет';
 }
 function selectStation(id) {
   selectedStation = id;

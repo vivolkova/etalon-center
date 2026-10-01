@@ -120,16 +120,35 @@ const LibraryAPI = {
   async delete(id) { return apiRequest(`/library.php?action=delete&id=${id}`, 'DELETE'); },
 };
 
-// ── SERVICES (карточки услуг на главной) ──
-const ServicesAPI = {
-  async list() { return apiRequest('/services.php?action=list'); },
-  async get(id) { return apiRequest(`/services.php?action=get&id=${id}`); },
-  async create(data) { return apiRequest('/services.php?action=create', 'POST', data); },
-  async update(data) { return apiRequest('/services.php?action=update', 'PUT', data); },
-  async delete(id) { return apiRequest(`/services.php?action=delete&id=${id}`, 'DELETE'); },
+// ── BOOKINGS ───────────────────────────────────────────────
+// ── ИНДИВИДУАЛЬНАЯ ЗАПИСЬ (персональная / самостоятельная, байкфит) ──
+const IndividualAPI = {
+  // На что можно записаться в филиале: {items, today, horizon_days, lead_minutes, step}
+  async options(locId) {
+    return apiRequest(`/individual.php?action=options&location_id=${locId}`);
+  },
+  // Свободные времена начала: {times: ['10:00', …], message}
+  async times(p) {
+    let url = `/individual.php?action=times&library_id=${p.library_id}&date=${p.date}&duration=${p.duration}`;
+    if (p.specialist_id) url += `&specialist_id=${p.specialist_id}`;
+    return apiRequest(url, 'GET', null, true);
+  },
+  // Неделя для сетки (7 дней с from): {days: [{date, state, blocks, starts}], duration, step}
+  async week(p) {
+    let url = `/individual.php?action=week&library_id=${p.library_id}&from=${p.from}&duration=${p.duration}`;
+    if (p.specialist_id) url += `&specialist_id=${p.specialist_id}`;
+    return apiRequest(url, 'GET', null, true);
+  },
+  // Схема зала на время занятия: {cols, rows, stations: [{…, state: free|taken}]}
+  async stations(p) {
+    return apiRequest(`/individual.php?action=stations&library_id=${p.library_id}&date=${p.date}&start=${p.start}&duration=${p.duration}`, 'GET', null, true);
+  },
+  // {library_id, specialist_id, date, start, duration, station_id, notes} -> {slot_id, booking_id}
+  async create(data) {
+    return apiRequest('/individual.php?action=create', 'POST', data);
+  },
 };
 
-// ── BOOKINGS ───────────────────────────────────────────────
 const BookingsAPI = {
   async my() {
     return apiRequest('/bookings.php?action=my');

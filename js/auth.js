@@ -88,8 +88,9 @@ async function loginUser(user) {
   if (user.role !== 'admin') document.getElementById('nav-client').style.display = '';
   if (user.role === 'admin') document.getElementById('nav-admin').style.display = '';
   showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
-  // Загружаем записи с сервера
-  await loadMyBookings();
+  // Загружаем записи с сервера; слоты — заново: свои индивидуальные занятия видит только записавшийся
+  await Promise.allSettled([loadMyBookings(), loadSlots()]);
+  renderSitePages();
 }
 
 // ── Загрузка записей ─────────────────────────────────────────
@@ -181,6 +182,7 @@ async function loadSlots(fromDate, toDate) {
         dur: parseInt(s.duration),
         name: s.name,
         cat: s.category,
+        type: s.type || null,   // slot_type записи библиотеки: group / personal / free; у услуг null
         specialist: s.specialist_name || '',
         specialist_id: s.specialist_id || null,
         price: Number(s.price),
@@ -231,6 +233,9 @@ function logout() {
   document.getElementById('btn-logout').style.display = 'none';
   document.getElementById('nav-client').style.display = 'none';
   document.getElementById('nav-admin').style.display = 'none';
+  // Убираем из сетки свои индивидуальные занятия (их видит только записавшийся)
+  for (let i = SLOTS.length - 1; i >= 0; i--) if (slotIsIndividual(SLOTS[i])) SLOTS.splice(i, 1);
+  renderSchedule();
   showPage('home');
   document.querySelectorAll('.nav-link').forEach((l, i) => l.classList.toggle('active', i === 0));
 }

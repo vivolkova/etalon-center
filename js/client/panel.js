@@ -1,9 +1,7 @@
-// Кабинет клиента: лента, расписание, мои записи
+// Кабинет клиента: лента, мои записи
 
 // ═══ CLIENT PANEL ══════════════════════════════════════════════════
 
-let cpCat = 'all';
-let cpDayIdx = 0;
 let cpBookingFilter_val = 'all';
 
 function renderClientPanel() {
@@ -35,7 +33,6 @@ function switchClientTab(name, el) {
   document.querySelectorAll('.cp-panel').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('cp-' + name).classList.add('active');
-  if (name === 'schedule') renderCpSchedule();
   if (name === 'mybookings') renderCpBookings();
   if (name === 'chat') renderClientChat();
   if (name === 'profile') renderProfileForm();
@@ -61,7 +58,7 @@ function renderClientFeed() {
   }
   // Upcoming slots (today's dayOfWeek)
   const todayDow = (new Date().getDay() + 6) % 7;
-  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && slotFree(s) > 0).slice(0, 4);
+  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && !slotIsIndividual(s) && slotFree(s) > 0).slice(0, 4);
   const feedSlots = document.getElementById('feed-slots');
   feedSlots.innerHTML = upcoming.length
     ? upcoming.map(s => `<div class="cp-slot-row" style="cursor:pointer" onclick="openSlotDetail(${s.id})">
@@ -74,60 +71,6 @@ function renderClientFeed() {
     <button class="btn-primary" style="padding:7px 14px;font-size:12px" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>
   </div>`).join('')
     : `<div style="color:var(--ink-60);font-size:13px;padding:16px 0">Сегодня занятий нет</div>`;
-}
-
-// ── CLIENT SCHEDULE ───────────────────────────────────────────────
-function renderCpSchedule() {
-  // Фильтр по категориям — из справочника
-  cpCat = validCat(cpCat);
-  const catF = document.getElementById('cp-cat-filter'); if (catF) catF.innerHTML = catChipsHtml(cpCat, 'cpFilterCat');
-  // Week chips
-  const chips = document.getElementById('cp-week-chips');
-  chips.innerHTML = DAYS_FULL.map((d, i) => {
-    const cnt = SLOTS.filter(s => s.dayOfWeek === i && (cpCat === 'all' || s.cat === cpCat)).length;
-    return `<button class="chip${i === cpDayIdx ? ' active' : ''}" onclick="cpSelectDay(${i},this)">${d} ${cnt ? `<span style='font-size:10px;opacity:.7'>(${cnt})</span>` : ''}</button>`;
-  }).join('');
-  renderCpSlots();
-}
-
-function cpSelectDay(idx, btn) {
-  cpDayIdx = idx;
-  document.querySelectorAll('#cp-week-chips .chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  renderCpSlots();
-}
-
-function cpFilterCat(cat, btn) {
-  cpCat = cat;
-  document.querySelectorAll('#cp-cat-filter .chip').forEach(c => c.classList.remove('active'));
-  btn.classList.add('active');
-  renderCpSchedule();
-}
-
-function renderCpSlots() {
-  const list = document.getElementById('cp-slots-list');
-  const filtered = SLOTS.filter(s => s.dayOfWeek === cpDayIdx && (cpCat === 'all' || s.cat === cpCat));
-  const alreadyBooked = new Set(bookings.filter(b => b.status !== 'cancelled').map(b => b.slotId));
-  if (!filtered.length) {
-    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--ink-60)">Нет занятий в этот день</div>`;
-    return;
-  }
-  list.innerHTML = filtered.map(s => {
-    const left = slotFree(s);
-    const full = left <= 0;
-    const booked = alreadyBooked.has(s.id);
-    const usesHall = slotUsesHall(s.cat);   // у байкфита мест в зале нет
-    return `<div class="cp-slot-row" style="border-left:4px solid ${catColor(s.cat)};cursor:pointer" onclick="openSlotDetail(${s.id})">
-  <div class="cp-slot-time">${s.time}<div style="font-size:10px;color:var(--ink-60);font-weight:400">${s.dur}мин</div></div>
-  <div class="cp-slot-info">
-    <div class="cp-slot-name">${s.name}</div>
-    <div class="cp-slot-meta"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:3px"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist}${usesHall ? ` · ${left} / ${slotCap(s)} мест` : ''} · ${s.price.toLocaleString('ru')} ₽</div>
-  </div>
-  ${booked ? `<span class="status-badge status-confirmed">✓ Записан</span>`
-        : full ? `<span style="font-size:12px;color:#dc2626;font-weight:600">${usesHall ? 'Мест нет' : 'Занято'}</span>`
-          : `<button class="btn-primary" style="padding:8px 16px;font-size:12px;white-space:nowrap" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>`}
-</div>`;
-  }).join('');
 }
 
 // ── MY BOOKINGS ───────────────────────────────────────────────────
@@ -146,7 +89,7 @@ function renderCpBookings() {
     list.innerHTML = `<div style="text-align:center;padding:60px;color:var(--ink-60)">
   <div style="margin-bottom:12px;opacity:.35"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
   <div style="font-size:15px;font-weight:600">Нет записей</div>
-  <button class="btn-primary" style="margin-top:18px" onclick="(function(){const el=document.querySelector('.cp-nav-item:nth-child(2)');if(el)switchClientTab('schedule',el);})()">Перейти к расписанию</button>
+  <button class="btn-primary" style="margin-top:18px" onclick="showPage('schedule');setNavActive(document.querySelector('.nav-link[onclick*=schedule]'))">Групповые тренировки</button>
 </div>`;
     return;
   }

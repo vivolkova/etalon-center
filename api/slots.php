@@ -94,6 +94,13 @@ if ($method === 'GET' && $action === 'list') {
             LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
     $params = [$from, $to];
+    // Индивидуальные занятия (всё, кроме групповой тренировки — slotIsIndividual) видит только записанный клиент и админ
+    $viewer = authUserOrNull();
+    if (($viewer['role'] ?? '') !== 'admin') {
+        $sql .= " AND ((dc.code = 'training' AND dt.code <=> 'group')
+                       OR EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.user_id = ? AND bk.status <> 'cancelled'))";
+        $params[] = (int)($viewer['id'] ?? 0);
+    }
     if ($cat) { $sql .= ' AND dc.code = ?'; $params[] = $cat; }
     $sql .= ' ORDER BY s.slot_date, s.start_time';
 

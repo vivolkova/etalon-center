@@ -155,8 +155,10 @@ async function cpCancelBooking(id) {
   if (!confirm('Отменить запись?')) return;
   try {
     await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
-    await loadMyBookings();                            // перечитываем свои записи
+    // перечитываем свои записи и слоты (у группового освободилось место, индивидуальное снято целиком)
+    await Promise.allSettled([loadMyBookings(), loadSlots()]);
     renderCpBookings();                               // перерисовываем кабинет
+    renderWeekCal();                                  // и сетку расписания
     showToast('Запись отменена');
   } catch (e) {
     showToast('Не удалось отменить запись', 'error');

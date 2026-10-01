@@ -10,7 +10,7 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-const DICT_EDITABLE = ['activity_category', 'specialist_type'];
+const DICT_EDITABLE = ['activity_category', 'service_category', 'specialist_type'];
 
 function dictRow(PDO $db, int $id): array {
     $st = $db->prepare('SELECT id, group_code, code FROM dictionaries WHERE id = ?');
@@ -20,10 +20,10 @@ function dictRow(PDO $db, int $id): array {
     return $row;
 }
 
-// ref_id допустим только для activity_category и только на specialist_type
+// ref_id допустим только для категорий занятий (тренировка, услуги) и только на specialist_type
 function checkRef(PDO $db, string $group, $refId): ?int {
     if ($refId === null || $refId === '' || (int)$refId === 0) return null;
-    if ($group !== 'activity_category') err('Связь с типом специалиста задаётся только для категорий');
+    if (!in_array($group, CATEGORY_GROUPS, true)) err('Связь с типом специалиста задаётся только для категорий');
     $ref = dictRow($db, (int)$refId);
     if ($ref['group_code'] !== 'specialist_type') err('Связь должна указывать на тип специалиста');
     return (int)$refId;
@@ -90,7 +90,17 @@ if ($method === 'POST' && $action === 'create') {
     require_fields($d, ['group_code', 'code', 'name']);
     if (!in_array($d['group_code'], DICT_EDITABLE, true)) err('Эту группу справочника менять нельзя');
     if (!preg_match('/^[a-z][a-z0-9_]{1,39}$/', $d['code'])) err('Код — латиница в нижнем регистре, цифры и _ (например, massage)');
+    // Категория занятий одна — training: на её код опирается приложение. Новые виды — в «Услуги» (service_category)
+    if ($d['group_code'] === 'activity_category') err('Новые категории добавляйте в справочник «Услуги»');
     $db = getDB();
+    if ($d['group_code'] === 'service_category') {
+        // Код категории уникален в обеих группах (тренировки и услуги) — по нему категорию находят
+        $st = $db->prepare('SELECT 1 FROM dictionaries WHERE group_code IN (' . CATEGORY_GROUPS_SQL . ') AND code = ?');
+        $st->execute([$d['code']]);
+        if ($st->fetchColumn()) err('Значение с таким кодом уже есть');
+        // Услугу оказывает специалист — без типа специалиста на неё нельзя будет записаться
+        if (empty($d['ref_id'])) err('Укажите тип специалиста, который оказывает услугу');
+    }
     $ref = checkRef($db, $d['group_code'], $d['ref_id'] ?? null);
     $locIds = dictLocations($db, $d);
     $db->beginTransaction();

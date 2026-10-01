@@ -13,19 +13,6 @@ const MONTHS_FULL = ['января', 'февраля', 'марта', 'апрел
 
 // Слоты берутся ТОЛЬКО из БД (loadSlots -> SlotsAPI.list). Демо-генератор убран.
 
-const SERVICES = [];
-
-
-// Услуги грузятся ТОЛЬКО из БД (api/services.php). Встроенного списка больше нет.
-async function loadServices() {
-  try {
-    const data = await ServicesAPI.list();
-    if (Array.isArray(data)) { SERVICES.length = 0; data.forEach(function (s) { SERVICES.push(s); }); }
-  } catch (e) {
-    // Сервер недоступен — остаётся встроенный список услуг (без localStorage-кэша)
-  }
-}
-
 // ═══ LIBRARY ════════════════════════════════════════════════════════
 let LIBRARY = { trainings: [], services: [] };
 
@@ -50,7 +37,7 @@ async function loadLocationsAll() {
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Категории активностей (dictionaries.activity_category): code -> name.
+// Категории занятий: training (dictionaries.activity_category) и услуги (service_category, is_service = 1): code -> name.
 // Значения по умолчанию — пока справочник не загрузился.
 // spec_type / spec_name — тип специалиста категории (dictionaries.ref_id -> specialist_type).
 let ACTIVITY_CATS = [
@@ -86,14 +73,17 @@ function validCat(cat, cats) {
   return cat === 'all' || (cats || ACTIVITY_CATS).some(function (c) { return c.code === cat; }) ? cat : 'all';
 }
 
-// Занимает ли занятие места в зале (станки, вместимость, блокировки станков).
-// Байкфит — индивидуальная услуга без мест в зале.
-function slotUsesHall(cat) { return cat !== 'bikefit'; }
+// Занимает ли занятие места в зале (станки, вместимость, блокировки станков): только тренировки.
+// Услуги (байкфит, мастерская…) проходят в своих помещениях.
+function slotUsesHall(cat) { return cat === 'training'; }
 
 // Места на занятии: вместимость филиала минус заблокированные на это занятие станки (ремонт и т.п.);
 // свободно = места минус записи. s.blocked приходит из api/slots.php.
 // Занятие без зала (байкфит) — один клиент на слот.
-function slotCap(s) { return slotUsesHall(s.cat) ? Math.max((s.max || 0) - (s.blocked || 0), 0) : 1; }
+// Индивидуальное занятие (всё, кроме групповой тренировки) — один клиент; создаётся записью клиента.
+// То же правило на сервере (slotIsIndividual в middleware/slot_rules.php)
+function slotIsIndividual(s) { return !(s.cat === 'training' && s.type === 'group'); }
+function slotCap(s) { return slotIsIndividual(s) ? 1 : Math.max((s.max || 0) - (s.blocked || 0), 0); }
 function slotFree(s) { return Math.max(slotCap(s) - (s.taken || 0), 0); }
 
 // Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); неизвестная — серый
@@ -127,10 +117,10 @@ let SLOT_TYPES = [
   { id: 0, code: 'free', name: 'Самостоятельная' },
 ];
 
-// Нужен ли занятию специалист: групповая и персональная тренировка, байкфит. То же правило на сервере
-// (activityNeedsSpecialist в middleware/specialist_hours.php)
+// Нужен ли занятию специалист: групповая и персональная тренировка — да, самостоятельная — нет; услугу всегда
+// оказывает специалист. То же правило на сервере (activityNeedsSpecialist в middleware/specialist_hours.php)
 function activityNeedsSpecialist(cat, type) {
-  return (cat === 'training' && (type === 'group' || type === 'personal')) || cat === 'bikefit';
+  return cat === 'training' ? (type === 'group' || type === 'personal') : true;
 }
 function slotTypeName(code) {
   const t = SLOT_TYPES.find(function (x) { return x.code === code; });
@@ -202,7 +192,6 @@ async function loadLibraryAll() {
 // ═══ STATE ══════════════════════════════════════════════════════
 
 let currentPage = 'home';
-let currentCat = 'all';
 let selectedDayIdx = todayIdx;
 let selectedSlot = null;
 let selectedStation = null;
@@ -234,6 +223,7 @@ function showPage(name) {
   document.getElementById('page-' + name).classList.add('active');
   currentPage = name;
   if (name === 'schedule') renderSchedule();
+  if (name === 'individual') renderIndividualPage();
   if (name === 'services') renderServices();
   if (name === 'bookings') renderBookings();
   if (name === 'client') renderClientPanel();

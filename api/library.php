@@ -2,7 +2,7 @@
 // api/library.php — Библиотека тренировок и услуг.
 // Единый источник описаний: слоты ссылаются на строку library через slots.library_id.
 // В БД хранятся коды (category, difficulty), русские подписи — только на фронте.
-// Тренировка или услуга — по категории: activity_category = 'training' — тренировка, остальные — услуги.
+// Тренировка или услуга — по категории: training (activity_category) — тренировка, значения service_category — услуги.
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
 
@@ -15,6 +15,15 @@ function libDictId($db, $group, $code) {
     $st->execute([$group, $code]);
     $id = $st->fetchColumn();
     if ($id === false) err('Неизвестное значение справочника ' . $group . ': ' . $code);
+    return (int)$id;
+}
+
+// Категория записи по коду: тренировка (activity_category) или услуга (service_category)
+function libCatId($db, $code) {
+    $st = $db->prepare('SELECT id FROM dictionaries WHERE group_code IN (' . CATEGORY_GROUPS_SQL . ') AND code = ?');
+    $st->execute([$code]);
+    $id = $st->fetchColumn();
+    if ($id === false) err('Неизвестная категория: ' . $code);
     return (int)$id;
 }
 
@@ -35,7 +44,7 @@ function libRow($r) {
         'id'          => (int)$r['id'],
         'location_id' => (int)$r['location_id'],
         'name'       => $r['name'],
-        'cat'        => $r['cat'],                  // activity_category: training | bikefit | workshop | …
+        'cat'        => $r['cat'],                  // код категории: training | bikefit | workshop | …
         'type'       => $r['type'],                 // slot_type: group | personal | free; у услуг null
         'dur'        => (int)$r['duration'],
         'price'      => (int)$r['price'],
@@ -71,14 +80,14 @@ if ($method === 'GET' && $action === 'list') {
     ok(array_map('libRow', $stmt->fetchAll()));
 }
 
-// GET — категории активностей (activity_category) для фильтров и формы.
-// spec_type / spec_name — тип специалиста, который ведёт категорию (dictionaries.ref_id).
+// GET — категории занятий для фильтров и формы: training (activity_category) и услуги (service_category).
+// is_service — услуга; spec_type / spec_name — тип специалиста, который ведёт категорию (dictionaries.ref_id).
 if ($method === 'GET' && $action === 'categories') {
     $db   = getDB();
-    $stmt = $db->prepare("SELECT d.id, d.code, d.name, st.code AS spec_type, st.name AS spec_name
+    $stmt = $db->prepare("SELECT d.id, d.code, d.name, (d.group_code = 'service_category') AS is_service, st.code AS spec_type, st.name AS spec_name
                           FROM dictionaries d
                           LEFT JOIN dictionaries st ON st.id = d.ref_id AND st.group_code = 'specialist_type'
-                          WHERE d.group_code = 'activity_category' AND d.active = 1 ORDER BY d.id");
+                          WHERE d.group_code IN (" . CATEGORY_GROUPS_SQL . ") AND d.active = 1 ORDER BY d.group_code, d.id");
     $stmt->execute();
     ok($stmt->fetchAll());
 }
@@ -102,7 +111,7 @@ if ($method === 'POST' && $action === 'create') {
     require_fields($d, ['name', 'price', 'location_id']);
 
     $db     = getDB();
-    $catId  = libDictId($db, 'activity_category', $d['cat']  ?? 'training');
+    $catId  = libCatId($db, $d['cat'] ?? 'training');
     // Тип занятия (групповая / индивидуальная) — только у тренировок; у услуг пусто
     $typeId = ($d['cat'] ?? 'training') === 'training' ? libDictId($db, 'slot_type', $d['type'] ?? 'group') : null;
     $features = isset($d['features']) && is_array($d['features'])

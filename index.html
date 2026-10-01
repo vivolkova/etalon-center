@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20260930-20">
-  <link rel="stylesheet" href="css/site.css?v=20260930-20">
-  <link rel="stylesheet" href="css/panels.css?v=20260930-20">
-  <link rel="stylesheet" href="css/library.css?v=20260930-20">
-  <link rel="stylesheet" href="css/week-grid.css?v=20260930-20">
-  <link rel="stylesheet" href="css/admin.css?v=20260930-20">
+  <link rel="stylesheet" href="css/base.css?v=20261001-06">
+  <link rel="stylesheet" href="css/site.css?v=20261001-06">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-06">
+  <link rel="stylesheet" href="css/library.css?v=20261001-06">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-06">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-06">
 </head>
 
 <body>
@@ -37,7 +37,8 @@
           style="font-weight:300">CENTER</span></span></a>
     <div class="nav-links">
       <a class="nav-link active" href="#" onclick="showPage('home');setNavActive(this)">Главная</a>
-      <a class="nav-link" href="#" onclick="showPage('schedule');setNavActive(this)">Расписание</a>
+      <a class="nav-link" href="#" onclick="showPage('schedule');setNavActive(this)">Групповые тренировки</a>
+      <a class="nav-link" href="#" onclick="showPage('individual');setNavActive(this)">Индивидуальные тренировки</a>
       <a class="nav-link" href="#" onclick="showPage('services');setNavActive(this)">Услуги</a>
       <a class="nav-link" href="#" onclick="showPage('client');setNavActive(this)" id="nav-client"
         style="display:none">Кабинет</a>
@@ -87,14 +88,14 @@
   <div class="page" id="page-schedule">
     <div class="section">
       <div class="section-head">
-        <div class="section-label">Расписание</div>
+        <div class="section-label">Групповые тренировки</div>
         <h2 class="section-title">Выберите тренировку</h2>
       </div>
 
       <!-- Филиал: переключатель (один действующий филиал — скрыт) + адрес и телефон выбранного -->
       <div class="sch-loc" id="sch-loc"></div>
 
-      <!-- Шапка: навигация по неделям + фильтры -->
+      <!-- Шапка: навигация по неделям -->
       <div class="wg-toolbar">
         <div class="wg-nav">
           <button class="wg-nav-btn" onclick="schChangeWeek(-1)">
@@ -112,8 +113,6 @@
           </button>
           <button class="wg-today-btn" onclick="schGoToday()">Сегодня</button>
         </div>
-        <!-- Фильтр по категориям — строится из справочника (renderSchedule) -->
-        <div class="filter-chips" id="sch-cat-filter" style="margin:0"></div>
       </div>
 
       <!-- Недельная сетка -->
@@ -121,9 +120,54 @@
         <div class="wg wg--site" id="week-cal-grid"></div>
       </div>
 
-      <!-- Легенда -->
-      <div class="sch-legend" id="sch-legend" style="margin-top:14px"></div>
+    </div>
+  </div>
 
+  <!-- ════════════ PAGE: INDIVIDUAL TRAININGS (js/site/individual-page.js) ════════════ -->
+  <div class="page" id="page-individual">
+    <div class="section">
+      <div class="section-head">
+        <div class="section-label">Индивидуальные тренировки</div>
+        <h2 class="section-title">Выберите время</h2>
+      </div>
+
+      <!-- Филиал — тот же выбор, что на экране групповых тренировок -->
+      <div class="sch-loc" id="indp-loc"></div>
+
+      <div class="indp-empty" id="indp-empty" style="display:none">В этом филиале пока нет индивидуальных тренировок.</div>
+
+      <div id="indp-body">
+        <!-- Тренировка, тренер или длительность — от них зависит свободное время в сетке -->
+        <div class="indp-filters" id="indp-filters"></div>
+
+        <div class="wg-toolbar">
+          <div class="wg-nav">
+            <button class="wg-nav-btn" onclick="indPgChangeWeek(-1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+            <span class="wg-label" id="indp-month"></span>
+            <button class="wg-nav-btn" onclick="indPgChangeWeek(1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+            <button class="wg-today-btn" onclick="indPgToday()">Сегодня</button>
+          </div>
+          <div class="indp-legend">
+            <span><i class="indp-dot indp-dot--free"></i>Можно записаться — нажмите на время начала</span>
+            <span><i class="indp-dot indp-dot--busy"></i>Недоступно</span>
+            <span><i class="indp-dot indp-dot--mine"></i>Вы записаны</span>
+          </div>
+        </div>
+
+        <div class="wg-wrap">
+          <div class="wg wg--site wg--ind" id="indp-grid"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -134,7 +178,10 @@
         <div class="section-label">Что мы делаем</div>
         <h2 class="section-title">Наши услуги</h2>
       </div>
-      <div class="services-grid" id="services-grid"></div>
+      <!-- Филиал — тот же выбор, что на экранах тренировок; услуги и специалисты у каждого филиала свои -->
+      <div class="sch-loc" id="svc-loc"></div>
+      <!-- Разделы — категории услуг из справочника, карточки — записи библиотеки (renderServices) -->
+      <div id="services-grid"></div>
     </div>
   </div>
 
@@ -168,12 +215,6 @@
               stroke-linejoin="round">
               <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" />
             </svg> Анонсы и акции</div>
-          <div class="cp-nav-item" onclick="switchClientTab('schedule',this)"><svg width="16" height="16"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-              stroke-linejoin="round">
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
-            </svg> Расписание</div>
           <div class="cp-nav-item" onclick="switchClientTab('mybookings',this)"><svg width="16" height="16"
               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
@@ -204,14 +245,6 @@
           <div class="ann-grid" id="client-ann-grid"></div>
           <div style="font-size:13px;font-weight:700;color:var(--ink-60);margin-bottom:12px">БЛИЖАЙШИЕ ЗАНЯТИЯ</div>
           <div class="cp-slots-grid" id="feed-slots"></div>
-        </div>
-
-        <!-- SCHEDULE -->
-        <div class="cp-panel" id="cp-schedule">
-          <div class="cp-section-title">Расписание</div>
-          <div class="filter-chips" id="cp-cat-filter" style="margin-bottom:16px"></div>
-          <div class="filter-chips" id="cp-week-chips" style="margin-bottom:20px;flex-wrap:wrap;gap:6px"></div>
-          <div class="cp-slots-grid" id="cp-slots-list"></div>
         </div>
 
         <!-- MY BOOKINGS -->
@@ -453,14 +486,6 @@
             Рассылки
           </div>
           <div class="adm-nav-section">Система</div>
-          <div class="adm-nav-item" onclick="admNav('services',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path
-                d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" />
-            </svg>
-            Услуги сайта
-          </div>
           <div class="adm-nav-item" onclick="admNav('settings',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -854,16 +879,6 @@
           </div>
         </div>
 
-        <!-- УСЛУГИ -->
-        <div class="adm-panel" id="adm-services">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Услуги сайта</h2>
-            <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openServiceModal(null)">+
-              Добавить услугу</button>
-          </div>
-          <div class="services-edit-grid" id="services-edit-grid"></div>
-        </div>
-
         <!-- НАСТРОЙКИ -->
         <div class="adm-panel" id="adm-settings">
           <div class="adm-panel-header">
@@ -963,6 +978,56 @@
   </div>
 
 
+  <!-- MODAL: SERVICE BOOKING (запись на услугу: специалист → дата → свободное время) — js/site/individual.js -->
+  <div class="modal-overlay" id="ind-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="ind-title"></div>
+          <div class="modal-sub" id="ind-sub"></div>
+        </div>
+        <button class="modal-close" onclick="closeIndividual()">×</button>
+      </div>
+      <div id="ind-body"></div>
+      <div class="form-field">
+        <label class="form-label">Комментарий</label>
+        <textarea class="form-input" id="ind-comment" rows="2" style="height:auto;resize:vertical"></textarea>
+      </div>
+      <div class="ind-total" id="ind-total"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeIndividual()">Отмена</button>
+        <button class="btn-primary" id="ind-submit" onclick="confirmIndividual()" disabled>Записаться →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: INDIVIDUAL TRAINING BOOKING — время выбрано в сетке, клиент выбирает станок (js/site/individual-page.js) -->
+  <div class="modal-overlay" id="indb-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title" id="indb-title"></div>
+          <div class="modal-sub" id="indb-sub"></div>
+        </div>
+        <button class="modal-close" onclick="closeIndBooking()">×</button>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Выберите станок</label>
+        <div id="indb-hall" class="hall-scheme"></div>
+        <div id="indb-hint" class="station-hint"></div>
+      </div>
+      <div class="form-field">
+        <label class="form-label">Комментарий</label>
+        <textarea class="form-input" id="indb-comment" rows="2" style="height:auto;resize:vertical"></textarea>
+      </div>
+      <div class="ind-total" id="indb-total"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeIndBooking()">Отмена</button>
+        <button class="btn-primary" id="indb-submit" onclick="confirmIndBooking()" disabled>Записаться →</button>
+      </div>
+    </div>
+  </div>
+
   <!-- MODAL: SLOT DETAIL -->
   <div class="detail-modal-overlay" id="slot-detail-modal">
     <div class="detail-modal">
@@ -985,35 +1050,6 @@
           <button class="btn-ghost"
             onclick="document.getElementById('slot-detail-modal').classList.remove('show')">Закрыть</button>
           <button class="btn-primary" id="sdm-book-btn" style="padding:11px 22px">Записаться →</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: SERVICE DETAIL -->
-  <div class="detail-modal-overlay" id="service-detail-modal">
-    <div class="detail-modal">
-      <button class="dm-close"
-        onclick="document.getElementById('service-detail-modal').classList.remove('show')">×</button>
-      <div class="dm-hero">
-        <div
-          style="width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;background:var(--surface)"
-          id="svcm-icon-big"></div>
-        <div class="dm-tag" id="svcm-tag">Услуга</div>
-        <div class="dm-title" id="svcm-title"></div>
-        <div class="dm-subtitle" id="svcm-subtitle"></div>
-      </div>
-      <div class="dm-desc" id="svcm-desc-full"></div>
-      <div class="dm-features" id="svcm-features"></div>
-      <div class="dm-footer">
-        <div>
-          <div class="dm-price" id="svcm-price-big"></div>
-          <div class="dm-price-label">стоимость</div>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn-ghost"
-            onclick="document.getElementById('service-detail-modal').classList.remove('show')">Закрыть</button>
-          <button class="btn-primary" id="svcm-cta-btn" style="padding:11px 22px">Записаться →</button>
         </div>
       </div>
     </div>
@@ -1055,33 +1091,34 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20260930-20"></script>
-  <script src="js/core.js?v=20260930-20"></script>
-  <script src="js/week-grid.js?v=20260930-20"></script>
-  <script src="js/auth.js?v=20260930-20"></script>
-  <script src="js/site/schedule.js?v=20260930-20"></script>
-  <script src="js/site/booking.js?v=20260930-20"></script>
-  <script src="js/site/services-bookings.js?v=20260930-20"></script>
-  <script src="js/admin/admin.js?v=20260930-20"></script>
-  <script src="js/admin/schedule.js?v=20260930-20"></script>
-  <script src="js/admin/services.js?v=20260930-20"></script>
-  <script src="js/admin/chat.js?v=20260930-20"></script>
-  <script src="js/admin/notifications.js?v=20260930-20"></script>
-  <script src="js/client/panel.js?v=20260930-20"></script>
-  <script src="js/client/payment.js?v=20260930-20"></script>
-  <script src="js/client/chat-profile.js?v=20260930-20"></script>
-  <script src="js/site/detail-modals.js?v=20260930-20"></script>
-  <script src="js/admin/library.js?v=20260930-20"></script>
-  <script src="js/admin/data-nav.js?v=20260930-20"></script>
-  <script src="js/admin/dashboard.js?v=20260930-20"></script>
-  <script src="js/admin/specialists.js?v=20260930-20"></script>
-  <script src="js/admin/sales.js?v=20260930-20"></script>
-  <script src="js/admin/settings.js?v=20260930-20"></script>
-  <script src="js/admin/stations.js?v=20260930-20"></script>
-  <script src="js/admin/dictionaries.js?v=20260930-20"></script>
-  <script src="js/ui.js?v=20260930-20"></script>
-  <script src="js/loaders.js?v=20260930-20"></script>
-  <script src="js/init.js?v=20260930-20"></script>
+  <script src="js/api.js?v=20261001-06"></script>
+  <script src="js/core.js?v=20261001-06"></script>
+  <script src="js/week-grid.js?v=20261001-06"></script>
+  <script src="js/auth.js?v=20261001-06"></script>
+  <script src="js/site/schedule.js?v=20261001-06"></script>
+  <script src="js/site/booking.js?v=20261001-06"></script>
+  <script src="js/site/individual.js?v=20261001-06"></script>
+  <script src="js/site/individual-page.js?v=20261001-06"></script>
+  <script src="js/site/services-bookings.js?v=20261001-06"></script>
+  <script src="js/admin/admin.js?v=20261001-06"></script>
+  <script src="js/admin/schedule.js?v=20261001-06"></script>
+  <script src="js/admin/chat.js?v=20261001-06"></script>
+  <script src="js/admin/notifications.js?v=20261001-06"></script>
+  <script src="js/client/panel.js?v=20261001-06"></script>
+  <script src="js/client/payment.js?v=20261001-06"></script>
+  <script src="js/client/chat-profile.js?v=20261001-06"></script>
+  <script src="js/site/detail-modals.js?v=20261001-06"></script>
+  <script src="js/admin/library.js?v=20261001-06"></script>
+  <script src="js/admin/data-nav.js?v=20261001-06"></script>
+  <script src="js/admin/dashboard.js?v=20261001-06"></script>
+  <script src="js/admin/specialists.js?v=20261001-06"></script>
+  <script src="js/admin/sales.js?v=20261001-06"></script>
+  <script src="js/admin/settings.js?v=20261001-06"></script>
+  <script src="js/admin/stations.js?v=20261001-06"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-06"></script>
+  <script src="js/ui.js?v=20261001-06"></script>
+  <script src="js/loaders.js?v=20261001-06"></script>
+  <script src="js/init.js?v=20261001-06"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1162,44 +1199,6 @@
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeSlotModal()">Отмена</button>
         <button class="btn-primary" onclick="saveSlot()">Сохранить</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: EDIT SERVICE -->
-  <div class="admin-modal-overlay" id="service-modal">
-    <div class="admin-modal">
-      <div class="admin-modal-title" id="service-modal-title">Добавить услугу</div>
-      <input type="hidden" id="svcm-idx">
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Иконка (эмодзи)</label>
-          <input class="form-input" id="svcm-icon" placeholder="🚴" style="font-size:20px">
-        </div>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Название</label>
-        <input class="form-input" id="svcm-name" placeholder="Групповые тренировки">
-      </div>
-      <div class="form-field">
-        <label class="form-label">Описание</label>
-        <textarea class="form-input" id="svcm-desc" rows="3" placeholder="Описание услуги..."
-          style="height:auto;resize:vertical"></textarea>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Особенности (каждая с новой строки)</label>
-        <textarea class="form-input" id="svcm-feat" rows="4" placeholder="Что входит в услугу..."
-          style="height:auto;resize:vertical"></textarea>
-      </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Цена (текст)</label>
-          <input class="form-input" id="svcm-price" placeholder="от 1 200 ₽">
-        </div>
-      </div>
-      <div class="admin-modal-actions">
-        <button class="btn-ghost" onclick="closeServiceModal()">Отмена</button>
-        <button class="btn-primary" onclick="saveService()">Сохранить</button>
       </div>
     </div>
   </div>

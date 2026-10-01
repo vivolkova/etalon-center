@@ -15,8 +15,18 @@
 //      между занятиями в разных филиалах — не меньше времени на переезд между ними (travelMinutes).
 // Ошибка — err() с понятным текстом. Вызывать внутри транзакции: строки филиала и специалиста блокируются
 // (SELECT … FOR UPDATE), чтобы два одновременных сохранения не заняли зал дважды и не поставили человека в два места.
+// slotRuleError() — те же проверки без завершения запроса (текст ошибки или null): для подбора свободного времени.
 require_once __DIR__ . '/specialist_hours.php';
 require_once __DIR__ . '/settings.php';
+
+// Нарушение правила занятия: checkSlot превращает его в err(), slotRuleError — в текст
+class SlotRuleError extends RuntimeException {}
+function slotFail(string $message): never { throw new SlotRuleError($message); }
+
+// Индивидуальное занятие — всё, кроме групповой тренировки: один клиент на слот, слот создаёт запись клиента
+function slotIsIndividual(string $cat, ?string $type): bool {
+    return !($cat === 'training' && $type === 'group');
+}
 
 // Значение справочника по коду: [id, ref_id, name] или ошибка
 function slotDict(PDO $db, string $group, string $code): array {
@@ -24,6 +34,15 @@ function slotDict(PDO $db, string $group, string $code): array {
     $st->execute([$group, $code]);
     $row = $st->fetch();
     if (!$row) err('Неизвестное значение справочника ' . $group . ': ' . $code);
+    return $row;
+}
+
+// Категория занятия по коду (тренировка или услуга — CATEGORY_GROUPS): [id, ref_id, name] или ошибка
+function slotCategory(PDO $db, string $code): array {
+    $st = $db->prepare('SELECT id, ref_id, name FROM dictionaries WHERE group_code IN (' . CATEGORY_GROUPS_SQL . ') AND code = ?');
+    $st->execute([$code]);
+    $row = $st->fetch();
+    if (!$row) err('Неизвестная категория занятия: ' . $code);
     return $row;
 }
 
@@ -40,10 +59,45 @@ function slotLocName(PDO $db, int $locId): string {
 }
 
 // $s: ['id' => id изменяемого слота|null, 'location_id', 'date' => 'Y-m-d', 'start' => 'HH:MM',
-//      'duration' => мин, 'cat' => activity_category.code, 'type' => slot_type.code|null, 'specialist_id' => id|null]
+//      'duration' => мин, 'cat' => код категории (training или услуга), 'type' => slot_type.code|null, 'specialist_id' => id|null]
 function checkSlot(PDO $db, array $s): void {
-    checkSlotHall($db, $s);
-    checkSlotSpecialist($db, $s);
+    $e = slotRuleError($db, $s);
+    if ($e !== null) err($e);
+}
+
+// То же без завершения запроса; $withHours — ещё и режим работы филиала (админка проверяет его отдельно)
+function slotRuleError(PDO $db, array $s, bool $withHours = false): ?string {
+    try {
+        if ($withHours) checkSlotWorkHours($db, $s);
+        checkSlotHall($db, $s);
+        checkSlotSpecialist($db, $s);
+        return null;
+    } catch (SlotRuleError $e) {
+        return $e->getMessage();
+    }
+}
+
+// Часы работы филиала в дату: ['from' => мин, 'to' => мин]; null — выходной или филиал недействующий;
+// режим работы не задан — весь день
+function slotBranchHours(PDO $db, int $locId, string $date): ?array {
+    $loc = specLocationOrNull($db, $locId);
+    if (!$loc) return null;
+    if ($loc['days'] === null) return ['from' => 0, 'to' => 24 * 60];
+    $h = $loc['days'][specDayName($date)] ?? null;
+    return $h ? ['from' => specTimeToMin($h['from']), 'to' => specTimeToMin($h['to'])] : null;
+}
+
+// Занятие целиком в режиме работы филиала (locations.work_hours)
+function checkSlotWorkHours(PDO $db, array $s): void {
+    $locId = (int)$s['location_id'];
+    $date  = (string)$s['date'];
+    if (!specLocationOrNull($db, $locId)) slotFail('Филиал не найден или недействующий');
+    $h = slotBranchHours($db, $locId, $date);
+    if (!$h) slotFail('В этот день (' . specDayName($date) . ') филиал не работает');
+    $start = specTimeToMin(substr((string)$s['start'], 0, 5));
+    if ($start < $h['from'] || $start + (int)$s['duration'] > $h['to']) {
+        slotFail('Занятие должно быть в режиме работы филиала: ' . minToTimeStr($h['from']) . '–' . minToTimeStr($h['to']));
+    }
 }
 
 // Зал филиала: тренировка не пересекается с другими тренировками в этом филиале
@@ -67,7 +121,7 @@ function checkSlotHall(PDO $db, array $s): void {
         if (!($start < $oEnd && $oStart < $end)) continue;
         $shared = in_array($s['type'] ?? null, ['personal', 'free'], true) && in_array($o['type'], ['personal', 'free'], true);
         if ($shared) continue;
-        err('Зал филиала «' . slotLocName($db, $locId) . '» занят: ' . specFmtDate((string)$s['date']) . ' '
+        slotFail('Зал филиала «' . slotLocName($db, $locId) . '» занят: ' . specFmtDate((string)$s['date']) . ' '
             . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»');
     }
 }
@@ -75,28 +129,28 @@ function checkSlotHall(PDO $db, array $s): void {
 function checkSlotSpecialist(PDO $db, array $s): void {
     $locId  = (int)$s['location_id'];
     $specId = (int)($s['specialist_id'] ?? 0);
-    $cat    = slotDict($db, 'activity_category', (string)$s['cat']);
+    $cat    = slotCategory($db, (string)$s['cat']);
 
     // Категория доступна в филиале
     if (!dictAvailableAt($db, (int)$cat['id'], $locId)) {
-        err('Категория «' . $cat['name'] . '» недоступна в филиале «' . slotLocName($db, $locId) . '»');
+        slotFail('Категория «' . $cat['name'] . '» недоступна в филиале «' . slotLocName($db, $locId) . '»');
     }
 
     // 1) Нужен ли специалист
     $needs = activityNeedsSpecialist((string)$s['cat'], $s['type'] ?? null);
     if (!$specId) {
-        if ($needs) err('Укажите специалиста');
+        if ($needs) slotFail('Укажите специалиста');
         return;
     }
-    if ($s['cat'] === 'training' && ($s['type'] ?? null) === 'free') err('У самостоятельной тренировки нет тренера');
+    if ($s['cat'] === 'training' && ($s['type'] ?? null) === 'free') slotFail('У самостоятельной тренировки нет тренера');
 
     // Блокируем строку специалиста до конца транзакции
     $st = $db->prepare('SELECT id, full_name, active FROM specialists WHERE id = ? FOR UPDATE');
     $st->execute([$specId]);
     $sp = $st->fetch();
-    if (!$sp) err('Специалист не найден', 404);
+    if (!$sp) slotFail('Специалист не найден', 404);
     $who = $sp['full_name'];
-    if (!(int)$sp['active']) err($who . ' — неактивный специалист');
+    if (!(int)$sp['active']) slotFail($who . ' — неактивный специалист');
 
     // 2–3) Специализация, которая ведёт категорию, — у специалиста есть и доступна в филиале
     if ($cat['ref_id']) {
@@ -105,9 +159,9 @@ function checkSlotSpecialist(PDO $db, array $s): void {
         $typeName = (string)$st->fetchColumn();
         $st = $db->prepare('SELECT 1 FROM specialist_types WHERE specialist_id = ? AND type_id = ? AND active = 1');
         $st->execute([$specId, (int)$cat['ref_id']]);
-        if (!$st->fetchColumn()) err($who . ' — не ' . mb_strtolower($typeName) . ': «' . $cat['name'] . '» ведёт ' . mb_strtolower($typeName));
+        if (!$st->fetchColumn()) slotFail($who . ' — не ' . mb_strtolower($typeName) . ': «' . $cat['name'] . '» ведёт ' . mb_strtolower($typeName));
         if (!dictAvailableAt($db, (int)$cat['ref_id'], $locId)) {
-            err('Специализация «' . $typeName . '» недоступна в филиале «' . slotLocName($db, $locId) . '»');
+            slotFail('Специализация «' . $typeName . '» недоступна в филиале «' . slotLocName($db, $locId) . '»');
         }
     }
 
@@ -123,11 +177,11 @@ function checkSlotSpecialist(PDO $db, array $s): void {
     if (!$fits) {
         $when = specFmtDate($date);
         if (!$day['intervals']) {
-            err($who . ' ' . $when . ' не работает' . ($day['reason'] ? ' (' . $day['reason'] . ')' : ''));
+            slotFail($who . ' ' . $when . ' не работает' . ($day['reason'] ? ' (' . $day['reason'] . ')' : ''));
         }
         $here = array_filter($day['intervals'], fn($iv) => (int)$iv['location_id'] === $locId);
-        if (!$here) err($who . ' ' . $when . ' не работает в филиале «' . slotLocName($db, $locId) . '»');
-        err($who . ' ' . $when . ' работает в этом филиале ' . implode(', ', array_map(fn($iv) => $iv['from'] . '–' . $iv['to'], $here))
+        if (!$here) slotFail($who . ' ' . $when . ' не работает в филиале «' . slotLocName($db, $locId) . '»');
+        slotFail($who . ' ' . $when . ' работает в этом филиале ' . implode(', ', array_map(fn($iv) => $iv['from'] . '–' . $iv['to'], $here))
             . ' — занятие должно целиком помещаться в один интервал');
     }
 
@@ -143,9 +197,9 @@ function checkSlotSpecialist(PDO $db, array $s): void {
         if ($start < $oEnd + $gap && $oStart < $end + $gap) {
             $other = specFmtDate($date) . ' ' . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
             if ($sameLoc || ($start < $oEnd && $oStart < $end)) {
-                err($who . ': уже есть занятие ' . $other . ($sameLoc ? '' : ' в филиале «' . slotLocName($db, (int)$o['location_id']) . '»'));
+                slotFail($who . ': уже есть занятие ' . $other . ($sameLoc ? '' : ' в филиале «' . slotLocName($db, (int)$o['location_id']) . '»'));
             }
-            err($who . ' не успеет переехать: ' . $other . ' в филиале «' . slotLocName($db, (int)$o['location_id'])
+            slotFail($who . ' не успеет переехать: ' . $other . ' в филиале «' . slotLocName($db, (int)$o['location_id'])
                 . '». На переезд между этими филиалами нужно не меньше ' . fmtMinutes($gap));
         }
     }

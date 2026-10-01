@@ -21,9 +21,8 @@ renderSchedule();
     loadActivityCats(),
     loadDictValues(),
     loadDictAvailability(),
-    loadServices(),
   ]);
-  renderServices();   // перерисовываем карточки услуг данными из БД
+  renderServices();   // страница «Услуги» — по справочнику и библиотеке
 
   // 2. Восстанавливаем сессию
   await restoreSession();

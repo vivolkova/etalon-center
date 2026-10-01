@@ -86,7 +86,7 @@
 
 .wg--site {
   --wg-time-w: 48px;
-  --wg-row-h: 80px;      /* на сайте крупнее: в слоте есть кнопка «Записаться» */
+  --wg-row-h: 96px;      /* на сайте крупнее: в слоте тренер, места и кнопка «Записаться» */
   --wg-min-w: 760px;
 }
 
@@ -448,4 +448,185 @@
 .sch-loc-info {
   font-size: 13px;
   color: var(--ink-60);
+}
+
+/* Тренер в слоте групповой тренировки */
+.wg-slot-spec {
+  font-size: 10px;
+  color: var(--ink);
+}
+
+/* ── Сайт: окна записи — на услугу (js/site/individual.js) и на индивидуальную тренировку ── */
+#ind-modal .modal,
+#indb-modal .modal {
+  max-width: 600px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Лента дат — горизонтальная прокрутка */
+.ind-dates {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.ind-dates .chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 58px;
+}
+
+.ind-dow { font-size: 10px; opacity: .75; }
+
+.ind-hint {
+  font-size: 13px;
+  color: var(--ink-60);
+}
+
+.ind-total {
+  min-height: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* ── Сайт: экран «Индивидуальные тренировки» (js/site/individual-page.js) ── */
+.wg--ind {
+  --wg-row-h: 64px;      /* шаг записи 30 минут — по две кнопки времени в строке часа */
+}
+
+.wg--loading {
+  opacity: .5;
+  pointer-events: none;
+}
+
+.indp-filters {
+  margin-bottom: 16px;
+}
+
+.indp-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 8px;
+}
+
+.indp-row-label {
+  min-width: 96px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-60);
+}
+
+.indp-row .chip {
+  font-size: 13px;
+  padding: 6px 14px;
+}
+
+.indp-price {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.indp-price span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-60);
+}
+
+.indp-empty {
+  padding: 40px 0;
+  color: var(--ink-60);
+  font-size: 14px;
+}
+
+.indp-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--ink-60);
+}
+
+.indp-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: -2px;
+}
+
+.indp-dot--free { background: var(--green-light); border: 1px solid var(--green); }
+.indp-dot--busy { background: #eef0f2; border: 1px solid #d9dde1; }
+.indp-dot--mine { background: var(--cat-training-bg); border: 1px solid var(--cat-training); }
+
+/* Время начала, на которое можно записаться */
+.wg-free {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  z-index: 2;
+  border: 1px solid var(--green);
+  border-radius: 6px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .12s, color .12s;
+}
+
+.wg-free:hover {
+  background: var(--green);
+  color: #fff;
+}
+
+/* Недоступное время — с причиной */
+.wg-blk {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: 6px;
+  background: #eef0f2;
+  color: var(--ink-60);
+  font-size: 10px;
+  line-height: 1.25;
+  text-align: center;
+  overflow: hidden;
+}
+
+.wg-blk--group {
+  background: #e3e6ea;
+  font-weight: 600;
+}
+
+.wg-blk--mine {
+  background: var(--cat-training-bg);
+  border-left: 3px solid var(--cat-training);
+  border-radius: 6px;
+  color: var(--cat-training-ink);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wg-blk--day {
+  align-items: flex-start;
+  padding-top: 24px;
+  font-size: 11px;
 }

@@ -76,6 +76,12 @@ function authUser(): array {
     return $payload;
 }
 
+// Пользователь, если запрос с действующим токеном; иначе null (для публичных данных с личными дополнениями)
+function authUserOrNull(): ?array {
+    $token = getBearerToken();
+    return $token ? jwtDecode($token) : null;
+}
+
 function authAdmin(): array {
     $user = authUser();
     if ($user['role'] !== 'admin') err('Недостаточно прав', 403);
@@ -101,6 +107,13 @@ function getBearerToken(): ?string {
     }
     return null;
 }
+
+// ── Категории занятий ─────────────────────────────────────
+// Две группы справочника: activity_category — тренировки (единственное значение training),
+// service_category — услуги (байкфит, мастерская, массаж…). Код категории уникален в обеих группах:
+// по нему категорию находят (library, slots хранят id значения любой из групп).
+const CATEGORY_GROUPS = ['activity_category', 'service_category'];
+const CATEGORY_GROUPS_SQL = "'activity_category','service_category'";
 
 // ── Валидация ─────────────────────────────────────────────
 function require_fields(array $data, array $fields): void {

@@ -13,8 +13,8 @@ INSERT INTO dictionaries (group_code, code, name) VALUES
 ('user_role', 'client', 'Клиент'),
 ('user_role', 'admin', 'Администратор'),
 ('activity_category', 'training', 'Тренировка'),
-('activity_category', 'bikefit', 'Байкфит'),
-('activity_category', 'workshop', 'Мастерская'),
+('service_category', 'bikefit', 'Байкфит'),
+('service_category', 'workshop', 'Мастерская'),
 ('slot_type', 'group', 'Групповая'),
 ('slot_type', 'personal', 'Персональная'),
 ('slot_type', 'free', 'Самостоятельная'),
@@ -28,7 +28,7 @@ UPDATE dictionaries c
 JOIN dictionaries s ON s.group_code = 'specialist_type'
  AND (c.code, s.code) IN (('training', 'trainer'), ('bikefit', 'bikefitter'), ('workshop', 'mechanic'))
 SET c.ref_id = s.id
-WHERE c.group_code = 'activity_category';
+WHERE c.group_code IN ('activity_category', 'service_category');
 
 -- Типы станков (вынесены из dictionaries).
 INSERT INTO station_type (name, icon) VALUES
@@ -44,12 +44,15 @@ INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, p
 
 -- Параметры студии (меняются в админке: Настройки студии → Параметры)
 INSERT INTO settings (code, name, value) VALUES
-('location_travel_minutes', 'Время на переезд между филиалами по умолчанию, мин', '90');
+('location_travel_minutes', 'Время на переезд между филиалами по умолчанию, мин', '90'),
+('client_booking_lead_minutes', 'Индивидуальная запись: не позже чем за, мин до начала', '60'),
+('client_booking_horizon_days', 'Индивидуальная запись: не дальше чем на, дней вперёд', '30'),
+('free_training_max_minutes', 'Самостоятельная тренировка: максимальная длительность, мин', '180');
 
 -- Категории активностей и типы специалистов доступны в основном филиале (филиалы у значений — явным списком)
 INSERT INTO location_dictionaries (dictionary_id, location_id)
 SELECT d.id, l.id FROM dictionaries d CROSS JOIN locations l
-WHERE d.group_code IN ('activity_category', 'specialist_type');
+WHERE d.group_code IN ('activity_category', 'service_category', 'specialist_type');
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
@@ -159,29 +162,29 @@ INSERT INTO library (location_id, name, activity_category_id, slot_type_id, dura
  (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='training'), (SELECT id FROM dictionaries WHERE group_code='slot_type' AND code='free'),60,800,'any',
  'Самостоятельная тренировка на смарт-тренере в удобном темпе. Зал, оборудование и Zwift в вашем распоряжении - без программы и тренера.',
  JSON_ARRAY('Свободный график нагрузки','Доступ к Zwift и ERG-режиму','Подходит для любого уровня','Оплата за одно посещение')),
--- Услуги (activity_category <> training)
+-- Услуги (категории service_category)
 (1,'Байкфит стандарт',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'), NULL,120,9500,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='bikefit'), NULL,120,9500,'any',
  'Полная настройка посадки с видеозахватом в трёх плоскостях.',
  JSON_ARRAY('Замеры углов в ключевых точках','Настройка седла, руля, шипов','Видеоразбор со специалистом','PDF-отчёт с параметрами')),
 (1,'Байкфит PRO',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'), NULL,180,12000,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='bikefit'), NULL,180,12000,'any',
  'Максимальный формат: байкфит, индивидуальные стельки и 3D-анализ.',
  JSON_ARRAY('Всё из стандартного байкфита','3D-сканирование позиции','Индивидуальные ортопедические стельки','Расширенный цифровой отчёт')),
 (1,'Настройка шипов',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='bikefit'), NULL,60,3500,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='bikefit'), NULL,60,3500,'any',
  'Точная установка шипов по биомеханике стопы для эффективного педалирования.',
  JSON_ARRAY('Анализ положения стопы','Установка угла и смещения шипов','Проверка на станке','Рекомендации по обуви')),
 (1,'ТО среднее',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'), NULL,60,3400,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='workshop'), NULL,60,3400,'any',
  'Плановое обслуживание для поддержания велосипеда в рабочем состоянии.',
  JSON_ARRAY('Настройка переключателей и тормозов','Смазка и промывка цепи','Протяжка спиц','Проверка давления')),
 (1,'Капитальное ТО',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'), NULL,180,6900,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='workshop'), NULL,180,6900,'any',
  'Полная переборка всех узлов велосипеда с промывкой и диагностикой.',
  JSON_ARRAY('Разборка и сборка каретки','Переборка втулок и рулевой','Замена расходников','Финальная настройка и тест')),
 (1,'Диагностика',
- (SELECT id FROM dictionaries WHERE group_code='activity_category' AND code='workshop'), NULL,30,1500,'any',
+ (SELECT id FROM dictionaries WHERE group_code='service_category' AND code='workshop'), NULL,30,1500,'any',
  'Быстрая проверка состояния велосипеда с рекомендациями по обслуживанию.',
  JSON_ARRAY('Проверка всех узлов','Список необходимых работ','Оценка стоимости ремонта','Без разборки'));
 
@@ -233,11 +236,3 @@ JOIN library l      ON l.name = v.lib AND l.location_id = @south
 JOIN specialists sp ON sp.full_name = 'Максим Романов'
 ORDER BY v.slot_date, v.start_time;
 
--- Услуги главной страницы (перенос из localStorage в БД)
-INSERT INTO services (location_id, icon, name, description, price, features, sort_order) VALUES
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M8.5 17.5h7m-3-10.5l2 4 2-1.5m-4 0l-3 4h5"/><circle cx="15" cy="6" r="1"/></svg>', 'Групповые тренировки', 'Динамичные занятия на смарт-тренерах с Zwift. Подходят для любого уровня подготовки.', 'от 1 200 ₽', JSON_ARRAY('До 12 участников в группе', 'Zwift и ERG-режим на смарт-тренерах', 'Тренер ведёт занятие онлайн', 'Разминка и заминка включены'), 1),
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>', 'Персональные тренировки', 'Индивидуальные занятия с тренером. Программа под ваши цели: похудение, выносливость, скорость.', '2 500 ₽ / час', JSON_ARRAY('Индивидуальная программа под ваши цели', 'Анализ мощности и ЧСС', 'Гибкое расписание', 'Доступ к данным через приложение'), 2),
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>', 'Байкфит стандарт', 'Полная настройка посадки с видеозахватом. 2 часа, подробный отчёт с замерами.', '9 500 ₽', JSON_ARRAY('2 часа работы с фиттером', 'Видеозахват и замеры', 'Настройка седла, руля, шипов', 'PDF-отчёт со всеми параметрами'), 3),
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M8.5 15.5L7 22l5-2 5 2-1.5-6.5"/></svg>', 'Байкфит PRO', 'Максимальный формат: байкфит + индивидуальные стельки + цифровой отчёт.', '12 000 ₽', JSON_ARRAY('Всё из стандартного байкфита', 'Индивидуальные стельки', '3D-анализ движения', 'Расширенный цифровой отчёт'), 4),
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>', 'Техобслуживание', 'Среднее ТО: настройка переключателей и тормозов, смазка цепи, протяжка спиц.', 'от 3 400 ₽', JSON_ARRAY('Настройка переключателей и тормозов', 'Смазка и промывка цепи', 'Протяжка спиц', 'Проверка давления в покрышках'), 5),
-(1, '<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>', 'Капитальный ремонт', 'Полная переборка всех узлов, промывка, диагностика. Велосипед будет как новый.', 'от 6 900 ₽', JSON_ARRAY('Полная разборка и сборка велосипеда', 'Промывка всех узлов', 'Замена расходников (по необходимости)', 'Финальная настройка и тест-райд'), 6);

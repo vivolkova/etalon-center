@@ -2,12 +2,15 @@
 // (явным списком). Редактируются только прикладные группы (editable с сервера); системные — только просмотр.
 
 const DICT_GROUP_LABEL = {
-  activity_category: 'Категории активностей',
+  activity_category: 'Тренировки — категория занятий в зале (новые виды добавляйте в «Услуги»)',
+  service_category: 'Услуги — разделы страницы «Услуги» на сайте',
   specialist_type: 'Типы специалистов',
   slot_type: 'Типы занятий — задаются в библиотеке (системный)',
   user_role: 'Роли пользователей (системный)',
 };
-const DICT_GROUP_ORDER = ['specialist_type', 'activity_category', 'slot_type', 'user_role'];
+const DICT_GROUP_ORDER = ['specialist_type', 'service_category', 'activity_category', 'slot_type', 'user_role'];
+// Группы с категориями занятий: у значения есть тип специалиста, который его ведёт (ref_id)
+const DICT_CATEGORY_GROUPS = ['activity_category', 'service_category'];
 
 let DICTS = [];   // значения справочников (с location_ids)
 
@@ -29,7 +32,7 @@ async function renderDictsTab() {
     const rows = DICTS.filter(function (d) { return d.group_code === g; });
     if (!rows.length) return '';
     const editable = rows[0].editable;
-    const withRef = g === 'activity_category';
+    const withRef = DICT_CATEGORY_GROUPS.indexOf(g) >= 0;
     const head = '<tr><th>Код</th><th>Название</th>' + (withRef ? '<th>Кто ведёт</th>' : '') +
       // «Активно» / «Филиалы» — только у редактируемых групп; у системных значения не меняются
       (editable ? '<th>Активно</th><th>Филиалы</th><th></th>' : '') + '</tr>';
@@ -47,7 +50,8 @@ async function renderDictsTab() {
     }).join('');
     return '<div class="dict-group">' +
       '<div class="dict-group-head"><div class="adm-card-title" style="margin:0">' + escAttr(DICT_GROUP_LABEL[g] || g) + '</div>' +
-      (editable ? '<button class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="openDictModal(null,\'' + g + '\')">+ Значение</button>' : '') +
+      // Категория тренировок одна (training) — новые значения добавляются только в услуги и типы специалистов
+      (editable && g !== 'activity_category' ? '<button class="btn-ghost" style="padding:6px 12px;font-size:12px" onclick="openDictModal(null,\'' + g + '\')">+ Значение</button>' : '') +
       '</div>' +
       '<table class="dict-table">' + head + body + '</table></div>';
   }).join('');
@@ -71,9 +75,9 @@ function openDictModal(id, group) {
     (d ? '<div class="form-input form-view">' + escAttr(d.code) + '</div>'
        : '<input class="form-input" id="dm-code">') +
     '<div class="set-hint">Латиница, цифры и _. После создания не меняется — на код опирается приложение.</div></div>' +
-    (g === 'activity_category'
+    (DICT_CATEGORY_GROUPS.indexOf(g) >= 0
       ? '<div class="form-field"><label class="form-label">Кто ведёт (тип специалиста)</label><select class="form-input" id="dm-ref">' +
-        '<option value="">— не задано (все специалисты) —</option>' +
+        '<option value="">— не задано —</option>' +
         specTypes.map(function (t) { return '<option value="' + t.id + '"' + (d && d.ref_id === t.id ? ' selected' : '') + '>' + escAttr(t.name) + '</option>'; }).join('') +
         '</select></div>'
       : '') +
@@ -82,8 +86,8 @@ function openDictModal(id, group) {
     msHtml('dm-locs', locOptions, d ? d.location_ids : [], '— Выберите филиалы —', true) + '</div>' +
     '<div class="form-field"><label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer">' +
     '<input type="checkbox" id="dm-active"' + (!d || d.active ? ' checked' : '') + '> Активно</label></div>' +
-    (g === 'activity_category' && !d
-      ? '<div class="set-hint">Цвет новой категории в расписании — нейтральный серый, пока для неё не заданы цвета в css/base.css.</div>'
+    (g === 'service_category' && !d
+      ? '<div class="set-hint">Клиент сможет записаться на услугу, когда у неё указан тип специалиста, есть записи в библиотеке и специалист с графиком в филиале. Цвет новой услуги — нейтральный серый, пока для неё не заданы цвета в css/base.css.</div>'
       : '');
 
   openFormModal('dict-modal', d ? 'Изменить значение' : 'Новое значение', body, async function () {
