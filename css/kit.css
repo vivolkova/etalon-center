@@ -27,13 +27,6 @@
   font-size: 12px;
 }
 
-/* Мягкая кнопка: светлый фирменный фон без рамки (второстепенное действие рядом с основной) */
-.btn-soft {
-  background: var(--green-light);
-  border-color: transparent;
-  color: var(--green-dark);
-}
-
 /* Подпись с флажком или переключателем: «☑ Действующий филиал» */
 .check-label {
   display: flex;

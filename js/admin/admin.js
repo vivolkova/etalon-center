@@ -101,9 +101,9 @@ function renderAdminClients(list) {
   <td><span class="c-badge ${c.type}">${{ new: 'Новый', vip: 'VIP' }[c.type] || c.type}</span></td>
   <td>
     <div class="u-flex u-gap-4 u-wrap">
-      <button class="action-btn btn-sm btn-soft" onclick="openClientProfile('${c.email}')">Просмотр</button>
+      <button class="action-btn confirm btn-sm" onclick="openClientProfile('${c.email}')">Просмотр</button>
       <button class="action-btn confirm btn-sm" onclick="openClientModal('${c.email}')">Ред.</button>
-      <button class="action-btn btn-sm btn-soft" onclick="openChatWith('${c.email}','${c.name}')">Чат</button>
+      <button class="action-btn confirm btn-sm" onclick="openChatWith('${c.email}','${c.name}')">Чат</button>
       <button class="action-btn cancel btn-sm" onclick="deleteClient('${c.email}')">Уд.</button>
     </div>
   </td>
