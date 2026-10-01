@@ -1,7 +1,7 @@
 // Админка: запись клиента из журнала (клиент звонит по телефону).
 // Открывается нажатием на свободное время доски (js/admin/journal.js jrFreeClick):
 //   в зале — индивидуальная тренировка (персональная / самостоятельная), станок и время подставлены;
-//   в колонке специалиста — услуга, которую он оказывает.
+//   в колонке специалиста — услуга открытой вкладки журнала (байкфит, массаж…), которую он оказывает.
 // Клиент — из базы (поиск по номеру телефона) или новый: имя и телефон, создаётся вместе с записью
 // без личного кабинета (middleware/booking_client.php). Один телефон — один клиент.
 // Свободное время и станки считает сервер (api/individual.php: times, stations), он же всё перепроверяет при записи.
@@ -20,7 +20,7 @@ async function jbOpen(preset) {
   try { opts = await IndividualAPI.options(loc.id); } catch (e) { return; }
   const items = opts.items.filter(function (i) {
     return preset.specId
-      ? i.cat !== 'training' && i.specialists.some(function (s) { return Number(s.id) === preset.specId; })
+      ? i.cat === preset.cat && i.specialists.some(function (s) { return Number(s.id) === preset.specId; })
       : i.cat === 'training';
   });
   if (!items.length) {

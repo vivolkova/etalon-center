@@ -11,7 +11,8 @@ $action = $_GET['action'] ?? '';
 
 // GET ?action=day&location_id=&date=YYYY-MM-DD — день филиала:
 // {hours: {from, to}|null (минуты; null — филиал закрыт), stations: [{id, label, type_name}],
-//  specialists: [{id, name, full_name, work: [{from, to}]}] — колонки услуг (кто работает здесь в этот день или уже записан),
+//  categories: [{code, name}] — услуги филиала (вкладки журнала),
+//  specialists: [{id, name, full_name, cats: [код услуги], work: [{from, to}]}] — колонки услуг (кто работает здесь в этот день или уже записан),
 //  slots: [{id, name, cat, type, from, to, price, specialist_id, specialist, individual,
 //           bookings: [{id, user_id, name, phone, email, station_id, payment_status, notes}], blocked: [station_id]}]}
 if ($method === 'GET' && $action === 'day') {
@@ -73,35 +74,60 @@ if ($method === 'GET' && $action === 'day') {
     $st->execute([$locId, $date]);
     foreach ($st->fetchAll() as $r) $slots[(int)$r['slot_id']]['blocked'][] = (int)$r['station_id'];
 
+    // Услуги филиала — вкладки журнала рядом с «Тренировками»: категории услуг, доступные в филиале,
+    // плюс категории, на которые в этот день уже есть запись (даже если категорию с тех пор отключили)
+    $st = $db->prepare("SELECT c.code, c.name FROM dictionaries c
+                        JOIN location_dictionaries ld ON ld.dictionary_id = c.id AND ld.location_id = ? AND ld.active = 1
+                        WHERE c.group_code = 'service_category' AND c.active = 1 ORDER BY c.id");
+    $st->execute([$locId]);
+    $categories = array_map(fn($r) => ['code' => $r['code'], 'name' => $r['name']], $st->fetchAll());
+    foreach ($slots as $s) {
+        if ($s['cat'] !== 'training' && !in_array($s['cat'], array_column($categories, 'code'), true)) {
+            $categories[] = ['code' => $s['cat'], 'name' => slotDict($db, 'service_category', $s['cat'])['name']];
+        }
+    }
+
     // Колонки услуг: специалисты, которые оказывают услуги этого филиала и работают здесь в этот день,
-    // плюс те, на кого в этот день уже есть запись на услугу (даже если график с тех пор изменили)
-    $st = $db->prepare("SELECT DISTINCT sp.id, sp.name, sp.full_name FROM specialists sp
+    // плюс те, на кого в этот день уже есть запись на услугу (даже если график с тех пор изменили).
+    // cats — категории услуг специалиста: в какой вкладке журнала его показывать
+    $st = $db->prepare("SELECT sp.id, sp.name, sp.full_name, c.code AS cat FROM specialists sp
                         JOIN specialist_types t ON t.specialist_id = sp.id AND t.active = 1
                         JOIN dictionaries c ON c.ref_id = t.type_id AND c.group_code = 'service_category' AND c.active = 1
                         JOIN location_dictionaries ld ON ld.dictionary_id = c.id AND ld.location_id = ? AND ld.active = 1
-                        WHERE sp.active = 1 ORDER BY sp.name");
+                        WHERE sp.active = 1 ORDER BY sp.name, sp.id");
     $st->execute([$locId]);
-    $withService = [];
-    foreach ($slots as $s) { if ($s['cat'] !== 'training' && $s['specialist_id']) $withService[$s['specialist_id']] = $s['specialist']; }
-    $specialists = [];
+    $byId = [];
     foreach ($st->fetchAll() as $r) {
         $id = (int)$r['id'];
-        $work = [];
-        foreach (specialistAvailability($db, $id, $date, $date)[0]['intervals'] as $iv) {
-            if ((int)$iv['location_id'] === $locId) $work[] = ['from' => specTimeToMin($iv['from']), 'to' => specTimeToMin($iv['to'])];
-        }
-        if (!$work && !isset($withService[$id])) continue;
-        $specialists[] = ['id' => $id, 'name' => $r['name'], 'full_name' => $r['full_name'], 'work' => $work];
-        unset($withService[$id]);
+        $byId[$id] ??= ['id' => $id, 'name' => $r['name'], 'full_name' => $r['full_name'], 'cats' => [], 'work' => []];
+        $byId[$id]['cats'][] = $r['cat'];
     }
-    foreach ($withService as $id => $name) {
-        $specialists[] = ['id' => (int)$id, 'name' => $name, 'full_name' => $name, 'work' => []];
+    $booked = [];   // специалист => категории услуг, на которые к нему записаны в этот день
+    foreach ($slots as $s) {
+        if ($s['cat'] !== 'training' && $s['specialist_id']) {
+            $booked[$s['specialist_id']]['name'] = $s['specialist'];
+            $booked[$s['specialist_id']]['cats'][$s['cat']] = true;
+        }
+    }
+    $specialists = [];
+    foreach ($byId as $id => $sp) {
+        foreach (specialistAvailability($db, $id, $date, $date)[0]['intervals'] as $iv) {
+            if ((int)$iv['location_id'] === $locId) $sp['work'][] = ['from' => specTimeToMin($iv['from']), 'to' => specTimeToMin($iv['to'])];
+        }
+        if (!$sp['work'] && !isset($booked[$id])) continue;
+        $sp['cats'] = array_values(array_unique(array_merge($sp['cats'], array_keys($booked[$id]['cats'] ?? []))));
+        $specialists[] = $sp;
+        unset($booked[$id]);
+    }
+    foreach ($booked as $id => $b) {
+        $specialists[] = ['id' => (int)$id, 'name' => $b['name'], 'full_name' => $b['name'], 'cats' => array_keys($b['cats']), 'work' => []];
     }
 
     ok([
         'date' => $date, 'location_id' => $locId,
         'hours' => slotBranchHours($db, $locId, $date),
         'stations' => $stations,
+        'categories' => $categories,
         'specialists' => $specialists,
         'slots' => array_values($slots),
     ]);

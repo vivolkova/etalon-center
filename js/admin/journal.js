@@ -1,6 +1,7 @@
-// Админка: журнал записи — рабочий экран администратора. Один день одного филиала:
-// колонки — станки зала и специалисты услуг, по вертикали — время. Групповая тренировка занимает весь зал
-// (внутри — кто на каком станке), персональная и самостоятельная — один станок, услуга — колонку специалиста.
+// Админка: журнал записи — рабочий экран администратора. Один день одного филиала, по вертикали — время.
+// Вкладки над доской: «Тренировки» — колонки станков зала (групповая занимает весь зал, внутри — кто на каком
+// станке; персональная и самостоятельная — один станок) и по вкладке на каждую услугу филиала (байкфит, массаж…) —
+// колонки её специалистов, запись на услугу занимает колонку специалиста.
 // Нажатие на занятие — карточка: кто записан, станок, телефон, оплата, отмена записи.
 // Нажатие на свободное время — запись клиента по звонку (js/admin/journal-book.js).
 // На телефоне вместо доски — список занятий дня. Данные — api/journal.php?action=day.
@@ -17,6 +18,13 @@ let jrLocId = (function () { try { return parseInt(localStorage.getItem(JR_LOC_K
 let jrData = null;          // ответ api/journal.php за выбранный день
 let jrReq = 0;              // номер последнего запроса (ответ на устаревший выбор отбрасываем)
 let jrView = { h0: 0, n: 0 }; // первый час доски и число станков — чтобы по месту нажатия понять время и станок
+let jrTab = 'training';     // вкладка: training — зал, иначе код услуги (service_category)
+
+function jrSelectTab(tab) { jrTab = tab; renderJournal(); }
+// Занятия вкладки: тренировки или записи на выбранную услугу
+function jrTabSlots() {
+  return jrData.slots.filter(function (s) { return jrTab === 'training' ? s.cat === 'training' : s.cat === jrTab; });
+}
 
 function jrLoc() {
   return LOCATIONS.find(function (l) { return Number(l.id) === jrLocId; }) || LOCATIONS[0] || null;
@@ -67,13 +75,35 @@ function renderJournal() {
 
   const board = document.getElementById('jr-board');
   const list = document.getElementById('jr-list');
-  if (!jrData) { board.innerHTML = ''; list.innerHTML = '<div class="jr-empty">Нет данных</div>'; return; }
-  const slots = jrData.slots;
+  const tabs = document.getElementById('jr-tabs');
+  const legend = document.getElementById('jr-legend');
+  if (!jrData) { tabs.innerHTML = ''; legend.innerHTML = ''; board.innerHTML = ''; list.innerHTML = '<div class="jr-empty">Нет данных</div>'; return; }
+
+  // Вкладки: тренировки и услуги филиала; рядом с названием — сколько записей в этот день
+  const cats = jrData.categories || [];
+  if (jrTab !== 'training' && !cats.some(function (c) { return c.code === jrTab; })) jrTab = 'training';
+  const isTraining = jrTab === 'training';
+  const booked = function (code) {
+    return jrData.slots.reduce(function (n, x) { return n + (x.cat === code ? x.bookings.length : 0); }, 0);
+  };
+  tabs.innerHTML = [{ code: 'training', name: 'Тренировки' }].concat(cats).map(function (c) {
+    const n = booked(c.code);
+    return '<button class="chip' + (c.code === jrTab ? ' active' : '') + '" onclick="jrSelectTab(\'' + c.code + '\')">' + escAttr(c.name) + (n ? ' · ' + n : '') + '</button>';
+  }).join('');
+  legend.innerHTML = isTraining
+    ? '<span><i class="jr-dot jr-dot--group"></i>Групповая</span>'
+      + '<span><i class="jr-dot jr-dot--ind kind-personal"></i>Персональная</span>'
+      + '<span><i class="jr-dot jr-dot--ind kind-free"></i>Самостоятельная</span>'
+    : '<span><i class="jr-dot jr-dot--ind cat-' + jrTab + '"></i>Запись</span>'
+      + '<span><i class="jr-dot jr-dot--off"></i>Специалист не работает</span>';
+
+  const slots = jrTabSlots();
+  const specs = isTraining ? [] : jrData.specialists.filter(function (sp) { return (sp.cats || []).indexOf(jrTab) >= 0; });
 
   // Диапазон часов: режим работы филиала в этот день, расширенный занятиями; филиал закрыт и занятий нет — сообщение
   const stationsCount = jrData.stations.length;
   let from = jrData.hours ? jrData.hours.from : Infinity, to = jrData.hours ? jrData.hours.to : -Infinity;
-  slots.forEach(function (s) { from = Math.min(from, s.from); to = Math.max(to, s.to); });
+  jrData.slots.forEach(function (s) { from = Math.min(from, s.from); to = Math.max(to, s.to); });
   if (from === Infinity) {
     board.innerHTML = '<div class="jr-empty">Филиал в этот день не работает</div>';
     list.innerHTML = board.innerHTML;
@@ -86,56 +116,64 @@ function renderJournal() {
   const stations = jrData.stations, n = Math.max(stations.length, 1);
   const pos = function (s) { return 'top:' + px(s.from) + 'px;height:' + (px(s.to) - px(s.from) - 2) + 'px;'; };
   const time = function (s) { return minToTime(s.from) + '–' + minToTime(s.to); };
-
-  // ── Доска ──
-  let hallBlocks = '', lines = '';
-  for (let i = 1; i < n; i++) lines += '<div class="jr-vline" style="left:' + (i * 100 / n) + '%"></div>';
-  slots.filter(function (s) { return s.cat === 'training'; }).forEach(function (s) {
-    if (!s.individual) {
-      // Групповая — на весь зал; под названием — кто на каком станке
-      const cells = stations.map(function (st) {
-        const b = s.bookings.find(function (x) { return x.station_id === st.id; });
-        return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
-      }).join('');
-      hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-        + '<div class="jr-blk-title">' + escAttr(s.name) + ' · ' + escAttr(s.specialist || '') + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
-        + '<div class="jr-blk-seats" style="grid-template-columns:repeat(' + n + ',minmax(0,1fr))">' + cells + '</div></div>';
-    } else {
-      // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
-      const b = s.bookings[0];
-      const idx = Math.max(0, stations.findIndex(function (st) { return b && st.id === b.station_id; }));
-      hallBlocks += '<div class="jr-blk jr-blk--ind kind-' + (s.type === 'free' ? 'free' : 'personal') + '" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-        + '<div class="jr-blk-title">' + escAttr(b ? jrShortName(b.name) : '—') + '</div>'
-        + '<div class="jr-blk-sub">' + (s.specialist ? 'тренер ' + escAttr(jrShortName(s.specialist)) : 'самостоятельно') + '</div></div>';
-    }
-  });
-  const specCols = jrData.specialists.map(function (sp) {
-    // Нерабочее время специалиста в этом филиале — серым
-    let off = '', cur = h0 * 60;
-    sp.work.concat([{ from: h1 * 60, to: h1 * 60 }]).forEach(function (w) {
-      if (w.from > cur) off += '<div class="jr-off" style="top:' + px(cur) + 'px;height:' + (px(w.from) - px(cur)) + 'px"></div>';
-      cur = Math.max(cur, w.to);
-    });
-    const blocks = slots.filter(function (s) { return s.cat !== 'training' && s.specialist_id === sp.id; }).map(function (s) {
-      const b = s.bookings[0];
-      return '<div class="jr-blk jr-blk--svc cat-' + s.cat + '" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-        + '<div class="jr-blk-title">' + escAttr(s.name) + '</div><div class="jr-blk-sub">' + escAttr(b ? jrShortName(b.name) : '—') + '</div></div>';
-    }).join('');
-    return { head: '<div class="jr-col-h jr-col-h--spec">' + escAttr(sp.name) + '</div>', body: '<div class="jr-spec" data-spec="' + sp.id + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + off + blocks + '</div>' };
-  });
   let times = '';
   for (let hr = h0; hr < h1; hr++) times += '<div class="jr-time" style="height:' + JR_ROW_H + 'px">' + String(hr).padStart(2, '0') + ':00</div>';
+  const bodyOpen = '<div class="jr-body" style="height:' + height + 'px;--jr-row-h:' + JR_ROW_H + 'px"><div class="jr-times">' + times + '</div>';
 
-  board.innerHTML = '<div class="jr" style="min-width:' + (60 + stations.length * 86 + specCols.length * 120) + 'px">'
-    + '<div class="jr-head"><div class="jr-time-h"></div>'
-    + '<div class="jr-hall-h" style="flex:' + n + '">' + (stations.length
-      ? stations.map(function (st) { return '<div class="jr-col-h" title="' + escAttr(st.type_name) + '">' + escAttr(st.label) + '</div>'; }).join('')
-      : '<div class="jr-col-h">В зале нет станков</div>') + '</div>'
-    + specCols.map(function (c) { return c.head; }).join('') + '</div>'
-    + '<div class="jr-body" style="height:' + height + 'px;--jr-row-h:' + JR_ROW_H + 'px">'
-    + '<div class="jr-times">' + times + '</div>'
-    + '<div class="jr-hall" style="flex:' + n + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + lines + hallBlocks + '</div>'
-    + specCols.map(function (c) { return c.body; }).join('') + '</div></div>';
+  if (isTraining) {
+    // ── Доска зала: колонки — станки ──
+    let hallBlocks = '', lines = '';
+    for (let i = 1; i < n; i++) lines += '<div class="jr-vline" style="left:' + (i * 100 / n) + '%"></div>';
+    slots.forEach(function (s) {
+      if (!s.individual) {
+        // Групповая — на весь зал; под названием — кто на каком станке
+        const cells = stations.map(function (st) {
+          const b = s.bookings.find(function (x) { return x.station_id === st.id; });
+          return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
+        }).join('');
+        hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+          + '<div class="jr-blk-title">' + escAttr(s.name) + ' · ' + escAttr(s.specialist || '') + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
+          + '<div class="jr-blk-seats" style="grid-template-columns:repeat(' + n + ',minmax(0,1fr))">' + cells + '</div></div>';
+      } else {
+        // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
+        const b = s.bookings[0];
+        const idx = Math.max(0, stations.findIndex(function (st) { return b && st.id === b.station_id; }));
+        hallBlocks += '<div class="jr-blk jr-blk--ind kind-' + (s.type === 'free' ? 'free' : 'personal') + '" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+          + '<div class="jr-blk-title">' + escAttr(b ? jrShortName(b.name) : '—') + '</div>'
+          + '<div class="jr-blk-sub">' + (s.specialist ? 'тренер ' + escAttr(jrShortName(s.specialist)) : 'самостоятельно') + '</div></div>';
+      }
+    });
+    board.innerHTML = '<div class="jr" style="min-width:' + (60 + stations.length * 86) + 'px">'
+      + '<div class="jr-head"><div class="jr-time-h"></div>'
+      + '<div class="jr-hall-h" style="flex:' + n + '">' + (stations.length
+        ? stations.map(function (st) { return '<div class="jr-col-h" title="' + escAttr(st.type_name) + '">' + escAttr(st.label) + '</div>'; }).join('')
+        : '<div class="jr-col-h">В зале нет станков</div>') + '</div></div>'
+      + bodyOpen
+      + '<div class="jr-hall" style="flex:' + n + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + lines + hallBlocks + '</div>'
+      + '</div></div>';
+  } else if (!specs.length) {
+    board.innerHTML = '<div class="jr-empty">В этот день специалисты услуги в филиале не работают</div>';
+  } else {
+    // ── Доска услуги: колонки — её специалисты ──
+    const specCols = specs.map(function (sp) {
+      // Нерабочее время специалиста в этом филиале — серым
+      let off = '', cur = h0 * 60;
+      sp.work.concat([{ from: h1 * 60, to: h1 * 60 }]).forEach(function (w) {
+        if (w.from > cur) off += '<div class="jr-off" style="top:' + px(cur) + 'px;height:' + (px(w.from) - px(cur)) + 'px"></div>';
+        cur = Math.max(cur, w.to);
+      });
+      const blocks = slots.filter(function (s) { return s.specialist_id === sp.id; }).map(function (s) {
+        const b = s.bookings[0];
+        return '<div class="jr-blk jr-blk--svc" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+          + '<div class="jr-blk-title">' + escAttr(b ? b.name : '—') + '</div><div class="jr-blk-sub">' + escAttr(s.name) + '</div></div>';
+      }).join('');
+      return { head: '<div class="jr-col-h jr-col-h--spec" title="' + escAttr(sp.full_name) + '">' + escAttr(sp.full_name) + '</div>', body: '<div class="jr-spec" data-spec="' + sp.id + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + off + blocks + '</div>' };
+    });
+    // цвет услуги — классом категории на доске; ширина — по числу специалистов (одна колонка не растягивается на весь экран)
+    board.innerHTML = '<div class="jr cat-' + jrTab + '" style="min-width:' + (60 + specCols.length * 160) + 'px;max-width:' + (60 + specCols.length * 360) + 'px">'
+      + '<div class="jr-head"><div class="jr-time-h"></div>' + specCols.map(function (c) { return c.head; }).join('') + '</div>'
+      + bodyOpen + specCols.map(function (c) { return c.body; }).join('') + '</div></div>';
+  }
 
   // ── Список (телефон) ──
   list.innerHTML = slots.length ? slots.map(function (s) {
@@ -151,14 +189,14 @@ function renderJournal() {
       + '<div class="jr-row-info"><div class="jr-row-name">' + escAttr(s.name) + '</div>'
       + '<div class="jr-row-meta">' + [s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : ''].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (who ? '<div class="jr-row-who">' + who + '</div>' : '') + '</div></div>';
-  }).join('') : '<div class="jr-empty">В этот день занятий и записей нет</div>';
+  }).join('') : '<div class="jr-empty">' + (isTraining ? 'В этот день тренировок и записей нет' : 'В этот день записей на услугу нет') + '</div>';
 }
 
 // Нажатие на свободное место доски — запись клиента (js/admin/journal-book.js): в зале — на станок под курсором,
-// в колонке специалиста — на услугу к нему. Время — по высоте нажатия, с шагом 30 минут
+// в колонке специалиста — на услугу открытой вкладки к нему. Время — по высоте нажатия, с шагом 30 минут
 function jrFreeClick(e, col) {
   const p = jrPoint(e, col);
-  if (col.dataset.spec) { jbOpen({ specId: Number(col.dataset.spec), start: p.start }); return; }
+  if (col.dataset.spec) { jbOpen({ specId: Number(col.dataset.spec), cat: jrTab, start: p.start }); return; }
   const st = jrData.stations[p.idx];
   jbOpen({ stationId: st ? st.id : null, start: p.start });
 }
