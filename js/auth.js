@@ -87,6 +87,8 @@ async function loginUser(user) {
   document.getElementById('btn-logout').textContent = user.name.split(' ')[0] + ' · Выйти';
   if (user.role !== 'admin') document.getElementById('nav-client').style.display = '';
   if (user.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  // Клиентские разделы (запись на тренировки и услуги) администратору не нужны — он работает в панели (журнал записи)
+  document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
   showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
   // Загружаем записи с сервера; слоты — заново: свои индивидуальные занятия видит только записавшийся
   await Promise.allSettled([loadMyBookings(), loadSlots()]);
@@ -233,6 +235,7 @@ function logout() {
   document.getElementById('btn-logout').style.display = 'none';
   document.getElementById('nav-client').style.display = 'none';
   document.getElementById('nav-admin').style.display = 'none';
+  document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = ''; });
   // Убираем из сетки свои индивидуальные занятия (их видит только записавшийся)
   for (let i = SLOTS.length - 1; i >= 0; i--) if (slotIsIndividual(SLOTS[i])) SLOTS.splice(i, 1);
   renderSchedule();

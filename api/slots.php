@@ -209,6 +209,12 @@ if ($method === 'DELETE' && $action === 'delete') {
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
+    // Занятие с действующими записями не удаляем: иначе у клиентов останутся записи на занятие, которого нет.
+    // Сначала записи отменяют (Журнал записи); индивидуальное занятие снимается само при отмене записи
+    $st = $db->prepare("SELECT COUNT(*) FROM bookings WHERE slot_id = ? AND status <> 'cancelled'");
+    $st->execute([$id]);
+    $n = (int)$st->fetchColumn();
+    if ($n) err('На занятие есть действующие записи (' . $n . ') — сначала отмените их в журнале записи');
     $db->prepare('UPDATE slots SET active=0 WHERE id=?')->execute([$id]);
     ok(null, 'Слот удалён');
 }

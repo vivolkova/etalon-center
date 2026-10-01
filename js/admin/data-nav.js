@@ -38,6 +38,7 @@ async function admNav(name, el) {
 
   // Подгружаем свежие данные с сервера при переключении раздела
   const loaders = {
+    journal: jrLoad,               // день выбранного филиала
     bookings: loadBookingsPanel,   // с фильтрами раздела (период, филиал)
     clients: loadClients,
     subscriptions: loadSubPlans,
@@ -55,6 +56,7 @@ async function admNav(name, el) {
   const renders = {
     dashboard: renderDashboard,
     analytics: renderAnalytics,
+    journal: renderJournal,
     schedule: renderAdminSchedule,
     specialists: renderSpecialists,
     library: renderLibrary,

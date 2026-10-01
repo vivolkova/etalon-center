@@ -149,6 +149,13 @@ const IndividualAPI = {
   },
 };
 
+// ── ЖУРНАЛ ЗАПИСИ (админка): день филиала по станкам и специалистам ──
+const JournalAPI = {
+  async day(locId, date) {
+    return apiRequest(`/journal.php?action=day&location_id=${locId}&date=${date}`);
+  },
+};
+
 const BookingsAPI = {
   async my() {
     return apiRequest('/bookings.php?action=my');

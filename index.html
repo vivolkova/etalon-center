@@ -18,12 +18,12 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261001-10">
-  <link rel="stylesheet" href="css/site.css?v=20261001-10">
-  <link rel="stylesheet" href="css/panels.css?v=20261001-10">
-  <link rel="stylesheet" href="css/library.css?v=20261001-10">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261001-10">
-  <link rel="stylesheet" href="css/admin.css?v=20261001-10">
+  <link rel="stylesheet" href="css/base.css?v=20261001-13">
+  <link rel="stylesheet" href="css/site.css?v=20261001-13">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-13">
+  <link rel="stylesheet" href="css/library.css?v=20261001-13">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-13">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-13">
 </head>
 
 <body>
@@ -37,9 +37,9 @@
           style="font-weight:300">CENTER</span></span></a>
     <div class="nav-links">
       <a class="nav-link active" href="#" onclick="showPage('home');setNavActive(this)">Главная</a>
-      <a class="nav-link" href="#" onclick="showPage('schedule');setNavActive(this)">Групповые тренировки</a>
-      <a class="nav-link" href="#" onclick="showPage('individual');setNavActive(this)">Индивидуальные тренировки</a>
-      <a class="nav-link" href="#" onclick="showPage('services');setNavActive(this)">Услуги</a>
+      <a class="nav-link nav-client-only" href="#" onclick="showPage('schedule');setNavActive(this)">Групповые тренировки</a>
+      <a class="nav-link nav-client-only" href="#" onclick="showPage('individual');setNavActive(this)">Индивидуальные тренировки</a>
+      <a class="nav-link nav-client-only" href="#" onclick="showPage('services');setNavActive(this)">Услуги</a>
       <a class="nav-link" href="#" onclick="showPage('client');setNavActive(this)" id="nav-client"
         style="display:none">Кабинет</a>
       <a class="nav-link" href="#" onclick="showPage('admin');setNavActive(this)" id="nav-admin"
@@ -370,6 +370,14 @@
             </svg>
             Дашборд
           </div>
+          <div class="adm-nav-item" onclick="admNav('journal',this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+            </svg>
+            Журнал записи
+          </div>
           <div class="adm-nav-item" onclick="admNav('analytics',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -562,6 +570,42 @@
         </div>
 
         <!-- РАСПИСАНИЕ -->
+        <!-- ЖУРНАЛ ЗАПИСИ: день филиала по станкам и специалистам (js/admin/journal.js) -->
+        <div class="adm-panel" id="adm-journal">
+          <div class="adm-panel-header">
+            <h2 class="adm-panel-title">Журнал записи</h2>
+          </div>
+          <div class="wg-toolbar">
+            <div class="wg-nav">
+              <button class="wg-nav-btn" onclick="jrChangeDay(-1)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="15 18 9 12 15 6" />
+                </svg>
+              </button>
+              <span class="wg-label jr-date-label" id="jr-date-label"></span>
+              <button class="wg-nav-btn" onclick="jrChangeDay(1)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+              <button class="wg-today-btn" onclick="jrToday()">Сегодня</button>
+              <input type="date" class="form-input jr-date-input" id="jr-date-input" onchange="jrPickDate(this.value)">
+            </div>
+            <div class="filter-chips" id="jr-locs"></div>
+          </div>
+          <div class="jr-legend">
+            <span><i class="jr-dot jr-dot--group"></i>Групповая</span>
+            <span><i class="jr-dot jr-dot--ind"></i>Персональная и самостоятельная</span>
+            <span><i class="jr-dot jr-dot--svc"></i>Услуга</span>
+            <span><i class="jr-dot jr-dot--off"></i>Специалист не работает</span>
+          </div>
+          <!-- Доска (широкий экран) и список занятий дня (телефон) -->
+          <div class="jr-wrap" id="jr-board"></div>
+          <div class="jr-list" id="jr-list"></div>
+        </div>
+
         <div class="adm-panel" id="adm-schedule">
           <div class="adm-panel-header">
             <h2 class="adm-panel-title">Расписание</h2>
@@ -1094,34 +1138,35 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261001-10"></script>
-  <script src="js/core.js?v=20261001-10"></script>
-  <script src="js/week-grid.js?v=20261001-10"></script>
-  <script src="js/auth.js?v=20261001-10"></script>
-  <script src="js/site/schedule.js?v=20261001-10"></script>
-  <script src="js/site/booking.js?v=20261001-10"></script>
-  <script src="js/site/individual.js?v=20261001-10"></script>
-  <script src="js/site/individual-page.js?v=20261001-10"></script>
-  <script src="js/site/services-bookings.js?v=20261001-10"></script>
-  <script src="js/admin/admin.js?v=20261001-10"></script>
-  <script src="js/admin/schedule.js?v=20261001-10"></script>
-  <script src="js/admin/chat.js?v=20261001-10"></script>
-  <script src="js/admin/notifications.js?v=20261001-10"></script>
-  <script src="js/client/panel.js?v=20261001-10"></script>
-  <script src="js/client/payment.js?v=20261001-10"></script>
-  <script src="js/client/chat-profile.js?v=20261001-10"></script>
-  <script src="js/site/detail-modals.js?v=20261001-10"></script>
-  <script src="js/admin/library.js?v=20261001-10"></script>
-  <script src="js/admin/data-nav.js?v=20261001-10"></script>
-  <script src="js/admin/dashboard.js?v=20261001-10"></script>
-  <script src="js/admin/specialists.js?v=20261001-10"></script>
-  <script src="js/admin/sales.js?v=20261001-10"></script>
-  <script src="js/admin/settings.js?v=20261001-10"></script>
-  <script src="js/admin/stations.js?v=20261001-10"></script>
-  <script src="js/admin/dictionaries.js?v=20261001-10"></script>
-  <script src="js/ui.js?v=20261001-10"></script>
-  <script src="js/loaders.js?v=20261001-10"></script>
-  <script src="js/init.js?v=20261001-10"></script>
+  <script src="js/api.js?v=20261001-13"></script>
+  <script src="js/core.js?v=20261001-13"></script>
+  <script src="js/week-grid.js?v=20261001-13"></script>
+  <script src="js/auth.js?v=20261001-13"></script>
+  <script src="js/site/schedule.js?v=20261001-13"></script>
+  <script src="js/site/booking.js?v=20261001-13"></script>
+  <script src="js/site/individual.js?v=20261001-13"></script>
+  <script src="js/site/individual-page.js?v=20261001-13"></script>
+  <script src="js/site/services-bookings.js?v=20261001-13"></script>
+  <script src="js/admin/admin.js?v=20261001-13"></script>
+  <script src="js/admin/schedule.js?v=20261001-13"></script>
+  <script src="js/admin/journal.js?v=20261001-13"></script>
+  <script src="js/admin/chat.js?v=20261001-13"></script>
+  <script src="js/admin/notifications.js?v=20261001-13"></script>
+  <script src="js/client/panel.js?v=20261001-13"></script>
+  <script src="js/client/payment.js?v=20261001-13"></script>
+  <script src="js/client/chat-profile.js?v=20261001-13"></script>
+  <script src="js/site/detail-modals.js?v=20261001-13"></script>
+  <script src="js/admin/library.js?v=20261001-13"></script>
+  <script src="js/admin/data-nav.js?v=20261001-13"></script>
+  <script src="js/admin/dashboard.js?v=20261001-13"></script>
+  <script src="js/admin/specialists.js?v=20261001-13"></script>
+  <script src="js/admin/sales.js?v=20261001-13"></script>
+  <script src="js/admin/settings.js?v=20261001-13"></script>
+  <script src="js/admin/stations.js?v=20261001-13"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-13"></script>
+  <script src="js/ui.js?v=20261001-13"></script>
+  <script src="js/loaders.js?v=20261001-13"></script>
+  <script src="js/init.js?v=20261001-13"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
