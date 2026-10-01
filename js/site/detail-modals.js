@@ -23,7 +23,7 @@ function openSlotDetail(slotId) {
   const usersSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>`;
   const starSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
-  const usesHall = slotUsesHall(s.cat) && !slotIsIndividual(s);   // индивидуальное — один клиент, места не показываем
+  const usesHall = slotUsesHall(s.cat);
   // У байкфита мест в зале нет — показываем только длительность
   document.getElementById('sdm-stats').innerHTML = `
 <div class="dm-stat"><div class="dm-stat-val u-flex u-justify-center u-mb-4">${clockSvg}</div><div class="dm-stat-val">${s.dur}</div><div class="dm-stat-label">минут</div></div>` + (usesHall ? `

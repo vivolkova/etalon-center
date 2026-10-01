@@ -58,7 +58,7 @@ function renderClientFeed() {
   }
   // Upcoming slots (today's dayOfWeek)
   const todayDow = (new Date().getDay() + 6) % 7;
-  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && !slotIsIndividual(s) && slotFree(s) > 0).slice(0, 4);
+  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && slotFree(s) > 0).slice(0, 4);
   const feedSlots = document.getElementById('feed-slots');
   feedSlots.innerHTML = upcoming.length
     ? upcoming.map(s => `<div class="cp-slot-row u-pointer" onclick="openSlotDetail(${s.id})">

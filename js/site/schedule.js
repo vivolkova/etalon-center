@@ -117,8 +117,7 @@ function renderWeekCal() {
   const locId = loc ? Number(loc.id) : null;
   const weekSlots = SLOTS.filter(function (s) {
     return s.date >= schWeekStart && s.date <= weekEnd &&
-      (locId === null || Number(s.location_id) === locId) &&
-      !slotIsIndividual(s);
+      (locId === null || Number(s.location_id) === locId);
   });
 
   // ── Шапка: угол + заголовки дней ──

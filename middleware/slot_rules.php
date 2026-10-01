@@ -23,10 +23,8 @@ require_once __DIR__ . '/settings.php';
 class SlotRuleError extends RuntimeException {}
 function slotFail(string $message): never { throw new SlotRuleError($message); }
 
-// Индивидуальное занятие — всё, кроме групповой тренировки: один клиент на слот, слот создаёт запись клиента
-function slotIsIndividual(string $cat, ?string $type): bool {
-    return !($cat === 'training' && $type === 'group');
-}
+// Индивидуальное занятие (персональная, самостоятельная, услуга) — один клиент на слот; такой слот создаёт
+// запись клиента (api/individual.php) и помечает его slots.auto_created = 1. Признак — это поле, а не вид занятия.
 
 // Значение справочника по коду: [id, ref_id, name] или ошибка
 function slotDict(PDO $db, string $group, string $code): array {

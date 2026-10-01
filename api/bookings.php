@@ -83,16 +83,14 @@ if ($method === 'POST' && $action === 'create') {
     $db        = getDB();
 
     // Слот существует и активен
-    $stmt = $db->prepare('SELECT s.*, dc.code AS category, dt.code AS type FROM slots s
+    $stmt = $db->prepare('SELECT s.*, dc.code AS category FROM slots s
                             JOIN dictionaries dc ON s.category_id = dc.id
-                            LEFT JOIN library l ON l.id = s.library_id
-                            LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
                            WHERE s.id=? AND s.active=1');
     $stmt->execute([$slotId]);
     $slot = $stmt->fetch();
     if (!$slot) err('Слот не найден');
     // Индивидуальное занятие создаётся вместе с записью клиента (api/individual.php) — вторую запись не принимаем
-    if (slotIsIndividual($slot['category'], $slot['type'])) err('Это индивидуальное занятие — на него записан другой клиент');
+    if ((int)$slot['auto_created']) err('Это индивидуальное занятие — на него записан другой клиент');
 
     // В зале (на станках) проходят только тренировки; сюда доходят только групповые (индивидуальные отсечены выше)
     $usesHall  = $slot['category'] === 'training';
@@ -188,18 +186,16 @@ if ($method === 'PUT' && $action === 'status') {
     if (!$id || !$status) err('Неверные параметры');
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT b.*, s.name AS slot_name, dc.code AS category, dt.code AS type FROM bookings b
+    $stmt = $db->prepare('SELECT b.*, s.name AS slot_name, s.auto_created, dc.code AS category FROM bookings b
                             JOIN slots s ON b.slot_id=s.id
                             JOIN dictionaries dc ON dc.id = s.category_id
-                            LEFT JOIN library l ON l.id = s.library_id
-                            LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
                            WHERE b.id=?');
     $stmt->execute([$id]);
     $booking = $stmt->fetch();
     if (!$booking) err('Запись не найдена', 404);
     // Индивидуальное занятие существует только вместе с записью: отмена снимает и занятие,
     // вернуть отменённую нельзя (время могли занять) — записаться заново
-    $individual = slotIsIndividual($booking['category'], $booking['type']);
+    $individual = (bool)$booking['auto_created'];   // слот создан этой записью (api/individual.php)
     if ($individual && $status === 'booked' && $booking['status'] === 'cancelled') {
         err('Индивидуальное занятие отменено — запишитесь заново');
     }

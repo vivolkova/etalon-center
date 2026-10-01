@@ -29,7 +29,7 @@ if ($method === 'GET' && $action === 'day') {
     $stations = array_map(fn($r) => ['id' => (int)$r['id'], 'label' => $r['label'], 'type_name' => $r['type_name']], $st->fetchAll());
 
     // Занятия дня
-    $st = $db->prepare('SELECT s.id, s.name, s.start_time, s.duration, s.price, s.specialist_id,
+    $st = $db->prepare('SELECT s.id, s.name, s.start_time, s.duration, s.price, s.specialist_id, s.auto_created,
                                dc.code AS cat, dt.code AS type, sp.name AS spec_name, sp.full_name AS spec_full
                         FROM slots s
                         JOIN dictionaries dc ON dc.id = s.category_id
@@ -47,7 +47,7 @@ if ($method === 'GET' && $action === 'day') {
             'from' => $from, 'to' => $from + (int)$r['duration'], 'price' => (int)$r['price'],
             'specialist_id' => $r['specialist_id'] !== null ? (int)$r['specialist_id'] : null,
             'specialist' => $r['spec_full'] ?: $r['spec_name'],
-            'individual' => slotIsIndividual($r['cat'], $r['type']),
+            'individual' => (bool)$r['auto_created'],   // слот создан записью клиента — один клиент
             'bookings' => [], 'blocked' => [],
         ];
     }

@@ -132,7 +132,9 @@ function renderAdminSchedule() {
     const d = new Date(admWeekStart); d.setDate(admWeekStart.getDate() + i); return d;
   });
 
-  // Слоты недели — в выбранных филиалах и у выбранного специалиста
+  // Слоты недели — в выбранных филиалах и у выбранного специалиста.
+  // В SLOTS только расписание — групповые тренировки, которые поставил админ; слоты, созданные записью клиента
+  // (slots.auto_created = 1), сервер сюда не отдаёт — они видны в «Журнале записи».
   const weekSlots = SLOTS.filter(s => {
     const sd = s.date;
     return sd >= admWeekStart && sd <= we && admLocVisible(s) && admSpecVisible(s);

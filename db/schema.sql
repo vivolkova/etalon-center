@@ -216,6 +216,10 @@ CREATE TABLE slots (
     price       INT NOT NULL,
     taken       INT DEFAULT 0,                    -- сколько станков забронировано (вместимость — из locations)
     active      TINYINT(1) DEFAULT 1,
+    -- 0 — занятие поставил в расписание админ (групповая тренировка из библиотеки);
+    -- 1 — слот создан автоматически записью клиента (персональная, самостоятельная, услуга):
+    --     в расписании не показывается, живёт вместе со своей записью (отмена записи выключает слот)
+    auto_created TINYINT(1) NOT NULL DEFAULT 0,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT NOT NULL,

@@ -79,11 +79,9 @@ function slotUsesHall(cat) { return cat === 'training'; }
 
 // Места на занятии: вместимость филиала минус заблокированные на это занятие станки (ремонт и т.п.);
 // свободно = места минус записи. s.blocked приходит из api/slots.php.
-// Занятие без зала (байкфит) — один клиент на слот.
-// Индивидуальное занятие (всё, кроме групповой тренировки) — один клиент; создаётся записью клиента.
-// То же правило на сервере (slotIsIndividual в middleware/slot_rules.php)
-function slotIsIndividual(s) { return !(s.cat === 'training' && s.type === 'group'); }
-function slotCap(s) { return slotIsIndividual(s) ? 1 : Math.max((s.max || 0) - (s.blocked || 0), 0); }
+// В SLOTS — только расписание (групповые тренировки, которые поставил админ): слоты, созданные записью клиента
+// (slots.auto_created = 1 — персональная, самостоятельная, услуга), api/slots.php сюда не отдаёт.
+function slotCap(s) { return Math.max((s.max || 0) - (s.blocked || 0), 0); }
 function slotFree(s) { return Math.max(slotCap(s) - (s.taken || 0), 0); }
 
 // Основной цвет категории — из CSS-переменной --cat-<код> (css/base.css); у категории без своего цвета

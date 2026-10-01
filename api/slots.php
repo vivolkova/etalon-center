@@ -92,15 +92,11 @@ if ($method === 'GET' && $action === 'list') {
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
             LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
-            WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1';
+            WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1 AND s.auto_created = 0';
+    // Только расписание: занятия, которые поставил админ. Слоты, созданные записью клиента (auto_created = 1 —
+    // персональная, самостоятельная, услуга), сюда не попадают — их показывают «Журнал записи» (api/journal.php)
+    // и экран индивидуальных тренировок (api/individual.php)
     $params = [$from, $to];
-    // Индивидуальные занятия (всё, кроме групповой тренировки — slotIsIndividual) видит только записанный клиент и админ
-    $viewer = authUserOrNull();
-    if (($viewer['role'] ?? '') !== 'admin') {
-        $sql .= " AND ((dc.code = 'training' AND dt.code <=> 'group')
-                       OR EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.user_id = ? AND bk.status <> 'cancelled'))";
-        $params[] = (int)($viewer['id'] ?? 0);
-    }
     if ($cat) { $sql .= ' AND dc.code = ?'; $params[] = $cat; }
     $sql .= ' ORDER BY s.slot_date, s.start_time';
 

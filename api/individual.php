@@ -475,8 +475,9 @@ if ($method === 'POST' && $action === 'create') {
     }
     if ($e !== null) { $db->rollBack(); err($e); }
 
-    $db->prepare('INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price, taken)
-                  VALUES (?,?,?,?,?,?,?,?,?,1)')
+    // auto_created = 1: слот создан записью клиента, в расписании админа не показывается
+    $db->prepare('INSERT INTO slots (location_id, library_id, name, category_id, slot_date, start_time, duration, specialist_id, price, taken, auto_created)
+                  VALUES (?,?,?,?,?,?,?,?,?,1,1)')
        ->execute([(int)$lib['location_id'], (int)$lib['id'], $lib['name'], (int)$lib['activity_category_id'], $date,
                   minToTimeStr($start), $dur, $specId, indPrice($db, $lib, $dur)]);
     $slotId = (int)$db->lastInsertId();
