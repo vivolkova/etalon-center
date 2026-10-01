@@ -97,6 +97,8 @@ CREATE TABLE users (
     role_id     INT NOT NULL,                    -- dictionaries.user_role
     type        ENUM('new','vip') DEFAULT 'new',           -- категория клиента
     active      TINYINT(1)   NOT NULL DEFAULT 1,        -- soft-delete: 0 = удалён/отключён
+    has_account TINYINT(1)   NOT NULL DEFAULT 1,        -- 0 — без личного кабинета: клиента завёл администратор при записи по телефону,
+                                                        --     войти на сайт он не может, email служебный <телефон>@phone.invalid
     bike        VARCHAR(64),
     birth_date  DATE,
     notes       TEXT,

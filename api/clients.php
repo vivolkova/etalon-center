@@ -13,7 +13,7 @@ if ($method === 'GET' && $action === 'list') {
     $type = $_GET['type'] ?? null;
     $search = $_GET['search'] ?? null;
 
-    $sql = 'SELECT u.id, u.email, u.name, u.phone, (SELECT code FROM dictionaries WHERE id = u.role_id) AS role, u.type, u.bike,
+    $sql = 'SELECT u.id, u.email, u.name, u.phone, u.has_account, (SELECT code FROM dictionaries WHERE id = u.role_id) AS role, u.type, u.bike,
                    u.birth_date, u.notes, u.created_at,
                    COUNT(b.id) AS total_bookings,
                    COALESCE(SUM(CASE WHEN b.payment_status="paid" THEN s.price ELSE 0 END), 0) AS total_spent,

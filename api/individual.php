@@ -8,6 +8,7 @@
 // которые идут в зале в это же время. На услугу можно записаться, если в филиале есть специалист с графиком.
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/slot_rules.php';
+require_once __DIR__ . '/../middleware/booking_client.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -88,7 +89,7 @@ function indWindowError(PDO $db, int $locId, string $date, ?int $startMin = null
 }
 
 // Клиент уже записан на другое занятие, пересекающееся по времени. Текст ошибки или null
-function indClientClash(PDO $db, int $userId, string $date, int $start, int $dur): ?string {
+function indClientClash(PDO $db, int $userId, string $date, int $start, int $dur, bool $byAdmin = false): ?string {
     $st = $db->prepare("SELECT s.name, s.start_time, s.duration FROM bookings b JOIN slots s ON s.id = b.slot_id
                         WHERE b.user_id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.slot_date = ?");
     $st->execute([$userId, $date]);
@@ -96,7 +97,7 @@ function indClientClash(PDO $db, int $userId, string $date, int $start, int $dur
         $oStart = specTimeToMin(substr($o['start_time'], 0, 5));
         $oEnd = $oStart + (int)$o['duration'];
         if ($start < $oEnd && $oStart < $start + $dur) {
-            return 'В это время вы уже записаны: ' . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
+            return ($byAdmin ? 'У клиента уже есть запись на это время: ' : 'В это время вы уже записаны: ') . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
         }
     }
     return null;
@@ -222,7 +223,8 @@ function indFreeStations(array $d, string $date, int $from, int $to): array {
 function indStartError(PDO $db, array $lib, ?int $specId, array $d, string $date, int $m, int $dur): ?string {
     $locId = (int)$lib['location_id'];
     $end   = $m + $dur;
-    if (indWindowError($db, $locId, $date, $m)) return 'window';
+    // Окно записи (не позже чем за N минут, не дальше M дней) — только для клиента; администратор записывает без него
+    if (empty($d['no_window']) && indWindowError($db, $locId, $date, $m)) return 'window';
     $b = slotBranchHours($db, $locId, $date);
     if (!$b || $m < $b['from'] || $end > $b['to']) return 'closed';
     if ($specId) {
@@ -360,10 +362,16 @@ if ($method === 'GET' && $action === 'times') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
     $locId = (int)$lib['location_id'];
 
+    // Администратор подбирает время для клиента (журнал записи): без окна записи; пересечения — с записями
+    // выбранного клиента (user_id), если он уже выбран
+    $admin = ($user['role'] ?? '') === 'admin';
+    $forId = $admin ? (int)($_GET['user_id'] ?? 0) : (int)$user['id'];
+
     $none = fn(string $m) => ok(['times' => [], 'message' => $m]);
-    if ($e = indWindowError($db, $locId, $date)) $none($e);
+    if (!$admin && ($e = indWindowError($db, $locId, $date))) $none($e);
     if (!slotBranchHours($db, $locId, $date)) $none('В этот день филиал не работает');
-    $d = indLoad($db, $lib, $specId, (int)$user['id'], $date, $date);
+    $d = indLoad($db, $lib, $specId, $forId, $date, $date);
+    $d['no_window'] = $admin;
     if ($specId) {
         $here = array_filter($d['avail'][$date] ?? [], fn($iv) => $iv['loc'] === $locId);
         if (!$here) $none(!empty($d['avail'][$date]) ? 'Специалист в этот день работает в другом филиале' : 'Специалист в этот день не работает');
@@ -429,7 +437,8 @@ if ($method === 'GET' && $action === 'stations') {
     ok(['cols' => (int)$loc['hall_cols'], 'rows' => (int)$loc['hall_rows'], 'stations' => $stations]);
 }
 
-// POST ?action=create — записаться: {library_id, specialist_id, date, start, duration, notes}
+// POST ?action=create — записаться: {library_id, specialist_id, date, start, duration, station_id, notes}.
+// Администратор записывает клиента: плюс user_id или new_client: {name, phone, email?} (middleware/booking_client.php)
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();
     $d    = input();
@@ -442,7 +451,9 @@ if ($method === 'POST' && $action === 'create') {
     $start = specTimeToMin((string)$d['start']);
     if ($start % IND_STEP) err('Время начала — с шагом ' . IND_STEP . ' минут');
     $notes = trim((string)($d['notes'] ?? ''));
-    if ($e = indWindowError($db, (int)$lib['location_id'], $date, $start)) err($e);
+    // Окно записи действует только на клиента; администратор записывает клиента по звонку без него
+    $admin = ($user['role'] ?? '') === 'admin';
+    if (!$admin && ($e = indWindowError($db, (int)$lib['location_id'], $date, $start))) err($e);
     // Тренировка проходит на станке — клиент выбирает его сам; у услуг (байкфит) станка нет
     $stationId = null;
     if ($lib['cat'] === 'training') {
@@ -451,11 +462,13 @@ if ($method === 'POST' && $action === 'create') {
     }
 
     $db->beginTransaction();
+    // Для кого запись: клиент — себя; администратор — выбранного или нового клиента (создаётся в этой же транзакции)
+    $client = bookingClient($db, $user, $d);
     // Строка клиента — чтобы две параллельные записи одного клиента не пересеклись
-    $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([(int)$user['id']]);
+    $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([$client['id']]);
     // Для тренировки slotRuleError блокирует строку филиала — записи в зал идут по очереди, станок дважды не займут
     $e = slotRuleError($db, indSlot($lib, $specId, $date, $start, $dur), true)
-        ?? indClientClash($db, (int)$user['id'], $date, $start, $dur);
+        ?? indClientClash($db, $client['id'], $date, $start, $dur, $client['by_admin']);
     if ($e === null && $stationId) {
         $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date), $date, $start, $start + $dur);
         if (!in_array($stationId, $free, true)) $e = 'Этот станок недоступен на выбранное время — выберите другой';
@@ -468,13 +481,14 @@ if ($method === 'POST' && $action === 'create') {
                   minToTimeStr($start), $dur, $specId, indPrice($db, $lib, $dur)]);
     $slotId = (int)$db->lastInsertId();
     $db->prepare("INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,'booked')")
-       ->execute([(int)$user['id'], $slotId, $stationId, $notes !== '' ? $notes : null]);
+       ->execute([$client['id'], $slotId, $stationId, $notes !== '' ? $notes : null]);
     $bookingId = (int)$db->lastInsertId();
     $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
        ->execute(['booking', 'Новая индивидуальная запись',
-                  $user['name'] . ' — ' . $lib['name'] . ' ' . specFmtDate($date) . ' ' . minToTimeStr($start)]);
+                  $client['name'] . ' — ' . $lib['name'] . ' ' . specFmtDate($date) . ' ' . minToTimeStr($start)
+                  . ($client['by_admin'] ? ' (записал администратор)' : '')]);
     $db->commit();
-    ok(['slot_id' => $slotId, 'booking_id' => $bookingId], 'Запись создана');
+    ok(['slot_id' => $slotId, 'booking_id' => $bookingId, 'user_id' => $client['id']], 'Запись создана');
 }
 
 err('Неизвестный endpoint', 404);

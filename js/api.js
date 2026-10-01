@@ -131,6 +131,7 @@ const IndividualAPI = {
   async times(p) {
     let url = `/individual.php?action=times&library_id=${p.library_id}&date=${p.date}&duration=${p.duration}`;
     if (p.specialist_id) url += `&specialist_id=${p.specialist_id}`;
+    if (p.user_id) url += `&user_id=${p.user_id}`;   // админ подбирает время клиенту: учесть его записи
     return apiRequest(url, 'GET', null, true);
   },
   // Неделя для сетки (7 дней с from): {days: [{date, state, blocks, starts}], duration, step}

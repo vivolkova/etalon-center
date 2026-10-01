@@ -2,6 +2,7 @@
 // колонки — станки зала и специалисты услуг, по вертикали — время. Групповая тренировка занимает весь зал
 // (внутри — кто на каком станке), персональная и самостоятельная — один станок, услуга — колонку специалиста.
 // Нажатие на занятие — карточка: кто записан, станок, телефон, оплата, отмена записи.
+// Нажатие на свободное время — запись клиента по звонку (js/admin/journal-book.js).
 // На телефоне вместо доски — список занятий дня. Данные — api/journal.php?action=day.
 // Недельное «Расписание» (js/admin/schedule.js) остаётся для планирования групповых занятий.
 
@@ -15,6 +16,7 @@ let jrDate = new Date(today);
 let jrLocId = (function () { try { return parseInt(localStorage.getItem(JR_LOC_KEY)) || null; } catch (e) { return null; } })();
 let jrData = null;          // ответ api/journal.php за выбранный день
 let jrReq = 0;              // номер последнего запроса (ответ на устаревший выбор отбрасываем)
+let jrView = { h0: 0, n: 0 }; // первый час доски и число станков — чтобы по месту нажатия понять время и станок
 
 function jrLoc() {
   return LOCATIONS.find(function (l) { return Number(l.id) === jrLocId; }) || LOCATIONS[0] || null;
@@ -69,6 +71,7 @@ function renderJournal() {
   const slots = jrData.slots;
 
   // Диапазон часов: режим работы филиала в этот день, расширенный занятиями; филиал закрыт и занятий нет — сообщение
+  const stationsCount = jrData.stations.length;
   let from = jrData.hours ? jrData.hours.from : Infinity, to = jrData.hours ? jrData.hours.to : -Infinity;
   slots.forEach(function (s) { from = Math.min(from, s.from); to = Math.max(to, s.to); });
   if (from === Infinity) {
@@ -77,6 +80,7 @@ function renderJournal() {
     return;
   }
   const h0 = Math.floor(from / 60), h1 = Math.ceil(to / 60);
+  jrView = { h0: h0, n: stationsCount };
   const px = function (min) { return Math.round((min - h0 * 60) * JR_ROW_H / 60); };
   const height = (h1 - h0) * JR_ROW_H;
   const stations = jrData.stations, n = Math.max(stations.length, 1);
@@ -93,14 +97,14 @@ function renderJournal() {
         const b = s.bookings.find(function (x) { return x.station_id === st.id; });
         return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
       }).join('');
-      hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+      hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
         + '<div class="jr-blk-title">' + escAttr(s.name) + ' · ' + escAttr(s.specialist || '') + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
         + '<div class="jr-blk-seats" style="grid-template-columns:repeat(' + n + ',minmax(0,1fr))">' + cells + '</div></div>';
     } else {
       // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
       const b = s.bookings[0];
       const idx = Math.max(0, stations.findIndex(function (st) { return b && st.id === b.station_id; }));
-      hallBlocks += '<div class="jr-blk jr-blk--ind" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+      hallBlocks += '<div class="jr-blk jr-blk--ind" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
         + '<div class="jr-blk-title">' + escAttr(b ? jrShortName(b.name) : '—') + '</div>'
         + '<div class="jr-blk-sub">' + (s.specialist ? 'тренер ' + escAttr(jrShortName(s.specialist)) : 'самостоятельно') + '</div></div>';
     }
@@ -114,10 +118,10 @@ function renderJournal() {
     });
     const blocks = slots.filter(function (s) { return s.cat !== 'training' && s.specialist_id === sp.id; }).map(function (s) {
       const b = s.bookings[0];
-      return '<div class="jr-blk jr-blk--svc cat-' + s.cat + '" style="left:0;width:100%;' + pos(s) + '" onclick="jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
+      return '<div class="jr-blk jr-blk--svc cat-' + s.cat + '" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
         + '<div class="jr-blk-title">' + escAttr(s.name) + '</div><div class="jr-blk-sub">' + escAttr(b ? jrShortName(b.name) : '—') + '</div></div>';
     }).join('');
-    return { head: '<div class="jr-col-h jr-col-h--spec">' + escAttr(sp.name) + '</div>', body: '<div class="jr-spec">' + off + blocks + '</div>' };
+    return { head: '<div class="jr-col-h jr-col-h--spec">' + escAttr(sp.name) + '</div>', body: '<div class="jr-spec" data-spec="' + sp.id + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + off + blocks + '</div>' };
   });
   let times = '';
   for (let hr = h0; hr < h1; hr++) times += '<div class="jr-time" style="height:' + JR_ROW_H + 'px">' + String(hr).padStart(2, '0') + ':00</div>';
@@ -130,7 +134,7 @@ function renderJournal() {
     + specCols.map(function (c) { return c.head; }).join('') + '</div>'
     + '<div class="jr-body" style="height:' + height + 'px;--jr-row-h:' + JR_ROW_H + 'px">'
     + '<div class="jr-times">' + times + '</div>'
-    + '<div class="jr-hall" style="flex:' + n + '">' + lines + hallBlocks + '</div>'
+    + '<div class="jr-hall" style="flex:' + n + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + lines + hallBlocks + '</div>'
     + specCols.map(function (c) { return c.body; }).join('') + '</div></div>';
 
   // ── Список (телефон) ──
@@ -146,6 +150,43 @@ function renderJournal() {
       + '<div class="jr-row-meta">' + [s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : ''].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (who ? '<div class="jr-row-who">' + who + '</div>' : '') + '</div></div>';
   }).join('') : '<div class="jr-empty">В этот день занятий и записей нет</div>';
+}
+
+// Нажатие на свободное место доски — запись клиента (js/admin/journal-book.js): в зале — на станок под курсором,
+// в колонке специалиста — на услугу к нему. Время — по высоте нажатия, с шагом 30 минут
+function jrFreeClick(e, col) {
+  const p = jrPoint(e, col);
+  if (col.dataset.spec) { jbOpen({ specId: Number(col.dataset.spec), start: p.start }); return; }
+  const st = jrData.stations[p.idx];
+  jbOpen({ stationId: st ? st.id : null, start: p.start });
+}
+
+// Место под курсором: время начала (шаг 30 минут) и номер колонки станка (в колонке специалиста — 0)
+function jrPoint(e, col) {
+  const r = col.getBoundingClientRect();
+  const cols = col.dataset.spec ? 1 : Math.max(jrView.n, 1);
+  return {
+    start: jrView.h0 * 60 + Math.floor((e.clientY - r.top) * 60 / JR_ROW_H / 30) * 30,
+    idx: Math.max(0, Math.min(cols - 1, Math.floor((e.clientX - r.left) * cols / r.width))),
+    cols: cols,
+  };
+}
+
+// «+» на свободном месте под курсором — как в недельном расписании (над занятием не показываем)
+function jrHover(e, col) {
+  const plus = col.querySelector('.jr-plus');
+  if (!plus) return;
+  if (e.target.closest('.jr-blk')) { plus.style.display = 'none'; return; }
+  const p = jrPoint(e, col);
+  plus.style.display = 'flex';
+  plus.style.left = (p.idx * 100 / p.cols) + '%';
+  plus.style.width = (100 / p.cols) + '%';
+  plus.style.top = Math.round((p.start - jrView.h0 * 60) * JR_ROW_H / 60) + 'px';
+  plus.style.height = (JR_ROW_H / 2) + 'px';
+}
+function jrHoverOff(col) {
+  const plus = col.querySelector('.jr-plus');
+  if (plus) plus.style.display = 'none';
 }
 
 // ═══ КАРТОЧКА ЗАНЯТИЯ: кто записан, станок, телефон, оплата, отмена ═══

@@ -89,7 +89,7 @@ function renderAdminClients(list) {
       <div class="client-avatar" style="background:${av}20;color:${av}">${init}</div>
       <div>
         <div style="font-weight:600;font-size:13px">${c.name}</div>
-        <div style="color:var(--ink-60);font-size:11px">${c.email}</div>
+        <div style="color:var(--ink-60);font-size:11px">${c.hasAccount ? c.email : 'без личного кабинета'}</div>
         <div style="color:var(--ink-60);font-size:11px;margin-top:1px">${bikeLbl}</div>
       </div>
     </div>

@@ -88,6 +88,7 @@ async function loadClients() {
       CLIENTS = res.map(function (c) {
         return {
           id: parseInt(c.id) || 0, email: c.email, name: c.name, phone: c.phone || '',
+          hasAccount: c.has_account == null || Number(c.has_account) === 1,   // false — заведён админом по телефону, входа на сайт нет
           type: c.type || 'new', bike: c.bike || '',
           birth: c.birth_date || '', notes: c.notes || '',
           regDate: c.created_at ? c.created_at.slice(0, 10) : '',
