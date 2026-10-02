@@ -18,14 +18,14 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261001-48">
-  <link rel="stylesheet" href="css/site.css?v=20261001-48">
-  <link rel="stylesheet" href="css/panels.css?v=20261001-48">
-  <link rel="stylesheet" href="css/library.css?v=20261001-48">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261001-48">
-  <link rel="stylesheet" href="css/admin.css?v=20261001-48">
+  <link rel="stylesheet" href="css/base.css?v=20261001-54">
+  <link rel="stylesheet" href="css/site.css?v=20261001-54">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-54">
+  <link rel="stylesheet" href="css/library.css?v=20261001-54">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-54">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-54">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261001-48">
+  <link rel="stylesheet" href="css/kit.css?v=20261001-54">
 </head>
 
 <body>
@@ -37,6 +37,8 @@
         alt="logo"><span class="u-lh-1"
        ><b class="u-bold">ETALON</b><span class="u-light"
          >CENTER</span></span></a>
+    <!-- Разделы и вход: на широком экране — в строке шапки, на телефоне — выпадающее меню (кнопка .nav-burger) -->
+    <div class="nav-menu">
     <div class="nav-links">
       <a class="nav-link active" href="#" onclick="showPage('home');setNavActive(this)">Главная</a>
       <a class="nav-link nav-client-only" href="#" onclick="showPage('schedule');setNavActive(this)">Групповые тренировки</a>
@@ -52,6 +54,11 @@
       <button class="btn-primary" id="btn-signup" onclick="openAuth('register')">Регистрация</button>
       <button class="btn-ghost" id="btn-logout" onclick="logout()" style="display:none">Выйти</button>
     </div>
+    </div>
+    <!-- Меню на телефоне: кнопка раскрывает .nav-menu под шапкой (css/site.css, js/ui.js) -->
+    <button class="nav-burger" type="button" aria-label="Меню" onclick="navToggle()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+    </button>
   </nav>
 
   <!-- ════════════ PAGE: HOME ════════════ -->
@@ -350,7 +357,8 @@
 
       <!-- Боковое меню -->
       <aside class="adm-sidebar">
-        <div class="adm-sidebar-logo">
+        <!-- На телефоне эта строка — переключатель: показывает текущий раздел и раскрывает список (css/admin.css) -->
+        <div class="adm-sidebar-logo" onclick="admMenuToggle()">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7" />
@@ -358,7 +366,12 @@
             <rect x="14" y="14" width="7" height="7" />
             <rect x="3" y="14" width="7" height="7" />
           </svg>
-          Панель управления
+          <span class="adm-sidebar-title">Панель управления</span>
+          <span class="adm-sidebar-current" id="adm-current">Журнал записи</span>
+          <svg class="adm-sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
         </div>
         <nav class="adm-nav">
           <div class="adm-nav-section">Работа</div>
@@ -1128,36 +1141,36 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261001-48"></script>
-  <script src="js/core.js?v=20261001-48"></script>
-  <script src="js/week-grid.js?v=20261001-48"></script>
-  <script src="js/auth.js?v=20261001-48"></script>
-  <script src="js/site/schedule.js?v=20261001-48"></script>
-  <script src="js/site/booking.js?v=20261001-48"></script>
-  <script src="js/site/individual.js?v=20261001-48"></script>
-  <script src="js/site/individual-page.js?v=20261001-48"></script>
-  <script src="js/site/services-bookings.js?v=20261001-48"></script>
-  <script src="js/admin/admin.js?v=20261001-48"></script>
-  <script src="js/admin/schedule.js?v=20261001-48"></script>
-  <script src="js/admin/journal.js?v=20261001-48"></script>
-  <script src="js/admin/journal-book.js?v=20261001-48"></script>
-  <script src="js/admin/chat.js?v=20261001-48"></script>
-  <script src="js/admin/notifications.js?v=20261001-48"></script>
-  <script src="js/client/panel.js?v=20261001-48"></script>
-  <script src="js/client/payment.js?v=20261001-48"></script>
-  <script src="js/client/chat-profile.js?v=20261001-48"></script>
-  <script src="js/site/detail-modals.js?v=20261001-48"></script>
-  <script src="js/admin/library.js?v=20261001-48"></script>
-  <script src="js/admin/data-nav.js?v=20261001-48"></script>
-  <script src="js/admin/dashboard.js?v=20261001-48"></script>
-  <script src="js/admin/specialists.js?v=20261001-48"></script>
-  <script src="js/admin/sales.js?v=20261001-48"></script>
-  <script src="js/admin/settings.js?v=20261001-48"></script>
-  <script src="js/admin/stations.js?v=20261001-48"></script>
-  <script src="js/admin/dictionaries.js?v=20261001-48"></script>
-  <script src="js/ui.js?v=20261001-48"></script>
-  <script src="js/loaders.js?v=20261001-48"></script>
-  <script src="js/init.js?v=20261001-48"></script>
+  <script src="js/api.js?v=20261001-54"></script>
+  <script src="js/core.js?v=20261001-54"></script>
+  <script src="js/week-grid.js?v=20261001-54"></script>
+  <script src="js/auth.js?v=20261001-54"></script>
+  <script src="js/site/schedule.js?v=20261001-54"></script>
+  <script src="js/site/booking.js?v=20261001-54"></script>
+  <script src="js/site/individual.js?v=20261001-54"></script>
+  <script src="js/site/individual-page.js?v=20261001-54"></script>
+  <script src="js/site/services-bookings.js?v=20261001-54"></script>
+  <script src="js/admin/admin.js?v=20261001-54"></script>
+  <script src="js/admin/schedule.js?v=20261001-54"></script>
+  <script src="js/admin/journal.js?v=20261001-54"></script>
+  <script src="js/admin/journal-book.js?v=20261001-54"></script>
+  <script src="js/admin/chat.js?v=20261001-54"></script>
+  <script src="js/admin/notifications.js?v=20261001-54"></script>
+  <script src="js/client/panel.js?v=20261001-54"></script>
+  <script src="js/client/payment.js?v=20261001-54"></script>
+  <script src="js/client/chat-profile.js?v=20261001-54"></script>
+  <script src="js/site/detail-modals.js?v=20261001-54"></script>
+  <script src="js/admin/library.js?v=20261001-54"></script>
+  <script src="js/admin/data-nav.js?v=20261001-54"></script>
+  <script src="js/admin/dashboard.js?v=20261001-54"></script>
+  <script src="js/admin/specialists.js?v=20261001-54"></script>
+  <script src="js/admin/sales.js?v=20261001-54"></script>
+  <script src="js/admin/settings.js?v=20261001-54"></script>
+  <script src="js/admin/stations.js?v=20261001-54"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-54"></script>
+  <script src="js/ui.js?v=20261001-54"></script>
+  <script src="js/loaders.js?v=20261001-54"></script>
+  <script src="js/init.js?v=20261001-54"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">

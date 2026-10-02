@@ -64,6 +64,27 @@
   margin-left: 1rem;
 }
 
+/* Обёртка разделов и кнопок входа: на широком экране её как будто нет (дети стоят прямо в строке шапки),
+   на телефоне это выпадающее меню (см. блок «RESPONSIVE») */
+.nav-menu {
+  display: contents;
+}
+
+/* Кнопка меню — только на телефоне (см. блок «RESPONSIVE») */
+.nav-burger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+
 .btn-ghost {
   padding: 7px 16px;
   border-radius: var(--r-md);
@@ -956,8 +977,50 @@
     padding: 40px 16px 32px;
   }
 
-  .nav-links {
+  /* Меню на телефоне: разделы и кнопки входа — выпадающей панелью под шапкой; открывает кнопка .nav-burger
+     (класс .is-open на .nav, js/ui.js). В самой шапке — логотип и кнопка меню */
+  .nav-burger {
+    display: flex;
+    margin-left: auto;
+  }
+
+  .nav-menu {
     display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    padding: 8px 16px 16px;
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 12px 24px rgba(13, 17, 23, .08);
+  }
+
+  .nav.is-open .nav-menu {
+    display: flex;
+  }
+
+  .nav-links {
+    flex-direction: column;
+    gap: 2px;
+    margin: 0;
+  }
+
+  .nav-link {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .nav-auth {
+    margin: 8px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .nav-auth .btn-ghost,
+  .nav-auth .btn-primary {
+    flex: 1;
   }
 
   .hero {
@@ -970,6 +1033,17 @@
 
   .nav {
     padding: 0 16px;
+    gap: 8px;
+  }
+
+  /* Подвал на телефоне: поля как у страницы, ссылки переносятся — без горизонтальной прокрутки */
+  .footer {
+    padding: 2rem 16px;
+  }
+
+  .footer-links {
+    flex-wrap: wrap;
+    gap: 8px 16px;
   }
 }
 

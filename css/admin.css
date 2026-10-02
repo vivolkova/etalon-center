@@ -59,6 +59,12 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* Текущий раздел и стрелка — только на телефоне (см. @media ниже) */
+.adm-sidebar-current,
+.adm-sidebar-chevron {
+  display: none;
+}
+
 .adm-nav {
   padding: 8px 0;
   flex: 1;
@@ -359,39 +365,68 @@
 @media(max-width:900px) {
   .adm-layout {
     grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;   /* строка меню — по содержимому, остальное — разделу */
   }
 
+  /* Меню панели на узком экране: одна строка под шапкой с названием текущего раздела; по нажатию раскрывается
+     список разделов (класс .is-open, js/admin/data-nav.js), выбор раздела его закрывает */
   .adm-sidebar {
-    position: static;
+    position: sticky;
+    top: 60px;
+    z-index: 50;
     height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow-x: auto;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1.5px solid var(--border);
   }
 
-  .adm-nav {
-    display: flex;
-    flex-wrap: wrap;
-    padding: 6px;
+  .adm-sidebar-logo {
+    padding: 12px 16px;
+    border-bottom: none;
+    cursor: pointer;
+    color: var(--ink);
   }
 
-  .adm-nav-section {
+  .adm-sidebar-title {
     display: none;
   }
 
-  .adm-nav-item {
-    padding: 6px 10px;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    font-size: 12px;
-    color: var(--ink-60);
+  .adm-sidebar-current {
+    display: block;
+    font-size: 13px;
   }
 
-  .adm-nav-item.active {
-    border-bottom-color: var(--green);
-    border-left: none;
-    color: var(--green-dark);
-    background: var(--green-light);
+  .adm-sidebar-chevron {
+    display: block;
+    margin-left: auto;
+    transition: transform .15s;
+  }
+
+  .adm-sidebar.is-open .adm-sidebar-chevron {
+    transform: rotate(180deg);
+  }
+
+  .adm-nav {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
+    background: #fff;
+    border-top: 1px solid var(--border);
+    border-bottom: 1.5px solid var(--border);
+    box-shadow: 0 12px 24px rgba(13, 17, 23, .08);
+  }
+
+  .adm-sidebar.is-open .adm-nav {
+    display: block;
+  }
+
+  .adm-nav-item {
+    padding: 12px 16px;
+    font-size: 14px;
   }
 }
 

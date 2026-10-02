@@ -29,6 +29,20 @@ document.addEventListener('click', e => {
   if (t instanceof Element && Array.from(t.classList).some(c => c.endsWith('modal-overlay'))) e.stopPropagation();
 }, true);
 
+// ═══ МЕНЮ НА ТЕЛЕФОНЕ ════════════════════════════════════════════
+
+// Кнопка .nav-burger раскрывает под шапкой меню .nav-menu: разделы и кнопки входа (css/site.css).
+// Закрывается выбором пункта, нажатием мимо меню и клавишей Esc
+function navToggle(open) {
+  const nav = document.querySelector('.nav');
+  if (nav) nav.classList.toggle('is-open', open);
+}
+document.addEventListener('click', e => {
+  const t = e.target instanceof Element ? e.target : null;
+  if (t && (t.closest('.nav-link, .nav-auth button') || !t.closest('.nav'))) navToggle(false);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') navToggle(false); });
+
 // ═══ MODALS: CLOSE ON ESC ════════════════════════════════════════
 
 // Esc закрывает верхнее открытое окно — так же, как его собственная кнопка («×», «Отмена», «Закрыть»):
