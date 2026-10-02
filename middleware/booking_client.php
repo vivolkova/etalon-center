@@ -57,3 +57,18 @@ function bookingClient(PDO $db, array $actor, array $d): array {
        ->execute([$digits . '@' . PHONE_EMAIL_DOMAIN, password_hash(bin2hex(random_bytes(8)), PASSWORD_BCRYPT), $name, phoneView($digits)]);
     return ['id' => (int)$db->lastInsertId(), 'name' => $name, 'by_admin' => true, 'created' => true];
 }
+
+// Клиент уже записан на другое занятие, пересекающееся по времени. Текст ошибки или null
+function bookingClientClash(PDO $db, int $userId, string $date, int $start, int $dur, bool $byAdmin = false): ?string {
+    $st = $db->prepare("SELECT s.name, s.start_time, s.duration FROM bookings b JOIN slots s ON s.id = b.slot_id
+                        WHERE b.user_id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.slot_date = ?");
+    $st->execute([$userId, $date]);
+    foreach ($st->fetchAll() as $o) {
+        $oStart = specTimeToMin(substr($o['start_time'], 0, 5));
+        $oEnd = $oStart + (int)$o['duration'];
+        if ($start < $oEnd && $oStart < $start + $dur) {
+            return ($byAdmin ? 'У клиента уже есть запись на это время: ' : 'В это время вы уже записаны: ') . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
+        }
+    }
+    return null;
+}

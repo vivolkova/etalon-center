@@ -2,6 +2,8 @@
 // Открывается нажатием на свободное время доски (js/admin/journal.js jrFreeClick):
 //   в зале — индивидуальная тренировка (персональная / самостоятельная), станок и время подставлены;
 //   в колонке специалиста — услуга открытой вкладки журнала (байкфит, массаж…), которую он оказывает.
+// Из карточки групповой тренировки (нажатие на свободный станок схемы зала, jbOpenGroup) — запись на неё:
+//   занятие, время и станок уже заданы, выбирается только клиент.
 // Клиент — из базы (поиск по номеру телефона) или новый: имя и телефон, создаётся вместе с записью
 // без личного кабинета (middleware/booking_client.php). Один телефон — один клиент.
 // Свободное время и станки считает сервер (api/individual.php: times, stations), он же всё перепроверяет при записи.
@@ -34,6 +36,13 @@ async function jbOpen(preset) {
     item: null, spec: null, dur: null, start: null, station: null,
     client: null, isNew: false, times: null, message: '', hall: null,
   };
+  jbBuildModal(loc);
+  jbRenderClient();
+  jbPick(items[0].id);
+}
+
+// Окно формы записи: клиент, тело формы (jbRenderBody), комментарий, итог, кнопки
+function jbBuildModal(loc) {
   const old = document.getElementById('jb-modal'); if (old) old.remove();
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
@@ -50,8 +59,19 @@ async function jbOpen(preset) {
   document.body.appendChild(el);
   const d = parseLocalDate(jb.date);
   document.getElementById('jb-sub').textContent = DAYS_FULL[(d.getDay() + 6) % 7] + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ' · ' + loc.name;
+}
+
+// Запись клиента на групповую тренировку из её карточки (нажатие на свободный станок схемы зала):
+// та же форма, но занятие, время и станок уже заданы — остаётся выбрать клиента
+function jbOpenGroup(slotId, stationId) {
+  const loc = jrLoc();
+  const slot = jrData && jrData.slots.find(function (x) { return x.id === slotId; });
+  if (!loc || !slot) return;
+  jb = { group: slot, locId: Number(loc.id), date: jrData.date, items: [], item: null, client: null, isNew: false, station: Number(stationId) };
+  const card = document.getElementById('jr-slot-modal'); if (card) card.remove();
+  jbBuildModal(loc);
   jbRenderClient();
-  jbPick(items[0].id);
+  jbRenderBody();
 }
 
 function jbClose() {
@@ -132,6 +152,7 @@ function jbSelectStation(id) { jb.station = Number(id); jb.wantStation = jb.stat
 // Свободные времена начала для выбранного занятия, специалиста, длительности (и клиента, если выбран)
 async function jbLoadTimes() {
   if (!jb) return;
+  if (jb.group) { jbUpdateSubmit(); return; }   // групповая тренировка: время задано занятием
   jb.times = null; jb.hall = null;
   jbRenderBody();
   const req = ++jbReq, mine = jb;
@@ -166,8 +187,9 @@ async function jbLoadHall() {
 
 function jbRenderBody() {
   if (!jb) return;
-  const it = jbItem();
   const field = function (label, inner) { return '<div class="form-field"><label class="form-label">' + label + '</label>' + inner + '</div>'; };
+  if (jb.group) { jbRenderGroupBody(field); return; }
+  const it = jbItem();
   const chips = function (list) { return '<div class="filter-chips">' + list.join('') + '</div>'; };
   let h = '';
   if (jb.items.length > 1) {
@@ -226,21 +248,37 @@ function jbRenderBody() {
   jbUpdateSubmit();
 }
 
+// Тело формы для групповой тренировки: занятие и станок — только показ (заданы карточкой)
+function jbRenderGroupBody(field) {
+  const g = jb.group;
+  document.getElementById('jb-body').innerHTML =
+    field('Тренировка', '<div class="form-input form-view">' + escAttr([g.name, minToTime(g.from) + '–' + minToTime(g.to), g.specialist].filter(Boolean).join(' · ')) + '</div>')
+    + field('Станок', '<div class="form-input form-view">' + escAttr(jrStationLabel(jb.station)) + '</div>');
+  const d = parseLocalDate(jb.date);
+  document.getElementById('jb-total').textContent = d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(g.from) + '–' + minToTime(g.to) + ' · ' + g.price.toLocaleString('ru') + ' ₽';
+  jbUpdateSubmit();
+}
+
 // Кнопка «Записать» активна, когда выбраны клиент (или вводится новый), время и — для тренировки — станок
 function jbUpdateSubmit() {
   const btn = document.getElementById('jb-submit');
   if (!btn || !jb) return;
+  if (jb.group) { btn.disabled = !((jb.client || jb.isNew) && jb.station); return; }
   const it = jb.item ? jbItem() : null;
   btn.disabled = !(it && (jb.client || jb.isNew) && jb.start !== null && (it.cat !== 'training' || jb.station));
 }
 
 async function jbSubmit() {
   if (!jb) return;
-  const it = jbItem();
-  const data = {
-    library_id: jb.item, specialist_id: jb.spec, date: jb.date, start: minToTime(jb.start), duration: jb.dur,
-    station_id: it.cat === 'training' ? jb.station : null, notes: document.getElementById('jb-notes').value.trim(),
-  };
+  const group = jb.group || null;
+  const it = group || jbItem();
+  const notes = document.getElementById('jb-notes').value.trim();
+  const data = group
+    ? { slot_id: group.id, station_id: jb.station, notes: notes }
+    : {
+      library_id: jb.item, specialist_id: jb.spec, date: jb.date, start: minToTime(jb.start), duration: jb.dur,
+      station_id: it.cat === 'training' ? jb.station : null, notes: notes,
+    };
   if (jb.client) data.user_id = jb.client.id;
   else {
     data.new_client = {
@@ -252,17 +290,18 @@ async function jbSubmit() {
   }
   const btn = document.getElementById('jb-submit');
   btn.disabled = true; btn.textContent = 'Записываем...';
-  const isNew = !jb.client, name = jb.client ? jb.client.name : data.new_client.name, start = jb.start;
+  const isNew = !jb.client, name = jb.client ? jb.client.name : data.new_client.name, start = group ? group.from : jb.start;
   try {
-    await IndividualAPI.create(data);
+    if (group) await BookingsAPI.createFor(data); else await IndividualAPI.create(data);
   } catch (e) {
     // Ошибка показана в apiRequest (время или станок могли занять) — обновляем свободное время
     btn.textContent = 'Записать';
-    if (jb) jbLoadTimes();
+    if (jb && !group) jbLoadTimes();
     return;
   }
   jbClose();
   showToast(name + ' записан: ' + it.name + ' в ' + minToTime(start), 'success');
   await Promise.allSettled([jrLoad(), loadSlots(jrDate, jrDate), isNew ? loadClients() : Promise.resolve()]);
   renderJournal();
+  if (group) jrOpenSlot(group.id);   // обратно в карточку тренировки — с новым клиентом в списке
 }

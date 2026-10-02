@@ -170,6 +170,10 @@ const BookingsAPI = {
   async create(slotId, stationId, notes) {
     return apiRequest('/bookings.php?action=create', 'POST', { slot_id: slotId, station_id: stationId, notes: notes || '' });
   },
+  // Администратор записывает клиента на групповую тренировку: data = { slot_id, station_id, notes, user_id | new_client: {name, phone} }
+  async createFor(data) {
+    return apiRequest('/bookings.php?action=create', 'POST', data);
+  },
   async setStatus(id, status) {
     return apiRequest('/bookings.php?action=status', 'PUT', { id, status });
   },

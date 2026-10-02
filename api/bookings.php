@@ -2,6 +2,7 @@
 // api/bookings.php — Записи на тренировки (с выбором станка/места)
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/slot_rules.php';
+require_once __DIR__ . '/../middleware/booking_client.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -71,7 +72,9 @@ if ($method === 'GET' && $action === 'all') {
     ok($stmt->fetchAll());
 }
 
-// POST — создать запись (на конкретный станок; байкфит — без станка)
+// POST — создать запись на занятие из расписания (групповая тренировка — на конкретный станок).
+// Клиент записывает себя; администратор — клиента из журнала записи: user_id или new_client: {name, phone}
+// (middleware/booking_client.php). Клиент не может быть записан на два занятия в одно время.
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();
     $d    = input();
@@ -119,12 +122,17 @@ if ($method === 'POST' && $action === 'create') {
         if ($stmt->fetch()) err('Это место уже занято');
     }
 
-    // Пользователь ещё не записан на этот слот
-    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
-    $stmt->execute([$user['id'], $slotId]);
-    if ($stmt->fetch()) err('Вы уже записаны на это занятие');
-
     $db->beginTransaction();
+    // Для кого запись (нового клиента администратор заводит здесь же — внутри транзакции записи)
+    $client = bookingClient($db, $user, $d);
+
+    // Клиент ещё не записан на этот слот и не занят в это время на другом занятии
+    $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
+    $stmt->execute([$client['id'], $slotId]);
+    if ($stmt->fetch()) { $db->rollBack(); err($client['by_admin'] ? 'Клиент уже записан на это занятие' : 'Вы уже записаны на это занятие'); }
+    $clash = bookingClientClash($db, $client['id'], $slot['slot_date'], specTimeToMin(substr($slot['start_time'], 0, 5)), (int)$slot['duration'], $client['by_admin']);
+    if ($clash) { $db->rollBack(); err($clash); }
+
     try {
         // Лочим строку слота (FOR UPDATE сериализует все брони этого слота -> без гонки).
         // Вместимость берём из locations.max_people (единый источник), taken — из слота.
@@ -152,7 +160,7 @@ if ($method === 'POST' && $action === 'create') {
         }
 
         $stmt = $db->prepare('INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,\'booked\')');
-        $stmt->execute([$user['id'], $slotId, $stationId, $notes]);
+        $stmt->execute([$client['id'], $slotId, $stationId, $notes]);
         $bookingId = $db->lastInsertId();
 
         // Кэш занятости слота: атомарный инкремент под блокировкой строки (без гонки).
@@ -164,11 +172,12 @@ if ($method === 'POST' && $action === 'create') {
         $stmt->execute([
             'booking',
             'Новая запись',
-            $user['name'] . ' — ' . $slot['name'] . ($station ? ' (' . $station['label'] . ')' : '') . ' ' . $slot['slot_date'],
+            $client['name'] . ' — ' . $slot['name'] . ($station ? ' (' . $station['label'] . ')' : '') . ' ' . $slot['slot_date']
+                . ($client['by_admin'] ? ' (записал администратор)' : ''),
         ]);
 
         $db->commit();
-        ok(['id' => $bookingId], 'Запись создана');
+        ok(['id' => (int)$bookingId, 'user_id' => $client['id']], 'Запись создана');
     } catch (PDOException $e) {
         $db->rollBack();
         // Гонка: место заняли между проверкой и вставкой — сработал UNIQUE-индекс

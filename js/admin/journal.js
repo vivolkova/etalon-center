@@ -2,7 +2,8 @@
 // Вкладки над доской: «Тренировки» — колонки станков зала (групповая занимает весь зал, внутри — кто на каком
 // станке; персональная и самостоятельная — один станок) и по вкладке на каждую услугу филиала (байкфит, массаж…) —
 // колонки её специалистов, запись на услугу занимает колонку специалиста.
-// Нажатие на занятие — карточка: кто записан, станок, телефон, оплата, отмена записи.
+// Нажатие на занятие — карточка: кто записан, станок, телефон, оплата, отмена записи. У групповой тренировки
+// сверху схема зала (как в формах записи): нажатие на свободный станок — запись клиента на него.
 // Нажатие на свободное время — запись клиента по звонку (js/admin/journal-book.js).
 // На телефоне вместо доски — список занятий дня. Данные — api/journal.php?action=day.
 // Недельное «Расписание» (js/admin/schedule.js) остаётся для планирования групповых занятий.
@@ -59,6 +60,8 @@ function jrShortName(name) {
   const p = String(name || '').trim().split(/\s+/);
   return p.length > 1 ? p[0] + ' ' + p[1][0] + '.' : (p[0] || '');
 }
+// Кто ведёт занятие — подписью: у тренировки «тренер Анна Козлова» (чтобы не путать с клиентами), у услуги — имя специалиста
+function jrSpecLabel(s) { return s.specialist ? (s.cat === 'training' ? 'тренер ' : '') + s.specialist : ''; }
 // Вид занятия для подписи и цвета: group / ind (персональная, самостоятельная) / svc (услуга)
 function jrKind(s) { return s.cat !== 'training' ? 'svc' : s.individual ? 'ind' : 'group'; }
 
@@ -132,7 +135,7 @@ function renderJournal() {
           return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
         }).join('');
         hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-          + '<div class="jr-blk-title">' + escAttr(s.name) + ' · ' + escAttr(s.specialist || '') + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
+          + '<div class="jr-blk-title">' + escAttr([s.name, jrSpecLabel(s)].filter(Boolean).join(' · ')) + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
           + '<div class="jr-blk-seats" style="grid-template-columns:repeat(' + n + ',minmax(0,1fr))">' + cells + '</div></div>';
       } else {
         // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
@@ -187,7 +190,7 @@ function renderJournal() {
     return '<div class="jr-row ' + color + '" onclick="jrOpenSlot(' + s.id + ')">'
       + '<div class="jr-row-time">' + minToTime(s.from) + '<span>' + minToTime(s.to) + '</span></div>'
       + '<div class="jr-row-info"><div class="jr-row-name">' + escAttr(s.name) + '</div>'
-      + '<div class="jr-row-meta">' + [s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : ''].filter(Boolean).map(escAttr).join(' · ') + '</div>'
+      + '<div class="jr-row-meta">' + [jrSpecLabel(s), kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : ''].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (who ? '<div class="jr-row-who">' + who + '</div>' : '') + '</div></div>';
   }).join('') : '<div class="jr-empty">' + (isTraining ? 'В этот день тренировок и записей нет' : 'В этот день записей на услугу нет') + '</div>';
 }
@@ -238,33 +241,46 @@ function jrOpenSlot(slotId) {
   const d = parseLocalDate(jrData.date);
   const kind = jrKind(s);
   const stations = jrData.stations;
+  // Кто записан: станок, клиент, телефон, оплата, комментарий — и отмена записи
   const rows = s.bookings.map(function (b) {
     const st = jrStationLabel(b.station_id);
     return '<div class="jr-card-row"><div><div class="jr-card-name">' + (st ? escAttr(st) + ' · ' : '') + escAttr(b.name) + '</div>'
       + '<div class="jr-card-meta">' + [b.phone, JR_PAY[b.payment_status] || b.payment_status].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (b.notes ? '<div class="jr-card-meta">«' + escAttr(b.notes) + '»</div>' : '') + '</div>'
-      + '<button class="action-btn cancel u-text-small" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div>';
+      + '<button class="action-btn cancel btn-sm" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div>';
   }).join('');
-  // У групповой — что свободно и что заблокировано
-  let seats = '';
-  if (kind === 'group') {
-    const taken = s.bookings.map(function (b) { return b.station_id; });
-    const free = stations.filter(function (st) { return taken.indexOf(st.id) < 0 && s.blocked.indexOf(st.id) < 0; });
-    const blocked = stations.filter(function (st) { return s.blocked.indexOf(st.id) >= 0; });
-    seats = '<div class="jr-card-row"><div><div class="jr-card-name">Свободно: ' + (free.length ? free.map(function (st) { return escAttr(st.label); }).join(', ') : 'мест нет') + '</div>'
-      + (blocked.length ? '<div class="jr-card-meta">Заблокированы: ' + blocked.map(function (st) { return escAttr(st.label); }).join(', ') + '</div>' : '') + '</div></div>';
-  }
+  // У групповой — схема зала этого занятия: тот же элемент, что в формах записи (hallFill, js/site/booking.js).
+  // Нажатие на свободный станок — запись клиента на него
+  const hall = kind === 'group'
+    ? '<div id="jr-card-hall" class="hall-scheme"></div><div class="station-hint" id="jr-card-hall-hint">Загрузка схемы зала…</div>'
+    : '';
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = 'jr-slot-modal';
-  el.innerHTML = '<div class="admin-modal u-max-w-520">'
+  el.innerHTML = '<div class="admin-modal u-max-w-560">'
     + '<div class="admin-modal-title">' + escAttr(s.name) + '</div>'
     + '<div class="jr-card-sub">' + [d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(s.from) + '–' + minToTime(s.to),
-      s.specialist, kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : s.price.toLocaleString('ru') + ' ₽'].filter(Boolean).map(escAttr).join(' · ') + '</div>'
-    + (rows || '<div class="jr-card-row"><div class="jr-card-meta">Записей нет</div></div>') + seats
+      jrSpecLabel(s), kind === 'group' ? s.bookings.length + ' из ' + (stations.length - s.blocked.length) + ' мест' : s.price.toLocaleString('ru') + ' ₽'].filter(Boolean).map(escAttr).join(' · ') + '</div>'
+    + hall + (rows || '<div class="jr-card-row"><div class="jr-card-meta">Записей нет</div></div>')
     + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="document.getElementById(\'jr-slot-modal\').remove()">Закрыть</button></div></div>';
   document.body.appendChild(el);
+  if (kind === 'group') jrCardHall(s.id);
 }
+
+// Схема зала в карточке групповой тренировки: свободные станки — кнопки записи (jbOpenGroup)
+let jrCardSlotId = null;
+async function jrCardHall(slotId) {
+  jrCardSlotId = slotId;
+  let data = null;
+  try { data = await StationsAPI.availability(slotId); } catch (e) { /* подпись под схемой */ }
+  const box = document.getElementById('jr-card-hall'), hint = document.getElementById('jr-card-hall-hint');
+  if (!box || jrCardSlotId !== slotId) return;   // карточку закрыли или открыли другую
+  if (!data) { hint.textContent = 'Не удалось загрузить схему зала'; return; }
+  hallFill(box, data, null, 'jrCardStation');
+  const free = data.stations.filter(function (x) { return x.state === 'free'; }).length;
+  hint.textContent = free ? 'Свободно: ' + free + '. Нажмите на станок, чтобы записать клиента.' : 'Свободных станков нет';
+}
+function jrCardStation(stationId) { jbOpenGroup(jrCardSlotId, stationId); }
 
 async function jrCancelBooking(bookingId, slotId) {
   if (!confirm('Отменить запись клиента?')) return;

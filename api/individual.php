@@ -88,21 +88,6 @@ function indWindowError(PDO $db, int $locId, string $date, ?int $startMin = null
     return null;
 }
 
-// Клиент уже записан на другое занятие, пересекающееся по времени. Текст ошибки или null
-function indClientClash(PDO $db, int $userId, string $date, int $start, int $dur, bool $byAdmin = false): ?string {
-    $st = $db->prepare("SELECT s.name, s.start_time, s.duration FROM bookings b JOIN slots s ON s.id = b.slot_id
-                        WHERE b.user_id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.slot_date = ?");
-    $st->execute([$userId, $date]);
-    foreach ($st->fetchAll() as $o) {
-        $oStart = specTimeToMin(substr($o['start_time'], 0, 5));
-        $oEnd = $oStart + (int)$o['duration'];
-        if ($start < $oEnd && $oStart < $start + $dur) {
-            return ($byAdmin ? 'У клиента уже есть запись на это время: ' : 'В это время вы уже записаны: ') . minToTimeStr($oStart) . '–' . minToTimeStr($oEnd) . ' «' . $o['name'] . '»';
-        }
-    }
-    return null;
-}
-
 // Данные для правил занятия (checkSlot / slotRuleError)
 function indSlot(array $lib, ?int $specId, string $date, int $start, int $dur): array {
     return ['id' => null, 'location_id' => (int)$lib['location_id'], 'date' => $date, 'start' => minToTimeStr($start),
@@ -467,7 +452,7 @@ if ($method === 'POST' && $action === 'create') {
     $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([$client['id']]);
     // Для тренировки slotRuleError блокирует строку филиала — записи в зал идут по очереди, станок дважды не займут
     $e = slotRuleError($db, indSlot($lib, $specId, $date, $start, $dur), true)
-        ?? indClientClash($db, $client['id'], $date, $start, $dur, $client['by_admin']);
+        ?? bookingClientClash($db, $client['id'], $date, $start, $dur, $client['by_admin']);
     if ($e === null && $stationId) {
         $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date), $date, $start, $start + $dur);
         if (!in_array($stationId, $free, true)) $e = 'Этот станок недоступен на выбранное время — выберите другой';

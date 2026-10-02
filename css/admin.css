@@ -832,6 +832,8 @@
 }
 
 .jr-blk--group {
+  display: flex;
+  flex-direction: column;
   background: var(--cat-training-bg);
   border-left: 3px solid var(--cat-training);
   color: var(--cat-training-ink);
@@ -866,14 +868,17 @@
   opacity: .85;
 }
 
-/* Кто на каком станке в групповой: ячейки совпадают с колонками станков */
+/* Кто на каком станке в групповой: ячейки совпадают с колонками станков. Строка прижата к низу блока —
+   отдельно от заголовка с названием и тренером; имя клиента — белой плашкой тёмным текстом */
 .jr-blk-seats {
   display: grid;
-  margin: 3px -6px 0 -9px;
+  margin: auto -6px 2px -9px;
+  padding-top: 3px;
 }
 
 .jr-blk-seats span {
-  padding: 0 4px;
+  margin: 0 3px;
+  padding: 1px 4px;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
@@ -884,6 +889,9 @@
 .jr-blk-seats span.on {
   opacity: 1;
   font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border-radius: var(--r-sm);
 }
 
 .jr-empty {
