@@ -56,7 +56,7 @@ function jbBuildModal(loc) {
     + '<div class="jr-card-sub" id="jb-sub"></div>'
     + '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>'
     + '<div id="jb-body"></div>'
-    + (jbIsMove() ? '' : '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="2"></textarea></div>')
+    + (jbIsMove() ? '' : '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="1"></textarea></div>')
     + '<div class="ind-total" id="jb-total"></div>'
     + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="jbClose()">Отмена</button>'
     + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">' + (jbIsMove() ? 'Перенести' : 'Записать') + '</button></div></div>';
@@ -159,7 +159,7 @@ function jbRenderGroupMoveBody(field) {
     else {
       hallFill(hall, jb.hall, jb.station, 'jbSelectStation');
       const free = jb.hall.stations.filter(function (s) { return s.state === 'free'; }).length;
-      hint.textContent = jb.station ? 'Станок выбран ✓' : free ? 'Свободно: ' + free + '. Выберите станок.' : 'Свободных станков нет';
+      hint.textContent = jb.station ? '' : free ? 'Свободно: ' + free + '. Выберите станок.' : 'Свободных станков нет';   // выбранный станок виден на схеме
     }
   }
 
@@ -378,7 +378,7 @@ function jbRenderBody() {
     else {
       hallFill(hall, jb.hall, jb.station, 'jbSelectStation');
       const free = jb.hall.stations.filter(function (s) { return s.state === 'free'; }).length;
-      hint.textContent = jb.station ? 'Станок выбран ✓' : free ? 'Свободно: ' + free + '. Выберите станок.' : 'Свободных станков нет';
+      hint.textContent = jb.station ? '' : free ? 'Свободно: ' + free + '. Выберите станок.' : 'Свободных станков нет';   // выбранный станок виден на схеме
     }
   }
 

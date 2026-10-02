@@ -60,6 +60,10 @@ function jrShortName(name) {
   const p = String(name || '').trim().split(/\s+/);
   return p.length > 1 ? p[0] + ' ' + p[1][0] + '.' : (p[0] || '');
 }
+// Клиент в блоке занятия — белой плашкой внизу блока (тот же вид, что имена в групповой тренировке)
+function jrClientChip(b) {
+  return '<div class="jr-blk-seats jr-blk-seats--one"><span class="on">' + escAttr(b ? jrShortName(b.name) : '—') + '</span></div>';
+}
 // Кто ведёт занятие — подписью: у тренировки «тренер Анна Козлова» (чтобы не путать с клиентами), у услуги — имя специалиста
 function jrSpecLabel(s) { return s.specialist ? (s.cat === 'training' ? 'тренер ' : '') + s.specialist : ''; }
 // Вид занятия для подписи и цвета: group / ind (персональная, самостоятельная) / svc (услуга)
@@ -135,15 +139,17 @@ function renderJournal() {
           return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
         }).join('');
         hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-          + '<div class="jr-blk-title">' + escAttr([s.name, jrSpecLabel(s)].filter(Boolean).join(' · ')) + ' · ' + s.bookings.length + ' из ' + (stations.length - s.blocked.length) + '</div>'
+          + '<div class="jr-blk-title">' + escAttr([s.name, jrSpecLabel(s)].filter(Boolean).join(' · ')) + '</div>'
           + '<div class="jr-blk-seats" style="grid-template-columns:repeat(' + n + ',minmax(0,1fr))">' + cells + '</div></div>';
       } else {
-        // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка)
+        // Персональная / самостоятельная — на станке клиента (станок не указан — первая колонка).
+      // Вид блока один для всех занятий: сверху название и кто ведёт, внизу клиенты плашками
         const b = s.bookings[0];
         const idx = Math.max(0, stations.findIndex(function (st) { return b && st.id === b.station_id; }));
-        hallBlocks += '<div class="jr-blk jr-blk--ind kind-' + (s.type === 'free' ? 'free' : 'personal') + '" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-          + '<div class="jr-blk-title">' + escAttr(b ? jrShortName(b.name) : '—') + '</div>'
-          + '<div class="jr-blk-sub">' + (s.specialist ? 'тренер ' + escAttr(jrShortName(s.specialist)) : 'самостоятельно') + '</div></div>';
+        hallBlocks += '<div class="jr-blk jr-blk--ind kind-' + (s.type === 'free' ? 'free' : 'personal') + '" style="left:' + (idx * 100 / n) + '%;width:calc(' + (100 / n) + '% - 4px);' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr([time(s), s.name, jrSpecLabel(s)].filter(Boolean).join(' · ')) + '">'
+          // блок узкий (один станок): тренер — второй строкой под названием, коротко («Максим Р.»); полностью — в подсказке
+          + '<div class="jr-blk-title">' + escAttr(s.name) + (s.specialist ? '<br><span class="jr-blk-by">тренер ' + escAttr(jrShortName(s.specialist)) + '</span>' : '') + '</div>'
+          + jrClientChip(b) + '</div>';
       }
     });
     board.innerHTML = '<div class="jr" style="min-width:' + (60 + stations.length * 86) + 'px">'
@@ -168,7 +174,7 @@ function renderJournal() {
       const blocks = slots.filter(function (s) { return s.specialist_id === sp.id; }).map(function (s) {
         const b = s.bookings[0];
         return '<div class="jr-blk jr-blk--svc" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
-          + '<div class="jr-blk-title">' + escAttr(b ? b.name : '—') + '</div><div class="jr-blk-sub">' + escAttr(s.name) + '</div></div>';
+          + '<div class="jr-blk-title">' + escAttr(s.name) + '</div>' + jrClientChip(b) + '</div>';
       }).join('');
       return { head: '<div class="jr-col-h jr-col-h--spec" title="' + escAttr(sp.full_name) + '">' + escAttr(sp.full_name) + '</div>', body: '<div class="jr-spec" data-spec="' + sp.id + '" onclick="jrFreeClick(event,this)" onmousemove="jrHover(event,this)" onmouseleave="jrHoverOff(this)"><div class="jr-plus"></div>' + off + blocks + '</div>' };
     });

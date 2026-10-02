@@ -819,6 +819,15 @@
   font-size: 11px;
   line-height: 1.25;
   transition: box-shadow .15s;
+  /* единый вид блока: заголовок (название, кто ведёт) сверху, под ним с отступом клиенты плашками.
+     Отступ — до 16px: в низком блоке он сжимается, в высоком плашка не уезжает к нижнему краю */
+  display: grid;
+  grid-template-rows: max-content minmax(0, 16px) max-content;   /* заголовок и плашка — по содержимому, сжимается только отступ */
+  align-content: start;
+}
+
+.jr-blk > * {
+  min-width: 0;
 }
 
 .jr-blk:hover {
@@ -832,8 +841,6 @@
 }
 
 .jr-blk--group {
-  display: flex;
-  flex-direction: column;
   background: var(--cat-training-bg);
   border-left: 3px solid var(--cat-training);
   color: var(--cat-training-ink);
@@ -861,19 +868,17 @@
   text-overflow: ellipsis;
 }
 
-.jr-blk-sub {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: .85;
+/* Кто ведёт — второй строкой заголовка в узком блоке (персональная тренировка на одном станке) */
+.jr-blk-by {
+  font-weight: 400;
 }
 
-/* Кто на каком станке в групповой: ячейки совпадают с колонками станков. Строка прижата к низу блока —
-   отдельно от заголовка с названием и тренером; имя клиента — белой плашкой тёмным текстом */
+/* Кто на каком станке в групповой: ячейки совпадают с колонками станков. Строка — ниже заголовка с названием
+   и тренером (третья строка сетки блока); имя клиента — белой плашкой тёмным текстом */
 .jr-blk-seats {
   display: grid;
-  margin: auto -6px 2px -9px;
-  padding-top: 3px;
+  grid-row: 3;
+  margin: 0 -6px 2px -9px;
 }
 
 .jr-blk-seats span {
@@ -884,6 +889,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
   opacity: .5;
+}
+
+/* Один клиент (персональная, самостоятельная, услуга) — плашка на ширину блока */
+.jr-blk-seats--one {
+  margin: 0 0 2px;
+}
+
+.jr-blk-seats--one span {
+  margin: 0;
 }
 
 .jr-blk-seats span.on {
@@ -1030,6 +1044,21 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--green);
+}
+
+/* Форма записи из журнала — плотнее обычной: в ней много полей и схема зала, а она должна помещаться
+   в окно без прокрутки (ноутбук, высота около 900px) */
+#jb-modal .form-field {
+  margin-bottom: 12px;
+}
+
+#jb-modal .hall-scheme {
+  margin: 4px 0;
+  padding: 10px;
+}
+
+#jb-modal .station {
+  padding: 6px;
 }
 
 .jb-picked {
