@@ -18,16 +18,16 @@ function switchAuthTab(mode) {
   const f = document.getElementById('auth-fields');
   if (mode === 'login') {
     f.innerHTML = `
-  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required placeholder="ivan@mail.ru"></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required placeholder="••••••••"></div>`;
+  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required></div>
+  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required></div>`;
   } else {
     f.innerHTML = `
   <div class="form-row">
-    <div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="a-name" type="text" required placeholder="Иван Петров"></div>
-    <div class="form-field"><label class="form-label">Телефон</label><input class="form-input" id="a-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__"></div>
+    <div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="a-name" type="text" required></div>
+    <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone"></div>
   </div>
-  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required placeholder="ivan@mail.ru"></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required placeholder="Минимум 6 символов"></div>`;
+  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required></div>
+  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required minlength="6"><div class="set-hint">Минимум 6 символов</div></div>`;
   }
 }
 

@@ -31,6 +31,54 @@ document.addEventListener('click', e => {
 
 
 
+// ═══ ТЕЛЕФОН: одно поле для всех мест, где телефон вводится целиком ═══
+// В разметке достаточно класса: <input class="form-input phone-input">. Всё остальное задаётся здесь, одинаково
+// для всех: вид +7 (XXX) XXX-XX-XX при вводе, шаблон в пустом поле, длина и проверка «введён полностью»
+// (неполный номер — красная рамка, css/kit.css). Значение из базы подставлять через maskPhone(значение).
+// Поля поиска по телефону сюда не относятся — в них номер вводят частично.
+const PHONE_TEMPLATE = '+7 (___) ___-__-__';
+const PHONE_PATTERN = '\\+7 \\(\\d{3}\\) \\d{3}-\\d{2}-\\d{2}';
+
+function maskPhone(v) {
+  let d = (v || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d[0] === '8') d = '7' + d.slice(1);
+  if (d[0] !== '7') d = '7' + d;
+  d = d.slice(0, 11);
+  const rest = d.slice(1);            // до 10 цифр после кода страны
+  let r = '+7';
+  if (rest.length > 0) r += ' (' + rest.slice(0, 3);
+  if (rest.length >= 3) r += ')';
+  if (rest.length > 3) r += ' ' + rest.slice(3, 6);
+  if (rest.length > 6) r += '-' + rest.slice(6, 8);
+  if (rest.length > 8) r += '-' + rest.slice(8, 10);
+  return r;
+}
+
+function phoneSetup(el) {
+  el.type = 'tel';
+  el.inputMode = 'tel';
+  el.maxLength = PHONE_TEMPLATE.length;
+  el.placeholder = PHONE_TEMPLATE;
+  el.pattern = PHONE_PATTERN;
+  el.autocomplete = 'tel';
+}
+document.addEventListener('input', e => {
+  if (e.target instanceof HTMLInputElement && e.target.classList.contains('phone-input')) e.target.value = maskPhone(e.target.value);
+});
+// Поля в разметке страницы и поля, которые формы добавляют позже
+document.querySelectorAll('.phone-input').forEach(phoneSetup);
+new MutationObserver(function (muts) {
+  muts.forEach(function (m) {
+    m.addedNodes.forEach(function (n) {
+      if (n.nodeType !== 1) return;
+      if (n.matches('.phone-input')) phoneSetup(n);
+      n.querySelectorAll('.phone-input').forEach(phoneSetup);
+    });
+  });
+}).observe(document.body, { childList: true, subtree: true });
+
+
 // ═══ MULTI-SELECT: выпадающий список с выбором нескольких значений ═══
 
 // msHtml(id, options [{value, label}], selected [value…], placeholder, selectAll, required) — разметка;

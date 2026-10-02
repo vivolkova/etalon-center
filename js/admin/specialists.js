@@ -166,7 +166,7 @@ function openTrainerModal(id, tab) {
     '</div>' +
     // ── Основное
     '<div data-trm-pane="main">' +
-    '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" required value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
+    '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" required value="' + (t ? t.full : '') + '"></div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +

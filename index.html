@@ -18,14 +18,14 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261001-42">
-  <link rel="stylesheet" href="css/site.css?v=20261001-42">
-  <link rel="stylesheet" href="css/panels.css?v=20261001-42">
-  <link rel="stylesheet" href="css/library.css?v=20261001-42">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261001-42">
-  <link rel="stylesheet" href="css/admin.css?v=20261001-42">
+  <link rel="stylesheet" href="css/base.css?v=20261001-44">
+  <link rel="stylesheet" href="css/site.css?v=20261001-44">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-44">
+  <link rel="stylesheet" href="css/library.css?v=20261001-44">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-44">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-44">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261001-42">
+  <link rel="stylesheet" href="css/kit.css?v=20261001-44">
 </head>
 
 <body>
@@ -301,11 +301,11 @@
             <div class="form-row">
               <div class="form-field">
                 <label class="form-label">Имя и фамилия</label>
-                <input class="form-input" id="pf-name" required placeholder="Иван Петров">
+                <input class="form-input" id="pf-name" required>
               </div>
               <div class="form-field">
                 <label class="form-label">Телефон</label>
-                <input class="form-input" id="pf-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
+                <input class="form-input phone-input" id="pf-phone">
               </div>
             </div>
             <div class="form-field">
@@ -331,7 +331,7 @@
             <div class="form-field">
               <label class="form-label">О себе / цели тренировок</label>
               <textarea class="form-input form-textarea" id="pf-notes" rows="3"
-                placeholder="Хочу подготовиться к марафону..."></textarea>
+               ></textarea>
             </div>
             <div class="u-mt-20 u-flex u-gap-10 u-items-center">
               <button class="btn-primary" onclick="saveProfile()">Сохранить изменения</button>
@@ -905,12 +905,12 @@
               </div>
               <div class="form-field">
                 <label class="form-label">Тема</label>
-                <input class="form-input" id="mail-subject" placeholder="Тема письма">
+                <input class="form-input" id="mail-subject">
               </div>
               <div class="form-field">
                 <label class="form-label">Сообщение</label>
                 <textarea class="form-input" id="mail-body" rows="5" style="height:auto;resize:vertical"
-                  placeholder="Текст рассылки..."></textarea>
+                 ></textarea>
               </div>
               <div style="display:flex;gap:8px;margin-top:12px">
                 <button class="btn-ghost" onclick="previewMailing()">Предпросмотр</button>
@@ -1005,7 +1005,7 @@
       </div>
       <div class="form-field">
         <label class="form-label">Комментарий</label>
-        <textarea class="form-input form-textarea" id="f-comment" rows="3" placeholder="Особые пожелания..."></textarea>
+        <textarea class="form-input form-textarea" id="f-comment" rows="3"></textarea>
       </div>
       <div class="modal-actions">
         <button class="btn-ghost" onclick="closeBookingModal()">Отмена</button>
@@ -1128,36 +1128,36 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261001-42"></script>
-  <script src="js/core.js?v=20261001-42"></script>
-  <script src="js/week-grid.js?v=20261001-42"></script>
-  <script src="js/auth.js?v=20261001-42"></script>
-  <script src="js/site/schedule.js?v=20261001-42"></script>
-  <script src="js/site/booking.js?v=20261001-42"></script>
-  <script src="js/site/individual.js?v=20261001-42"></script>
-  <script src="js/site/individual-page.js?v=20261001-42"></script>
-  <script src="js/site/services-bookings.js?v=20261001-42"></script>
-  <script src="js/admin/admin.js?v=20261001-42"></script>
-  <script src="js/admin/schedule.js?v=20261001-42"></script>
-  <script src="js/admin/journal.js?v=20261001-42"></script>
-  <script src="js/admin/journal-book.js?v=20261001-42"></script>
-  <script src="js/admin/chat.js?v=20261001-42"></script>
-  <script src="js/admin/notifications.js?v=20261001-42"></script>
-  <script src="js/client/panel.js?v=20261001-42"></script>
-  <script src="js/client/payment.js?v=20261001-42"></script>
-  <script src="js/client/chat-profile.js?v=20261001-42"></script>
-  <script src="js/site/detail-modals.js?v=20261001-42"></script>
-  <script src="js/admin/library.js?v=20261001-42"></script>
-  <script src="js/admin/data-nav.js?v=20261001-42"></script>
-  <script src="js/admin/dashboard.js?v=20261001-42"></script>
-  <script src="js/admin/specialists.js?v=20261001-42"></script>
-  <script src="js/admin/sales.js?v=20261001-42"></script>
-  <script src="js/admin/settings.js?v=20261001-42"></script>
-  <script src="js/admin/stations.js?v=20261001-42"></script>
-  <script src="js/admin/dictionaries.js?v=20261001-42"></script>
-  <script src="js/ui.js?v=20261001-42"></script>
-  <script src="js/loaders.js?v=20261001-42"></script>
-  <script src="js/init.js?v=20261001-42"></script>
+  <script src="js/api.js?v=20261001-44"></script>
+  <script src="js/core.js?v=20261001-44"></script>
+  <script src="js/week-grid.js?v=20261001-44"></script>
+  <script src="js/auth.js?v=20261001-44"></script>
+  <script src="js/site/schedule.js?v=20261001-44"></script>
+  <script src="js/site/booking.js?v=20261001-44"></script>
+  <script src="js/site/individual.js?v=20261001-44"></script>
+  <script src="js/site/individual-page.js?v=20261001-44"></script>
+  <script src="js/site/services-bookings.js?v=20261001-44"></script>
+  <script src="js/admin/admin.js?v=20261001-44"></script>
+  <script src="js/admin/schedule.js?v=20261001-44"></script>
+  <script src="js/admin/journal.js?v=20261001-44"></script>
+  <script src="js/admin/journal-book.js?v=20261001-44"></script>
+  <script src="js/admin/chat.js?v=20261001-44"></script>
+  <script src="js/admin/notifications.js?v=20261001-44"></script>
+  <script src="js/client/panel.js?v=20261001-44"></script>
+  <script src="js/client/payment.js?v=20261001-44"></script>
+  <script src="js/client/chat-profile.js?v=20261001-44"></script>
+  <script src="js/site/detail-modals.js?v=20261001-44"></script>
+  <script src="js/admin/library.js?v=20261001-44"></script>
+  <script src="js/admin/data-nav.js?v=20261001-44"></script>
+  <script src="js/admin/dashboard.js?v=20261001-44"></script>
+  <script src="js/admin/specialists.js?v=20261001-44"></script>
+  <script src="js/admin/sales.js?v=20261001-44"></script>
+  <script src="js/admin/settings.js?v=20261001-44"></script>
+  <script src="js/admin/stations.js?v=20261001-44"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-44"></script>
+  <script src="js/ui.js?v=20261001-44"></script>
+  <script src="js/loaders.js?v=20261001-44"></script>
+  <script src="js/init.js?v=20261001-44"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1233,7 +1233,7 @@
         <div class="hall-scheme" id="sm-hall"></div>
         <div class="station-hint" id="sm-hall-hint"></div>
         <label class="form-label u-mt-10" for="sm-block-reason">Причина блокировки</label>
-        <input class="form-input" id="sm-block-reason" placeholder="Например: ремонт, сломан ремень" maxlength="255">
+        <input class="form-input" id="sm-block-reason" maxlength="255">
       </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeSlotModal()">Отмена</button>
@@ -1248,12 +1248,12 @@
       <div class="admin-modal-title">Новый анонс</div>
       <div class="form-field">
         <label class="form-label">Заголовок</label>
-        <input class="form-input" id="ann-title" placeholder="Новое расписание на июль">
+        <input class="form-input" id="ann-title">
       </div>
       <div class="form-field">
         <label class="form-label">Текст сообщения</label>
         <textarea class="form-input" id="ann-text" rows="4" style="height:auto;resize:vertical"
-          placeholder="Текст анонса для клиентов..."></textarea>
+         ></textarea>
       </div>
       <div class="form-field">
         <label class="form-label">Тип</label>
@@ -1409,11 +1409,11 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Email</label>
-          <input class="form-input" id="loc-email" required type="email" inputmode="email" placeholder="name@example.ru">
+          <input class="form-input" id="loc-email" required type="email" inputmode="email">
         </div>
         <div class="form-field">
           <label class="form-label">Телефон</label>
-          <input class="form-input" id="loc-phone" required minlength="18" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
+          <input class="form-input phone-input" id="loc-phone" required>
         </div>
       </div>
       <div class="form-field">
@@ -1445,7 +1445,7 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Название</label>
-          <input class="form-input" id="lm-name" required placeholder="Название тренировки / услуги">
+          <input class="form-input" id="lm-name" required>
         </div>
         <div class="form-field" id="lm-cat-wrap">
           <label class="form-label">Категория</label>
@@ -1483,11 +1483,12 @@
       <div class="form-field">
         <label class="form-label">Описание</label>
         <textarea class="form-input form-textarea" id="lm-desc" rows="3"
-          placeholder="Краткое описание для клиентов..."></textarea>
+         ></textarea>
       </div>
       <div class="form-field">
         <label class="form-label">Особенности</label>
-        <textarea class="form-input form-textarea" id="lm-features" rows="4" placeholder="Каждая особенность — с новой строки"></textarea>
+        <textarea class="form-input form-textarea" id="lm-features" rows="4"></textarea>
+        <div class="set-hint">Каждая особенность — с новой строки</div>
       </div>
       <div class="form-field">
         <label class="check-label">
@@ -1582,17 +1583,17 @@
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Имя и фамилия</label>
-          <input class="form-input" id="cm-name" required placeholder="Иван Петров">
+          <input class="form-input" id="cm-name" required>
         </div>
         <div class="form-field">
           <label class="form-label">Телефон</label>
-          <input class="form-input" id="cm-phone" type="tel" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)" placeholder="+7 (___) ___-__-__">
+          <input class="form-input phone-input" id="cm-phone">
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
           <label class="form-label">Email</label>
-          <input class="form-input" id="cm-email" required type="email" placeholder="ivan@mail.ru">
+          <input class="form-input" id="cm-email" required type="email">
         </div>
         <div class="form-field">
           <label class="form-label">Статус</label>
@@ -1621,7 +1622,7 @@
       <div class="form-field">
         <label class="form-label">Заметки</label>
         <textarea class="form-input form-textarea" id="cm-notes" rows="3"
-          placeholder="Особые пожелания, цели тренировок..."></textarea>
+         ></textarea>
       </div>
       <div class="admin-modal-actions">
         <button class="btn-ghost" onclick="closeClientModal()">Отмена</button>

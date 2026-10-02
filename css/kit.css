@@ -29,10 +29,12 @@
 
 /* Обязательное поле. Пометка — атрибут required у input / select / textarea; у списка с выбором нескольких
    значений (msHtml в js/ui.js) — класс is-required. Пока поле не заполнено или заполнено неверно
-   (нет значения, некорректный email, число вне диапазона) — красная рамка; заполнили — обычная. */
+   (нет значения, некорректный email, число вне диапазона) — красная рамка; заполнили — обычная.
+   Поле телефона (.phone-input, js/ui.js) красное и когда оно необязательное, но номер введён не полностью. */
 input:required:invalid,
 select:required:invalid,
 textarea:required:invalid,
+.phone-input:invalid,
 .ms.is-required:not(:has(.ms-panel input:checked)) .ms-btn {
   border-color: var(--danger);
 }

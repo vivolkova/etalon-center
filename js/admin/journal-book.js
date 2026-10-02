@@ -69,7 +69,7 @@ function jbRenderClient() {
       + '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button></div>';
   } else if (jb.isNew) {
     box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required></div>'
-      + '<div><label class="form-label">Телефон</label><input class="form-input" id="jb-new-phone" type="tel" required minlength="18" inputmode="tel" maxlength="18" oninput="this.value=maskPhone(this.value)"></div></div>'
+      + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required></div></div>'
       + '<button class="btn-ghost jb-link" onclick="jbSetNew(false)">Найти по телефону</button>';
   } else {
     box.innerHTML = '<input class="form-input" id="jb-search" inputmode="tel" oninput="jbSearch(this.value)" autocomplete="off">'

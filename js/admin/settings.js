@@ -131,22 +131,6 @@ function workTimeOptions(from, to, dur, selected) {
   return o;
 }
 
-// Маска телефона: +7 (XXX) XXX-XX-XX — оставляем только цифры и форматируем
-function maskPhone(v) {
-  let d = (v || '').replace(/\D/g, '');
-  if (!d) return '';
-  if (d[0] === '8') d = '7' + d.slice(1);
-  if (d[0] !== '7') d = '7' + d;
-  d = d.slice(0, 11);
-  const rest = d.slice(1);            // до 10 цифр после кода страны
-  let r = '+7';
-  if (rest.length > 0) r += ' (' + rest.slice(0, 3);
-  if (rest.length >= 3) r += ')';
-  if (rest.length > 3) r += ' ' + rest.slice(3, 6);
-  if (rest.length > 6) r += '-' + rest.slice(6, 8);
-  if (rest.length > 8) r += '-' + rest.slice(8, 10);
-  return r;
-}
 function isValidEmail(v) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }

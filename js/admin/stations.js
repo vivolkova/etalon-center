@@ -193,7 +193,7 @@ function openStationTypeModal(id) {
     '<div class="form-field"><label class="form-label">Название</label>' +
     '<input class="form-input" id="stt-name" required value="' + escAttr(t ? t.name : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Иконка (SVG)</label>' +
-    '<textarea class="form-input" id="stt-icon" rows="4" style="height:auto;font-family:monospace;font-size:11px" placeholder="<svg viewBox=&quot;0 0 64 64&quot;>…</svg>">' + escAttr(t && t.icon ? t.icon : '') + '</textarea>' +
+    '<textarea class="form-input" id="stt-icon" rows="4" style="height:auto;font-family:monospace;font-size:11px">' + escAttr(t && t.icon ? t.icon : '') + '</textarea>' +
     '<div class="st-type-ico u-mt-6" id="stt-preview">' + (t && t.icon ? t.icon : '') + '</div></div>' +
     '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="stt-active"' + (!t || Number(t.active) ? ' checked' : '') + '> Активен</label></div>';

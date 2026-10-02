@@ -37,7 +37,7 @@ function openSubModal(id) {
     '<div class="admin-modal" style="max-width:420px">',
     '<div class="admin-modal-title">' + (p ? 'Редактировать абонемент' : 'Новый абонемент') + '</div>',
     '<div class="form-row">',
-    '<div class="form-field"><label class="form-label">Название</label><input class="form-input" id="subm-name" value="' + (p ? p.name : '') + '" placeholder="Базовый"></div>',
+    '<div class="form-field"><label class="form-label">Название</label><input class="form-input" id="subm-name" value="' + (p ? p.name : '') + '"></div>',
     '<div class="form-field"><label class="form-label">Занятий</label><input class="form-input" id="subm-sessions" type="number" value="' + (p ? p.sessions : 8) + '" min="1"></div>',
     '</div>',
     '<div class="form-row">',
@@ -173,7 +173,7 @@ function openPromoModal(id) {
     '<div class="admin-modal" style="max-width:420px">' +
     '<div class="admin-modal-title">' + (p ? 'Редактировать промокод' : 'Новый промокод') + '</div>' +
     '<div class="form-row">' +
-    '<div class="form-field"><label class="form-label">Код</label><input class="form-input" id="prm-code" value="' + (p ? p.code : '') + '" placeholder="SUMMER20" style="text-transform:uppercase"></div>' +
+    '<div class="form-field"><label class="form-label">Код</label><input class="form-input" id="prm-code" value="' + (p ? p.code : '') + '" style="text-transform:uppercase"></div>' +
     '<div class="form-field"><label class="form-label">Тип</label><select class="form-input" id="prm-type"><option value="percent">Процент %</option><option value="fixed">Фикс. сумма</option></select></div>' +
     '</div>' +
     '<div class="form-row">' +
@@ -182,7 +182,7 @@ function openPromoModal(id) {
     '</div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Истекает</label><input class="form-input" id="prm-expires" type="date" value="' + expiresVal + '"></div>' +
-    '<div class="form-field"><label class="form-label">Описание</label><input class="form-input" id="prm-desc" value="' + (p ? p.desc : '') + '" placeholder="Описание акции"></div>' +
+    '<div class="form-field"><label class="form-label">Описание</label><input class="form-input" id="prm-desc" value="' + (p ? p.desc : '') + '"></div>' +
     '</div>' +
     '<div class="admin-modal-actions"><button class="btn-ghost" id="prm-cancel">Отмена</button>' +
     '<button class="btn-primary" id="prm-save">Сохранить</button></div>' +
