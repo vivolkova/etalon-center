@@ -45,7 +45,10 @@
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  min-width: 170px;
+  /* Ширина постоянная — по самой длинной подписи («20 июл – 26 июл 2026»), чтобы кнопки рядом не прыгали */
+  width: 240px;
+  flex-shrink: 0;
+  white-space: nowrap;
   text-align: center;
 }
 
@@ -420,6 +423,15 @@
 }
 
 @media (max-width: 600px) {
+  /* На телефоне подпись недели уже и мельче; длинная переносится на вторую строку (год), ширина та же —
+     стрелки и «Сегодня» стоят на месте */
+  .wg-label {
+    width: 150px;
+    white-space: normal;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
   .wg-toolbar {
     flex-direction: column;
     align-items: flex-start;
