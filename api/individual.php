@@ -58,23 +58,10 @@ function indPrice(PDO $db, array $lib, int $dur): int {
     return $price + $steps * settingInt($db, 'free_training_extra_price', 500);
 }
 
-// Сейчас по часовому поясу филиала (locations.timezone): время занятий — местное время филиала
-function indNow(PDO $db, int $locId): DateTimeImmutable {
-    static $cache = [];
-    if (!isset($cache[$locId])) {
-        $st = $db->prepare('SELECT timezone FROM locations WHERE id = ?');
-        $st->execute([$locId]);
-        try { $tz = new DateTimeZone((string)$st->fetchColumn() ?: 'Europe/Moscow'); }
-        catch (Exception $e) { $tz = new DateTimeZone('Europe/Moscow'); }
-        $cache[$locId] = $tz;
-    }
-    return new DateTimeImmutable('now', $cache[$locId]);
-}
-
 // Окно записи: дата от сегодня до горизонта, начало не раньше чем через lead минут (по времени филиала).
 // Текст ошибки или null
 function indWindowError(PDO $db, int $locId, string $date, ?int $startMin = null): ?string {
-    $now = indNow($db, $locId);
+    $now = branchNow($db, $locId);
     $horizon = settingInt($db, 'client_booking_horizon_days', 30);
     if ($date < $now->format('Y-m-d')) return 'Эта дата уже прошла';
     if ($date > $now->modify('+' . $horizon . ' days')->format('Y-m-d')) return 'Записаться можно не больше чем на ' . $horizon . ' дн. вперёд';
@@ -330,7 +317,7 @@ if ($method === 'GET' && $action === 'options') {
     }
     ok([
         'items'        => $items,
-        'today'        => indNow($db, $locId)->format('Y-m-d'),
+        'today'        => branchNow($db, $locId)->format('Y-m-d'),
         'horizon_days' => settingInt($db, 'client_booking_horizon_days', 30),
         'lead_minutes' => settingInt($db, 'client_booking_lead_minutes', 60),
         'step'         => IND_STEP,
@@ -379,7 +366,7 @@ if ($method === 'GET' && $action === 'week') {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) err('Некорректная дата');
     $to    = date('Y-m-d', strtotime($from . ' +6 days'));
     $locId = (int)$lib['location_id'];
-    $today = indNow($db, $locId)->format('Y-m-d');
+    $today = branchNow($db, $locId)->format('Y-m-d');
     $d = indLoad($db, $lib, $specId, (int)($user['id'] ?? 0), $from, $to);
     $days = [];
     for ($i = 0; $i < 7; $i++) {
@@ -513,7 +500,7 @@ if ($method === 'PUT' && $action === 'move') {
         if (!$stationId) err('Выберите станок');
     }
 
-    $now = indNow($db, (int)$lib['location_id']);
+    $now = branchNow($db, (int)$lib['location_id']);
     $at  = fn(string $day, string $time) => new DateTimeImmutable($day . ' ' . substr($time, 0, 5), $now->getTimezone());
     if ($at($cur['slot_date'], $cur['start_time']) < $now) err('Занятие уже началось или прошло — такую запись перенести нельзя');
     if ($at($date, minToTimeStr($start)) < $now) err('Нельзя перенести запись на прошедшее время');

@@ -198,6 +198,19 @@ function checkSlotSpecialist(PDO $db, array $s): void {
     }
 }
 
+// Сейчас по часовому поясу филиала (locations.timezone): время занятий — местное время филиала
+function branchNow(PDO $db, int $locId): DateTimeImmutable {
+    static $cache = [];
+    if (!isset($cache[$locId])) {
+        $st = $db->prepare('SELECT timezone FROM locations WHERE id = ?');
+        $st->execute([$locId]);
+        try { $tz = new DateTimeZone((string)$st->fetchColumn() ?: 'Europe/Moscow'); }
+        catch (Exception $e) { $tz = new DateTimeZone('Europe/Moscow'); }
+        $cache[$locId] = $tz;
+    }
+    return new DateTimeImmutable('now', $cache[$locId]);
+}
+
 // 90 -> «1 ч 30 мин», 60 -> «1 ч», 45 -> «45 мин»
 function fmtMinutes(int $m): string {
     $h = intdiv($m, 60); $r = $m % 60;

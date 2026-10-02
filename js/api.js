@@ -180,6 +180,10 @@ const BookingsAPI = {
   async createFor(data) {
     return apiRequest('/bookings.php?action=create', 'POST', data);
   },
+  // Перенос записи на групповую тренировку (админ): {booking_id, slot_id, station_id} — другой станок или другая тренировка
+  async move(data) {
+    return apiRequest('/bookings.php?action=move', 'PUT', data);
+  },
   async setStatus(id, status) {
     return apiRequest('/bookings.php?action=status', 'PUT', { id, status });
   },

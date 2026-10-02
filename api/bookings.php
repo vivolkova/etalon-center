@@ -72,6 +72,35 @@ if ($method === 'GET' && $action === 'all') {
     ok($stmt->fetchAll());
 }
 
+// Станок для записи на занятие: активен, из филиала занятия, не заблокирован на него и не занят другой записью.
+// Текст ошибки или null. $skipBooking — запись, которую не считаем (перенос: её собственный станок не помеха)
+function bookingStationError(PDO $db, int $slotId, int $locId, int $stationId, int $skipBooking = 0): ?string {
+    $st = $db->prepare('SELECT id FROM stations WHERE id=? AND active=1 AND location_id=?');
+    $st->execute([$stationId, $locId]);
+    if (!$st->fetch()) return 'Станок недоступен';
+    // Станок не заблокирован на это занятие (ремонт и т.п.)
+    $st = $db->prepare('SELECT id FROM slot_station_blocks WHERE slot_id=? AND station_id=?');
+    $st->execute([$slotId, $stationId]);
+    if ($st->fetch()) return 'Станок недоступен на это занятие';
+    // Быстрая понятная проверка «место свободно»; гарантия от гонки — UNIQUE-индекс uq_booking_station_active
+    $st = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled" AND id <> ?');
+    $st->execute([$slotId, $stationId, $skipBooking]);
+    return $st->fetch() ? 'Это место уже занято' : null;
+}
+
+// Сколько клиентов вмещает занятие в зале: вместимость филиала (locations.max_people — единый источник) минус
+// станки, заблокированные на это занятие (станок, занятый записью, второй раз не считаем)
+function bookingHallCapacity(PDO $db, int $slotId, int $locId): int {
+    $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
+    $lc->execute([$locId]);
+    $bl = $db->prepare('SELECT COUNT(*) FROM slot_station_blocks b
+                         JOIN stations st ON st.id = b.station_id AND st.active = 1
+                        WHERE b.slot_id = ?
+                          AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = b.slot_id AND bk.station_id = b.station_id AND bk.status <> "cancelled")');
+    $bl->execute([$slotId]);
+    return (int)$lc->fetchColumn() - (int)$bl->fetchColumn();
+}
+
 // POST — создать запись на занятие из расписания (групповая тренировка — на конкретный станок).
 // Клиент записывает себя; администратор — клиента из журнала записи: user_id или new_client: {name, phone}
 // (middleware/booking_client.php). Клиент не может быть записан на два занятия в одно время.
@@ -98,28 +127,11 @@ if ($method === 'POST' && $action === 'create') {
     // В зале (на станках) проходят только тренировки; сюда доходят только групповые (индивидуальные отсечены выше)
     $usesHall  = $slot['category'] === 'training';
     $stationId = null;
-    $station   = null;
 
     if ($usesHall) {
         require_fields($d, ['station_id']);
         $stationId = (int)$d['station_id'];
-
-        // Станок активен и принадлежит филиалу слота
-        $stmt = $db->prepare('SELECT * FROM stations WHERE id=? AND active=1 AND location_id=?');
-        $stmt->execute([$stationId, (int)$slot['location_id']]);
-        $station = $stmt->fetch();
-        if (!$station) err('Станок недоступен');
-
-        // Станок не заблокирован на это занятие (персоналка/ремонт)
-        $stmt = $db->prepare('SELECT id FROM slot_station_blocks WHERE slot_id=? AND station_id=?');
-        $stmt->execute([$slotId, $stationId]);
-        if ($stmt->fetch()) err('Станок недоступен на это занятие');
-
-        // Быстрая дружелюбная проверка «место свободно».
-        // Настоящая гарантия от гонки — UNIQUE-индекс uq_booking_station_active (ловим ниже).
-        $stmt = $db->prepare('SELECT id FROM bookings WHERE slot_id=? AND station_id=? AND status <> "cancelled"');
-        $stmt->execute([$slotId, $stationId]);
-        if ($stmt->fetch()) err('Это место уже занято');
+        if ($e = bookingStationError($db, $slotId, (int)$slot['location_id'], $stationId)) err($e);
     }
 
     beginCheckedTx($db);
@@ -142,21 +154,9 @@ if ($method === 'POST' && $action === 'create') {
         $cap = $db->prepare('SELECT taken, location_id FROM slots WHERE id=? FOR UPDATE');
         $cap->execute([$slotId]);
         $capRow = $cap->fetch();
-        if ($usesHall) {
-            $lc = $db->prepare('SELECT max_people FROM locations WHERE id=?');
-            $lc->execute([(int)($capRow['location_id'] ?? 0)]);
-            $maxPeople = (int)$lc->fetchColumn();
-            // Заблокированные на занятие станки (ремонт и т.п.) уменьшают число мест;
-            // станок, занятый записью, не считаем второй раз
-            $bl = $db->prepare('SELECT COUNT(*) FROM slot_station_blocks b
-                                 JOIN stations st ON st.id = b.station_id AND st.active = 1
-                                WHERE b.slot_id = ?
-                                  AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = b.slot_id AND bk.station_id = b.station_id AND bk.status <> "cancelled")');
-            $bl->execute([$slotId]);
-            $maxPeople -= (int)$bl->fetchColumn();
-        } else {
-            $maxPeople = 1;   // байкфит: один клиент на слот (строка слота залочена — без гонки)
-        }
+        // В зале — вместимость филиала минус заблокированные станки; байкфит — один клиент на слот
+        // (строка слота залочена — без гонки)
+        $maxPeople = $usesHall ? bookingHallCapacity($db, $slotId, (int)($capRow['location_id'] ?? 0)) : 1;
         if ($capRow && (int)$capRow['taken'] >= $maxPeople) {
             $db->rollBack();
             err($usesHall ? 'Свободных мест нет' : 'Это время уже занято');
@@ -178,6 +178,81 @@ if ($method === 'POST' && $action === 'create') {
         // Гонка: место заняли между проверкой и вставкой — сработал UNIQUE-индекс
         err('Это место только что заняли, выберите другое');
     }
+}
+
+// PUT ?action=move — перенос записи на групповую тренировку (только администратор): {booking_id, slot_id, station_id}.
+// slot_id — та же тренировка (пересадка на другой станок) или другая групповая тренировка этого же филиала.
+// Запись, комментарий и отметка об оплате сохраняются. Оплаченную запись нельзя перенести на тренировку с другой
+// ценой (оплаты и возвратов пока нет). Запись, которая уже началась, и перенос на прошедшую тренировку — нельзя.
+if ($method === 'PUT' && $action === 'move') {
+    authAdmin();
+    $d = input();
+    require_fields($d, ['booking_id', 'slot_id', 'station_id']);
+    $db = getDB();
+    $bookingId = (int)$d['booking_id'];
+    $toId      = (int)$d['slot_id'];
+    $stationId = (int)$d['station_id'];
+
+    $st = $db->prepare("SELECT b.id, b.user_id, b.slot_id, b.station_id, b.payment_status,
+                               s.location_id, s.slot_date, s.start_time, s.price, s.auto_created
+                        FROM bookings b JOIN slots s ON s.id = b.slot_id
+                        WHERE b.id = ? AND b.status <> 'cancelled' AND s.active = 1");
+    $st->execute([$bookingId]);
+    $cur = $st->fetch();
+    if (!$cur || (int)$cur['auto_created']) err('Запись не найдена или это не запись на групповую тренировку', 404);
+    $fromId = (int)$cur['slot_id'];
+    $locId  = (int)$cur['location_id'];
+
+    $st = $db->prepare('SELECT s.id, s.location_id, s.slot_date, s.start_time, s.duration, s.price, s.auto_created, dc.code AS category
+                        FROM slots s JOIN dictionaries dc ON dc.id = s.category_id
+                        WHERE s.id = ? AND s.active = 1');
+    $st->execute([$toId]);
+    $to = $st->fetch();
+    if (!$to || (int)$to['auto_created'] || $to['category'] !== 'training') err('Тренировка не найдена', 404);
+    if ((int)$to['location_id'] !== $locId) err('Перенос между филиалами не делается — отмените запись и создайте новую');
+    if ($toId === $fromId && $stationId === (int)$cur['station_id']) err('Ничего не изменено — выберите другую тренировку или станок');
+
+    $now = branchNow($db, $locId);
+    $at  = fn(array $slot) => new DateTimeImmutable($slot['slot_date'] . ' ' . substr($slot['start_time'], 0, 5), $now->getTimezone());
+    if ($at($cur) < $now) err('Занятие уже началось или прошло — такую запись перенести нельзя');
+    if ($toId !== $fromId && $at($to) < $now) err('Нельзя перенести запись на прошедшую тренировку');
+
+    if ($cur['payment_status'] === 'paid' && (int)$to['price'] !== (int)$cur['price']) {
+        err('Запись оплачена (' . number_format((int)$cur['price'], 0, '', ' ') . ' ₽), а у выбранной тренировки цена '
+            . number_format((int)$to['price'], 0, '', ' ') . ' ₽. Перенос с изменением цены для оплаченных записей пока недоступен');
+    }
+
+    beginCheckedTx($db);
+    $fail = function (string $m) use ($db) { $db->rollBack(); err($m); };
+    $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([(int)$cur['user_id']]);
+    // Строки обоих занятий — в порядке id (два встречных переноса не заблокируют друг друга)
+    $lock = $db->prepare('SELECT taken FROM slots WHERE id = ? FOR UPDATE');
+    $taken = [];
+    foreach (array_unique([min($fromId, $toId), max($fromId, $toId)]) as $sid) { $lock->execute([$sid]); $taken[$sid] = (int)$lock->fetchColumn(); }
+
+    if ($e = bookingStationError($db, $toId, $locId, $stationId, $bookingId)) $fail($e);
+    if ($toId !== $fromId) {
+        $st = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
+        $st->execute([(int)$cur['user_id'], $toId]);
+        if ($st->fetch()) $fail('Клиент уже записан на эту тренировку');
+        // Клиент не занят в это время на другом занятии (свою переносимую запись не считаем)
+        $clash = bookingClientClash($db, (int)$cur['user_id'], $to['slot_date'], specTimeToMin(substr($to['start_time'], 0, 5)), (int)$to['duration'], true, $fromId);
+        if ($clash) $fail($clash);
+        if ($taken[$toId] >= bookingHallCapacity($db, $toId, $locId)) $fail('На этой тренировке свободных мест нет');
+    }
+
+    try {
+        $db->prepare('UPDATE bookings SET slot_id = ?, station_id = ? WHERE id = ?')->execute([$toId, $stationId, $bookingId]);
+        if ($toId !== $fromId) {
+            $db->prepare('UPDATE slots SET taken = GREATEST(taken - 1, 0) WHERE id = ?')->execute([$fromId]);
+            $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id = ?')->execute([$toId]);
+        }
+        $db->commit();
+    } catch (PDOException $e) {
+        $db->rollBack();
+        err('Это место только что заняли, выберите другое');   // сработал UNIQUE-индекс станка
+    }
+    ok(['booking_id' => $bookingId, 'slot_id' => $toId, 'station_id' => $stationId], 'Запись перенесена');
 }
 
 // PUT — изменить статус (admin: confirm/cancel; user: cancel своей)
