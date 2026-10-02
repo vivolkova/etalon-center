@@ -353,7 +353,7 @@ function trmRenderExceptionsOfType(type) {
 
 async function deleteSchedule(specId, id) {
   const s = trmHours.schedules.find(function (x) { return x.id === id; });
-  if (!confirm('Удалить период графика' + (s ? ' «' + s.name + '»' : '') + '?')) return;
+  if (!await uiConfirm('Удалить период графика' + (s ? ' «' + s.name + '»' : '') + '?')) return;
   try { await SpecialistHoursAPI.deleteSchedule(id); } catch (e) { return; }
   showToast('Период графика удалён', 'success');
   await trmHoursChanged(specId);
@@ -362,7 +362,7 @@ async function deleteSchedule(specId, id) {
 async function deleteException(specId, id) {
   const exc = trmHours.exceptions.find(function (x) { return x.id === id; });
   const custom = exc && exc.type === 'custom';
-  if (!confirm(custom ? 'Удалить особые часы работы?' : 'Удалить отсутствие?')) return;
+  if (!await uiConfirm(custom ? 'Удалить особые часы работы?' : 'Удалить отсутствие?')) return;
   try { await SpecialistHoursAPI.deleteException(id); } catch (e) { return; }
   showToast(custom ? 'Особые часы удалены' : 'Отсутствие удалено', 'success');
   await trmHoursChanged(specId);

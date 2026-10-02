@@ -79,7 +79,7 @@ async function saveSubPlan(id) {
   }
 }
 async function deleteSubPlan(id) {
-  if (!confirm('Удалить абонемент?')) return;
+  if (!await uiConfirm('Удалить абонемент?')) return;
   try {
     await apiRequest('/subscriptions.php?action=delete_plan&id=' + id, 'DELETE');
     await loadSubPlans();
@@ -226,7 +226,7 @@ async function savePromo(id) {
   }
 }
 async function deletePromo(id) {
-  if (!confirm('Удалить промокод?')) return;
+  if (!await uiConfirm('Удалить промокод?')) return;
   try { await apiRequest('/promos.php?action=delete&id=' + id, 'DELETE'); } catch (e) { }
   const i = PROMOS.findIndex(x => x.id === id); if (i >= 0) { PROMOS.splice(i, 1); renderPromos(); showToast('Удалён'); }
 }

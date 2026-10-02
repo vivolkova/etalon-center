@@ -15,7 +15,6 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 const IND_STEP = 30;   // шаг времени начала и длительности самостоятельной, мин
-const IND_CELL = 15;   // разрешение карты занятости дня (indDayBlocks), мин
 
 // Можно ли записаться индивидуально: персональная / самостоятельная тренировка или услуга (её оказывает специалист)
 function indBookable(string $cat, ?string $type): bool {
@@ -97,7 +96,7 @@ function indSpecialists(PDO $db, array $lib): array {
     return array_values(array_filter($specs, fn($s) => in_array($locId, specLocationIds($hours[$s['id']] ?? []), true)));
 }
 
-// Занятие, специалист и длительность из параметров запроса (общие для week / times / stations / create)
+// Занятие, специалист и длительность из параметров запроса (общие для times / stations / create / move)
 function indArgs(PDO $db, array $p): array {
     $lib = indLibrary($db, (int)($p['library_id'] ?? 0));
     $dur = (int)($p['duration'] ?? 0) ?: (int)$lib['duration'];
@@ -127,7 +126,7 @@ function indSkipSlot(PDO $db, array $user, int $slotId): int {
 
 // ═══ Занятость и свободное время — расчёт в памяти по данным, загруженным один раз на диапазон дат ═══
 // Те же правила, что в slot_rules.php (зал, график специалиста, его занятия) плюс записи клиента и станки.
-// Используется для показа (week / times / stations); при записи всё перепроверяет slotRuleError в транзакции.
+// Используется для показа (times / stations); при записи всё перепроверяет slotRuleError в транзакции.
 
 // Всё, что занимает зал, специалиста, клиента и станки в датах [$from; $to]. Интервалы — в минутах от начала суток:
 // hall[дата] — тренировки в зале филиала [{from, to, shared}] (shared — персональная/самостоятельная);
@@ -244,56 +243,6 @@ function indDayStarts(PDO $db, array $lib, ?int $specId, array $d, string $date,
     return $out;
 }
 
-// Что занято в дату в часы работы филиала — блоки для сетки: [{from, to, reason, slot_id?, name?}] (минуты).
-// reason: off — специалист не работает, other_loc — работает в другом филиале, full — все станки заняты,
-// busy — у специалиста занятие, group — в зале групповая тренировка, mine — запись клиента.
-// Причины накладываются по важности (в этом порядке); карта дня — с шагом IND_CELL минут
-function indDayBlocks(PDO $db, array $lib, ?int $specId, array $d, string $date): array {
-    $locId = (int)$lib['location_id'];
-    $b = slotBranchHours($db, $locId, $date);
-    if (!$b) return [];
-    $cells = [];   // минута начала ячейки => [важность, причина, slot_id, name]
-    $paint = function (int $from, int $to, int $prio, ?string $reason, ?int $id = null, ?string $name = null) use (&$cells, $b) {
-        for ($m = max($b['from'], intdiv($from, IND_CELL) * IND_CELL); $m < min($b['to'], $to); $m += IND_CELL) {
-            if ($reason === null) { unset($cells[$m]); continue; }
-            if (($cells[$m][0] ?? 0) <= $prio) $cells[$m] = [$prio, $reason, $id, $name];
-        }
-    };
-    if ($specId) {
-        $paint($b['from'], $b['to'], 1, 'off');
-        foreach ($d['avail'][$date] ?? [] as $iv) {
-            if ($iv['loc'] === $locId) $paint($iv['from'], $iv['to'], 0, null);
-            else $paint($iv['from'], $iv['to'], 2, 'other_loc');
-        }
-    }
-    if ($lib['cat'] === 'training') {
-        for ($m = $b['from']; $m < $b['to']; $m += IND_CELL) {
-            if (!isset($cells[$m]) && !indFreeStations($d, $date, $m, $m + IND_CELL)) $cells[$m] = [3, 'full', null, null];
-        }
-    }
-    foreach ($d['spec'][$date] ?? [] as $o) $paint($o['from'], $o['to'], 4, 'busy');
-    if ($lib['cat'] === 'training') {
-        foreach ($d['hall'][$date] ?? [] as $o) {
-            if (!$o['shared']) $paint($o['from'], $o['to'], 5, 'group');
-        }
-    }
-    foreach ($d['mine'][$date] ?? [] as $o) $paint($o['from'], $o['to'], 6, 'mine', $o['id'], $o['name']);
-
-    ksort($cells);
-    $out = [];
-    foreach ($cells as $m => $c) {
-        $last = count($out) - 1;
-        if ($last >= 0 && $out[$last]['to'] === $m && $out[$last]['reason'] === $c[1] && ($out[$last]['slot_id'] ?? null) === $c[2]) {
-            $out[$last]['to'] = $m + IND_CELL;
-            continue;
-        }
-        $blk = ['from' => $m, 'to' => $m + IND_CELL, 'reason' => $c[1]];
-        if ($c[2]) $blk += ['slot_id' => $c[2], 'name' => $c[3]];
-        $out[] = $blk;
-    }
-    return $out;
-}
-
 // GET ?action=options&location_id=X — на что можно записаться в филиале: занятия со специалистами и длительностями,
 // плюс параметры окна записи (публичный)
 if ($method === 'GET' && $action === 'options') {
@@ -362,36 +311,6 @@ if ($method === 'GET' && $action === 'times') {
     }
     $times = array_map('minToTimeStr', indDayStarts($db, $lib, $specId, $d, $date, $dur));
     ok(['times' => $times, 'message' => $times ? '' : 'На этот день свободного времени нет']);
-}
-
-// GET ?action=week&library_id=&specialist_id=&duration=&from=YYYY-MM-DD — неделя для сетки (7 дней с from):
-// {days: [{date, state, blocks: [{from, to, reason, …}], starts: [минуты]}], duration, step}.
-// state: open — можно записываться, past — день прошёл, later — дальше окна записи, closed — филиал не работает.
-// Публичный; записи клиента (reason = mine) — только с токеном
-if ($method === 'GET' && $action === 'week') {
-    $user = authUserOrNull();
-    $db   = getDB();
-    [$lib, $specId, $dur] = indArgs($db, $_GET);
-    $from = (string)($_GET['from'] ?? '');
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $from)) err('Некорректная дата');
-    $to    = date('Y-m-d', strtotime($from . ' +6 days'));
-    $locId = (int)$lib['location_id'];
-    $today = branchNow($db, $locId)->format('Y-m-d');
-    $d = indLoad($db, $lib, $specId, (int)($user['id'] ?? 0), $from, $to);
-    $days = [];
-    for ($i = 0; $i < 7; $i++) {
-        $date = date('Y-m-d', strtotime($from . ' +' . $i . ' days'));
-        $state = $date < $today ? 'past'
-            : (indWindowError($db, $locId, $date) ? 'later'
-            : (slotBranchHours($db, $locId, $date) ? 'open' : 'closed'));
-        $days[] = [
-            'date'   => $date,
-            'state'  => $state,
-            'blocks' => indDayBlocks($db, $lib, $specId, $d, $date),
-            'starts' => $state === 'open' ? indDayStarts($db, $lib, $specId, $d, $date, $dur) : [],
-        ];
-    }
-    ok(['days' => $days, 'duration' => $dur, 'step' => IND_STEP]);
 }
 
 // GET ?action=stations&library_id=&date=&start=HH:MM&duration= — схема зала на время занятия:

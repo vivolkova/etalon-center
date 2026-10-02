@@ -507,8 +507,7 @@ function smDrawHall() {
       if (!st) { html += '<div class="cell-empty"></div>'; continue; }
       const id = Number(st.id);
       if (st.state === 'taken') {
-        html += '<button type="button" class="station taken" disabled title="Занят записью клиента">' +
-          '<span class="station-ico">' + (st.icon || '') + '</span><span>' + escAttr(st.label) + '</span></button>';
+        html += stationHtml(st, 'taken', 'disabled title="Занят записью клиента"');
         continue;
       }
       const want = smHallWant.has(id);
@@ -516,8 +515,7 @@ function smDrawHall() {
       const title = want
         ? (st.state === 'blocked' ? 'Заблокирован' + (st.block_reason ? ': ' + st.block_reason : '') : 'Будет заблокирован') + ' — клик, чтобы снять'
         : (st.state === 'blocked' ? 'Блокировка будет снята' : 'Свободен') + ' — клик, чтобы заблокировать';
-      html += '<button type="button" class="station ' + (want ? 'blocked' : 'free') + (changed ? ' pending' : '') + '" onclick="smToggleBlock(' + id + ')" title="' + escAttr(title) + '">' +
-        '<span class="station-ico">' + (st.icon || '') + '</span><span>' + escAttr(st.label) + '</span></button>';
+      html += stationHtml(st, (want ? 'blocked' : 'free') + (changed ? ' pending' : ''), 'onclick="smToggleBlock(' + id + ')" title="' + escAttr(title) + '"');
     }
   }
   hall.innerHTML = html;
@@ -654,11 +652,10 @@ async function saveSlot() {
   }
   closeSlotModal();
   renderAdminSchedule();
-  renderWeekCal();
 }
 
 async function deleteSlot(slotId) {
-  if (!confirm('Удалить этот слот из расписания?')) return;
+  if (!await uiConfirm('Удалить этот слот из расписания?')) return;
   try {
     await SlotsAPI.delete(slotId);
   } catch (e) {
@@ -667,7 +664,6 @@ async function deleteSlot(slotId) {
   const idx = SLOTS.findIndex(x => x.id === slotId);
   if (idx >= 0) { SLOTS.splice(idx, 1); }
   renderAdminSchedule();
-  renderWeekCal();
   showToast('Слот удалён');
 }
 

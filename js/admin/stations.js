@@ -44,10 +44,9 @@ async function renderStationsTab() {
         html += '<div class="cell-empty" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(null,' + x + ',' + y + ')" title="Добавить станок"></div>';
         continue;
       }
-      html += '<button type="button" class="station free' + (Number(s.active) ? '' : ' inactive') + '" draggable="true"' +
+      html += stationHtml(s, 'free' + (Number(s.active) ? '' : ' inactive'), 'draggable="true"' +
         ' data-station-id="' + s.id + '" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(' + s.id + ')"' +
-        ' title="' + escAttr(s.label + ' · ' + s.type_name + (Number(s.active) ? '' : ' · выключен')) + '">' +
-        '<span class="station-ico">' + (s.icon || '') + '</span><span>' + escAttr(s.label) + '</span></button>';
+        ' title="' + escAttr(s.label + ' · ' + s.type_name + (Number(s.active) ? '' : ' · выключен')) + '"');
     }
   }
   hall.innerHTML = html;
@@ -159,7 +158,7 @@ function openStationModal(id, x, y) {
   }, delBtn);
 
   if (s) modal.querySelector('[data-act="delete"]').onclick = async function () {
-    if (!confirm('Удалить станок «' + s.label + '»? Если на него есть записи, он будет только выключен.')) return;
+    if (!await uiConfirm('Удалить станок «' + s.label + '»?', 'Если на него есть записи, он будет только выключен.')) return;
     try { await StationsAPI.delete(s.id); } catch (e) { return; }
     modal.remove();
     renderStationsTab();
@@ -221,7 +220,7 @@ function openStationTypeModal(id) {
 async function deleteStationType(id) {
   const t = STATION_TYPES.find(function (v) { return Number(v.id) === id; });
   if (!t) return;
-  if (!confirm('Удалить тип «' + t.name + '»? Если есть станки этого типа, он будет только выключен.')) return;
+  if (!await uiConfirm('Удалить тип «' + t.name + '»?', 'Если есть станки этого типа, он будет только выключен.')) return;
   try { await StationsAPI.typeDelete(t.id); } catch (e) { return; }
   await renderStationTypesTab();
   const kept = STATION_TYPES.some(function (v) { return Number(v.id) === id; });

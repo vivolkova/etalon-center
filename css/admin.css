@@ -486,6 +486,12 @@
   background: var(--green-light)
 }
 
+/* Свободный станок только показан, не нажимается (карточка записи клиента) */
+.station.free:disabled {
+  background: #fff;
+  cursor: default
+}
+
 .station.taken {
   background: var(--muted-bg);
   color: var(--ink-40);

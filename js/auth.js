@@ -119,6 +119,8 @@ async function loadMyBookings() {
         libraryId: b.library_id != null ? Number(b.library_id) : null,
         specialistId: b.specialist_id != null ? Number(b.specialist_id) : null,
         stationId: b.station_id != null ? Number(b.station_id) : null,
+        station: b.station_label || '',
+        stationIcon: b.station_icon || '',   // значок типа станка — для карточки записи (js/site/trainings.js)
         location_id: b.location_id != null ? Number(b.location_id) : null,
         price: Number(b.price),
         status: b.status,
@@ -128,33 +130,6 @@ async function loadMyBookings() {
     });
   } catch (e) {
     // Сервер недоступен — без локального кэша; записи появятся после восстановления связи
-  }
-}
-
-// Загрузка всех записей для администратора
-async function loadAllBookings() {
-  try {
-    const data = await BookingsAPI.all();
-    bookings = data.map(function (b) {
-      return {
-        id: b.id,
-        slotId: b.slot_id,
-        name: b.user_name,
-        email: b.user_email,
-        service: b.slot_name,
-        cat: b.category,
-        type: b.type || null,
-        date: b.slot_date,
-        time: b.start_time ? b.start_time.slice(0, 5) : '',
-        specialist: b.specialist_name || '',
-        price: Number(b.price),
-        status: b.status,
-        paymentStatus: b.payment_status,
-        clientId: b.user_email,
-      };
-    });
-  } catch (e) {
-    // Сервер недоступен — без локального кэша
   }
 }
 
@@ -244,7 +219,7 @@ function logout() {
   document.getElementById('nav-client').style.display = 'none';
   document.getElementById('nav-admin').style.display = 'none';
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = ''; });
-  renderSchedule();
+  renderSitePages();
   showPage('home');
   document.querySelectorAll('.nav-link').forEach((l, i) => l.classList.toggle('active', i === 0));
 }

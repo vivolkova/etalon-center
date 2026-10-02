@@ -1,5 +1,5 @@
 /* Недельная сетка расписания — общая для сайта (запись клиента) и админки.
-   Разметку строят js/site/schedule.js (renderWeekCal) и js/admin/schedule.js (renderAdminSchedule).
+   Разметку строят js/site/trainings.js (renderTrainings) и js/admin/schedule.js (renderAdminSchedule).
    Структура: .wg — CSS-grid из 8 колонок (время + 7 дней); первая строка — угол и шапки дней,
    дальше на каждый час: .wg-time-col + 7 × .wg-day-col > .wg-cell. Слоты .wg-slot
    позиционируются внутри ячейки своего часа (top/height считает JS по --wg-row-h).
@@ -310,29 +310,6 @@
   padding: 2px 0;
 }
 
-/* Легенда категорий */
-.sch-legend {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.sch-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--ink-60);
-}
-
-.sch-legend-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--cat, #888);
-}
-
 /* ── Админка: добавление по клику, кнопки слота, перетаскивание ── */
 .wg--admin .wg-cell {
   cursor: pointer;
@@ -438,25 +415,6 @@
   }
 }
 
-/* ── Сайт: выбор филиала над расписанием ── */
-.sch-loc {
-  margin-bottom: 14px;
-}
-
-.sch-loc-chips {
-  margin-bottom: 6px;
-}
-
-.sch-loc-chips .chip {
-  font-size: 13px;
-  padding: 6px 14px;
-}
-
-.sch-loc-info {
-  font-size: 13px;
-  color: var(--ink-60);
-}
-
 /* Тренер в слоте групповой тренировки */
 .wg-slot-spec {
   font-size: 11px;
@@ -502,54 +460,7 @@
   margin-bottom: 4px;
 }
 
-/* ── Сайт: экран «Индивидуальные тренировки» (js/site/individual-page.js) ── */
-.wg--ind {
-  --wg-row-h: 64px;      /* шаг записи 30 минут — по две кнопки времени в строке часа */
-}
-
-.wg--loading {
-  opacity: .5;
-  pointer-events: none;
-}
-
-.indp-filters {
-  margin-bottom: 16px;
-}
-
-.indp-row {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  margin-bottom: 8px;
-}
-
-.indp-row-label {
-  min-width: 96px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-60);
-}
-
-.indp-row .chip {
-  font-size: 13px;
-  padding: 6px 14px;
-}
-
-.indp-price {
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 10px;
-}
-
-.indp-price span {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--ink-60);
-}
-
+/* ── Сайт: экран «Расписание» (js/site/trainings.js) и страница «Услуги» ── */
 .indp-empty {
   padding: 40px 0;
   color: var(--ink-60);
@@ -573,33 +484,9 @@
   vertical-align: -2px;
 }
 
-.indp-dot--free { background: var(--green-light); border: 1px solid var(--green); }
-.indp-dot--busy { background: var(--muted-bg); border: 1px solid var(--muted-strong); }
 .indp-dot--mine { background: var(--mine); border: 1px solid var(--mine-edge); }
 
-/* Время начала, на которое можно записаться */
-.wg-free {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  z-index: 2;
-  border: 1px solid var(--green);
-  border-radius: var(--r-sm);
-  background: var(--green-light);
-  color: var(--green-dark);
-  font-family: var(--font-body);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background .12s, color .12s;
-}
-
-.wg-free:hover {
-  background: var(--green);
-  color: #fff;
-}
-
-/* Недоступное время — с причиной */
+/* Блок в ячейке сетки сайта (основа для своей записи — .wg-blk--mine) */
 .wg-blk {
   position: absolute;
   left: 2px;
@@ -618,10 +505,6 @@
   overflow: hidden;
 }
 
-.wg-blk--group {
-  font-weight: 600;
-}
-
 /* Своя запись — цветом --mine (css/base.css): единственный такой блок в сетке, не сливается с расписанием */
 .wg-blk--mine {
   background: var(--mine);
@@ -629,6 +512,7 @@
   color: var(--mine-ink);
   font-weight: 700;
   cursor: pointer;
+  align-items: flex-start;   /* текст — у начала занятия: у длинной записи он не уходит за экран */
 }
 
 .wg-blk--mine small {
@@ -636,12 +520,6 @@
   font-size: 11px;
   font-weight: 400;
   opacity: .75;
-}
-
-.wg-blk--day {
-  align-items: flex-start;
-  padding-top: 24px;
-  font-size: 11px;
 }
 
 /* ── Сайт на телефоне: вид «один день» (js/week-grid.js wgRenderDayStrip) ──
@@ -734,8 +612,7 @@
     font-size: 11px;
   }
 
-  .wg--site .wg-slot-name,
-  .wg--site .wg-free {
+  .wg--site .wg-slot-name {
     font-size: 13px;
   }
 
@@ -841,6 +718,33 @@
     text-align: center;
     font-size: 14px;
     color: var(--ink-60);
+  }
+}
+
+/* ── Сайт на телефоне: экран «Расписание» (js/site/trainings.js trDayListHtml) — список дня вместо сетки:
+   свои записи золотыми строками, групповые тренировки — строками с кнопкой записи ── */
+@media (max-width: 700px) {
+  /* День, в котором есть свои записи, — золотая черта под датой */
+  .wg-day-btn.marked {
+    box-shadow: inset 0 -4px 0 var(--mine-edge);
+  }
+
+  .sch-row--mine {
+    background: var(--mine);
+    border-color: var(--mine-edge);
+    border-left-color: var(--mine-edge);
+    color: var(--mine-ink);
+  }
+
+  .sch-row--mine .sch-row-time span,
+  .sch-row--mine .sch-row-meta {
+    color: var(--mine-ink);
+    opacity: .8;
+  }
+
+  /* Золотые строки в списке понятны без пояснения — легенда не нужна */
+  #page-trainings .indp-legend {
+    display: none;
   }
 }
 

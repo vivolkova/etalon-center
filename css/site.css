@@ -271,15 +271,6 @@
   margin-bottom: 2rem;
 }
 
-.section-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--green);
-  margin-bottom: .5rem;
-}
-
 .section-title {
   font-family: var(--font-display);
   font-size: clamp(20px, 3vw, 30px);
@@ -322,18 +313,6 @@
 .chip.amber.active {
   background: var(--amber);
   border-color: var(--amber);
-}
-
-/* Кнопка-фильтр категории: цвет — от класса .cat-<код> (css/base.css) */
-.chip.cat-chip:hover {
-  border-color: var(--cat, var(--green));
-  color: var(--cat, var(--green));
-}
-
-.chip.cat-chip.active {
-  background: var(--cat, var(--green));
-  border-color: var(--cat, var(--green));
-  color: #fff;
 }
 
 /* ─── SERVICES ─── */

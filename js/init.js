@@ -7,7 +7,6 @@
 checkPaymentReturn();
 
 renderServices();
-renderSchedule();
 
 // Загружаем все данные с сервера при старте
 (async function () {
@@ -37,6 +36,6 @@ renderSchedule();
   }
 
   // 4. Перерисовываем с актуальными данными
-  renderSchedule();
+  renderSitePages();
   renderServices();
 })();

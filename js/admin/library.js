@@ -448,7 +448,7 @@ async function saveLibItem() {
 }
 
 async function deleteLibItem(id) {
-  if (!confirm('Удалить из библиотеки?')) return;
+  if (!await uiConfirm('Удалить из библиотеки?')) return;
   const type = libCurrentType;
   try {
     await LibraryAPI.delete(id);

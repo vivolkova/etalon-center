@@ -15,7 +15,7 @@ if ($method === 'GET' && $action === 'my') {
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
                dt.code AS type, s.location_id, s.library_id, s.specialist_id, s.auto_created,
-               t.name AS specialist_name, st.label AS station_label
+               t.name AS specialist_name, st.label AS station_label, stt.icon AS station_icon
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         JOIN dictionaries dc ON s.category_id = dc.id
@@ -23,6 +23,7 @@ if ($method === 'GET' && $action === 'my') {
         LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
         LEFT JOIN specialists t ON s.specialist_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
+        LEFT JOIN station_type stt ON stt.id = st.type_id
         WHERE b.user_id = ?
         ORDER BY s.slot_date DESC, s.start_time DESC
     ');

@@ -177,7 +177,7 @@ async function saveClient() {
 }
 
 async function deleteClient(email) {
-  if (!confirm('Удалить клиента? Его записи сохранятся.')) return;
+  if (!await uiConfirm('Удалить клиента?', 'Его записи сохранятся.')) return;
   const client = CLIENTS.find(c => c.email === email);
   try {
     if (client && client.id) await ClientsAPI.delete(client.id);
@@ -250,25 +250,8 @@ function openClientProfile(email) {
   document.getElementById('client-profile-modal').classList.add('show');
 }
 
-function renderAdmin() {
-  const total = bookings.length;
-  const confirmed = bookings.filter(b => b.status === 'booked').length;
-  const pending = bookings.filter(b => b.status === 'pending').length;
-  const revenue = bookings.filter(b => b.paymentStatus === 'paid').reduce((s, b) => s + b.price, 0);
-  const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  _set('stat-total', total); _set('stat-confirmed', confirmed);
-  _set('stat-pending', pending); _set('stat-revenue', revenue.toLocaleString('ru') + ' ₽');
-
-
-  const unreadChat = Object.values(chatMessages).filter(msgs => msgs.length && msgs[msgs.length - 1].from === 'client').length;
-  const cb = document.getElementById('chat-badge');
-  cb.textContent = unreadChat; cb.style.display = unreadChat ? '' : 'none';
-
-  renderAdminBookings();
-}
-
 async function adminCancel(id) {
-  if (!confirm('Отменить запись?')) return;
+  if (!await uiConfirm('Отменить запись?')) return;
   try {
     await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
     await loadBookingsPanel();                        // перечитываем из API с фильтрами раздела

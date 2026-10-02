@@ -291,7 +291,7 @@ async function jrCardHall(slotId) {
 function jrCardStation(stationId) { jbOpenGroup(jrCardSlotId, stationId); }
 
 async function jrCancelBooking(bookingId, slotId) {
-  if (!confirm('Отменить запись клиента?')) return;
+  if (!await uiConfirm('Отменить запись клиента?')) return;
   try { await BookingsAPI.setStatus(bookingId, 'cancelled'); } catch (e) { return; }   // ошибка показана в apiRequest
   showToast('Запись отменена');
   // Счётчики мест и недельное расписание берут данные из слотов — перечитываем и их

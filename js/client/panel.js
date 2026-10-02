@@ -73,7 +73,7 @@ function renderCpBookings() {
     list.innerHTML = `<div class="empty-state">
   <div class="u-mb-12 u-opacity-35"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
   <div class="u-strong u-text-lead">Нет записей</div>
-  <button class="btn-primary u-mt-20" onclick="showPage('schedule');setNavActive(document.querySelector('.nav-link[onclick*=schedule]'))">Групповые тренировки</button>
+  <button class="btn-primary u-mt-20" onclick="showPage('trainings');setNavActive(document.querySelector('.nav-link[onclick*=trainings]'))">Расписание</button>
 </div>`;
     return;
   }
@@ -150,7 +150,7 @@ async function cpMoveBooking(id) {
 async function cpAfterMove() {
   await Promise.allSettled([loadMyBookings(), loadSlots()]);
   renderCpBookings();
-  renderWeekCal();
+  renderSitePages();   // форма переноса открывается и с экрана «Тренировки»
 }
 
 

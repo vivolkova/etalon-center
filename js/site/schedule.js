@@ -1,17 +1,9 @@
-// Сайт: групповые тренировки (недельная сетка занятий выбранного филиала, запись на занятие)
+// Сайт: общее для клиентских экранов — выбор филиала, перерисовка экранов, групповая тренировка в сетке и в списке
+// дня (сам экран — js/site/trainings.js), всплывающее описание тренировки
 
 // ═══ SCHEDULE ════════════════════════════════════════════════════
 
-// ── WEEK CALENDAR ──────────────────────────────────────────────────
-// schWeekStart — понедельник текущей отображаемой недели
-let schWeekStart = (function () {
-  const d = new Date(today);
-  const dow = (d.getDay() + 6) % 7; // пн=0
-  d.setDate(d.getDate() - dow);
-  return d;
-})();
-
-// ── Филиал: в сетке всегда ровно один. Выбор запоминается в браузере ──
+// ── Филиал: на экранах сайта всегда ровно один. Выбор запоминается в браузере ──
 const SCH_LOC_KEY = 'etalon.site.location';
 let schLocId = (function () {
   try { return parseInt(localStorage.getItem(SCH_LOC_KEY)) || null; } catch (e) { return null; }
@@ -22,32 +14,41 @@ function schLoc() {
   return LOCATIONS.find(function (l) { return Number(l.id) === schLocId; }) || LOCATIONS[0] || null;
 }
 
-// Переключатель рисуется на каждом экране, зависящем от филиала (.sch-loc): тренировки и услуги
+// Выбор филиала — в шапке сайта, справа (#nav-loc), как выбор города: кнопка с названием выбранного филиала,
+// по нажатию — список филиалов с адресом и телефоном. Список — готовый выпадающий .ms (js/ui.js открывает его
+// по кнопке .ms-btn, закрывает нажатием мимо и клавишей Esc).
+// Филиал один — выбирать не из чего: блока в шапке нет
 function renderSchLoc() {
-  const boxes = document.querySelectorAll('.sch-loc');
+  const box = document.getElementById('nav-loc');
   const loc = schLoc();
-  let h = '';
-  if (!loc) { boxes.forEach(function (b) { b.innerHTML = ''; }); return; }
-  if (LOCATIONS.length > 1) {
-    h += '<div class="filter-chips sch-loc-chips">' + LOCATIONS.map(function (l) {
-      return '<button class="chip' + (l.id === loc.id ? ' active' : '') + '" onclick="selectSchLoc(' + l.id + ')">' + escAttr(l.name) + '</button>';
+  if (!box) return;
+  box.hidden = !loc || LOCATIONS.length < 2;
+  // На телефоне выбор спрятан в меню шапки — название выбранного филиала показываем под заголовком экрана (.site-loc-name)
+  document.querySelectorAll('.site-loc-name').forEach(function (el) { el.innerHTML = ''; });
+  if (box.hidden) { box.innerHTML = ''; return; }
+  const pin = '<svg class="ico-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+  box.innerHTML = '<button type="button" class="btn-ghost ms-btn u-max-w-280" title="Филиал">' + pin + escAttr(loc.name) + '</button>'
+    + '<div class="ms-panel u-w-280">' + LOCATIONS.map(function (l) {
+      const info = [l.address, l.phone].filter(Boolean).map(escAttr).join(' · ');
+      return '<div class="ms-opt u-col u-items-start u-gap-4" onclick="selectSchLoc(' + l.id + ')">'
+        + '<span class="u-strong' + (l.id === loc.id ? ' u-brand-dark' : '') + '">' + escAttr(l.name) + '</span>'
+        + (info ? '<span class="u-text-small u-muted">' + info + '</span>' : '') + '</div>';
     }).join('') + '</div>';
-  }
-  const info = [loc.address, loc.phone].filter(Boolean).map(escAttr).join(' · ');
-  if (info) h += '<div class="sch-loc-info">' + info + '</div>';
-  boxes.forEach(function (b) { b.innerHTML = h; });
+  document.querySelectorAll('.site-loc-name').forEach(function (el) { el.innerHTML = pin + escAttr(loc.name); });
 }
 
 function selectSchLoc(id) {
   schLocId = Number(id);
   try { localStorage.setItem(SCH_LOC_KEY, String(schLocId)); } catch (e) { /* хранилище недоступно — выбор до перезагрузки */ }
+  document.getElementById('nav-loc').classList.remove('open');
+  navToggle(false);   // на телефоне выбор филиала — в выпадающем меню шапки
   renderSitePages();
 }
 
-// Перерисовать экраны, зависящие от филиала и от того, кто вошёл: групповые тренировки и открытый сейчас экран
+// Перерисовать то, что зависит от филиала и от того, кто вошёл: выбор филиала в шапке и открытый сейчас экран
 function renderSitePages() {
-  renderSchedule();
-  if (currentPage === 'individual') renderIndividualPage();
+  renderSchLoc();
+  if (currentPage === 'trainings') renderTrainings();
   if (currentPage === 'services') renderServices();
 }
 
@@ -58,175 +59,42 @@ function siteLocName(locId) {
   return l ? l.name : '';
 }
 
-function renderSchedule() {
-  renderSchLoc();
-  renderWeekCal();
-}
+// Слот групповой тренировки в ячейке часа сетки: время, название, тренер, места, кнопка записи.
+// ROW_H — px на час, pos — колонка при пересечении занятий (wgLayoutDay), booked — клиент уже записан
+function schSlotHtml(s, ROW_H, pos, booked) {
+  const mins = parseInt(s.time.split(':')[1]) || 0;
+  const topPx = Math.round(mins * ROW_H / 60);
+  const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
+  const full = slotFree(s) <= 0;
+  const spotsText = full && !booked ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
 
-// День для вида «один день» на телефоне (0 = Пн); null — по умолчанию для недели (wgDefaultDay)
-let schDayIdx = null;
+  // Размер слота: xs<28, sm<44, md<70, lg>=70
+  const sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
+  let cls = 'wg-slot ' + colorClass(s.cat, s.type) + ' ' + sizeClass;
+  if (booked) cls += ' booked';
+  else if (full) cls += ' full';
 
-function schChangeWeek(dir) {
-  schWeekStart = new Date(schWeekStart);
-  schWeekStart.setDate(schWeekStart.getDate() + dir * 7);
-  schDayIdx = null;
-  renderWeekCal();
-}
+  const bookLabel = booked ? '✓ Вы записаны' : full ? 'Мест нет' : 'Записаться';
+  const bookOnclick = (!full && !booked)
+    ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
+    : 'event.stopPropagation()';
 
-function schGoToday() {
-  const d = new Date(today);
-  const dow = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - dow);
-  schWeekStart = d;
-  schDayIdx = null;
-  renderWeekCal();
-}
-
-function schSelectDay(i) {
-  schDayIdx = i;
-  renderWeekCal();
-}
-
-function renderWeekCal() {
-  const grid = document.getElementById('week-cal-grid');
-  if (!grid) return;
-
-  const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-  const ROW_H = wgRowHeight(grid); // px на 1 час — из --wg-row-h (css/week-grid.css)
-
-  // Заголовок недели
-  const weekEnd = new Date(schWeekStart); weekEnd.setDate(schWeekStart.getDate() + 6);
-  const hdrEl = document.getElementById('sch-cal-month');
-  if (hdrEl) {
-    const s = schWeekStart, e = weekEnd;
-    hdrEl.textContent = s.getMonth() === e.getMonth()
-      ? s.getDate() + ' – ' + e.getDate() + ' ' + MONTHS_SHORT[s.getMonth()] + ' ' + s.getFullYear()
-      : s.getDate() + ' ' + MONTHS_SHORT[s.getMonth()] + ' – ' + e.getDate() + ' ' + MONTHS_SHORT[e.getMonth()] + ' ' + s.getFullYear();
-  }
-
-  const alreadyBooked = new Set(bookings.filter(b => b.status !== 'cancelled').map(b => b.slotId));
-
-  // Массив дней недели
-  const days = Array.from({ length: 7 }, function (_, i) {
-    const d = new Date(schWeekStart); d.setDate(schWeekStart.getDate() + i); return d;
-  });
-
-  // Групповые тренировки недели в выбранном филиале (индивидуальные занятия — на своём экране)
-  const loc = schLoc();
-  const locId = loc ? Number(loc.id) : null;
-  const weekSlots = SLOTS.filter(function (s) {
-    return s.date >= schWeekStart && s.date <= weekEnd &&
-      (locId === null || Number(s.location_id) === locId);
-  });
-
-  // ── Шапка: угол + заголовки дней ──
-  let h = '<div class="wg-corner"></div>';
-  const strip = [];   // лента дней для вида «один день» на телефоне
-  days.forEach(function (d, di) {
-    const isToday = d.getTime() === today.getTime();
-    const isPast = d < today;
-    strip.push({ date: d, muted: isPast && !isToday });
-    // Шапка дня — компактная: день недели и дата в одну строку
-    h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (isPast && !isToday ? ' past' : '') + '">'
-      + '<div class="wg-dow">' + DAYS_SHORT[di] + '</div>'
-      + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_SHORT[d.getMonth()] + '</div>'
-      + '</div>';
-  });
-
-  // ── Строки часов ──
-  // Часы — по режиму работы выбранного филиала
-  const hrRange = weekHourRange(weekSlots, locId === null ? null : [locId]);
-  // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
-  const dayLayouts = days.map(function (d) {
-    return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));
-  });
-  for (var hr = hrRange.start; hr < hrRange.end; hr++) {
-    const timeStr = String(hr).padStart(2, '0') + ':00';
-
-    // Временна́я метка
-    h += '<div class="wg-time-col"><div class="wg-time-row">' + timeStr + '</div></div>';
-
-    // Колонки дней
-    days.forEach(function (d, di) {
-      const isToday = d.getTime() === today.getTime();
-      const isPast = d < today;
-
-      // Слоты этого часа для этого дня
-      const dayHrSlots = weekSlots.filter(function (s) {
-        return s.date.getDate() === d.getDate() &&
-          s.date.getMonth() === d.getMonth() &&
-          parseInt(s.time.split(':')[0]) === hr;
-      });
-
-      let cellHtml = '<div class="wg-cell">';
-
-      dayHrSlots.forEach(function (s) {
-        const mins = parseInt(s.time.split(':')[1]) || 0;
-        const topPx = Math.round(mins * ROW_H / 60);
-        const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
-        const full = slotFree(s) <= 0;
-        const booked = alreadyBooked.has(s.id);
-        const spotsText = full && !booked ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
-
-        // Размер слота: xs<28, sm<44, md<70, lg>=70
-        var sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
-        let cls = 'wg-slot ' + colorClass(s.cat, s.type) + ' ' + sizeClass;
-        if (booked) cls += ' booked';
-        else if (full) cls += ' full';
-
-        var bookLabel = booked ? '✓ Вы записаны' : full ? 'Мест нет' : 'Записаться';
-        var bookOnclick = (!full && !booked)
-          ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
-          : 'event.stopPropagation()';
-
-        var feats = [];
-        if (s.features) { try { feats = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { } }
-        // Подсказка при наведении — всегда время, название и тренер (узкий слот при нескольких занятиях
-        // в одно время не вмещает текст), плюс описание и особенности, если есть
-        var tipAttr = ' data-name="' + escAttr([s.time, s.name, s.specialist].filter(Boolean).join(' · ')) + '"';
-        if (s.description) tipAttr += ' data-desc="' + escAttr(s.description) + '"';
-        if (feats && feats.length) tipAttr += ' data-feat="' + escAttr(JSON.stringify(feats)) + '"';
-        cellHtml += '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + wgLaneStyle(dayLayouts[di].get(s.id)) + '"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
-        if (heightPx >= 28) {
-          cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
-        }
-        if (heightPx >= 20) {
-          cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
-        }
-        // Тренер — когда хватает высоты (занятие от часа); места — от 45 минут
-        if (heightPx >= 88 && s.specialist) {
-          cellHtml += '<div class="wg-slot-meta wg-slot-spec">' + escAttr(s.specialist) + '</div>';
-        }
-        if (heightPx >= 60) {
-          cellHtml += '<div class="wg-slot-meta">' + spotsText + '</div>';
-        }
-        // Кнопка всегда — адаптируется по размеру через CSS
-        cellHtml += '<button class="wg-slot-book" onclick="' + bookOnclick + '">' + bookLabel + '</button>';
-        cellHtml += '</div>';
-      });
-
-      cellHtml += '</div>';
-
-      h += '<div class="wg-day-col' + (isToday ? ' today-col' : '') + (isPast && !isToday ? ' past-col' : '') + '" data-di="' + di + '">' + cellHtml + '</div>';
-    });
-  }
-
-  grid.innerHTML = h;
-  if (schDayIdx === null) schDayIdx = wgDefaultDay(schWeekStart);
-  wgRenderDayStrip('sch-days', grid, strip, schDayIdx, 'schSelectDay');
-  wcBindTip(grid);
-
-  // На телефоне вместо сетки — список занятий выбранного дня (css/week-grid.css: .sch-list, @media max-width 700px)
-  const list = document.getElementById('sch-day-list');
-  if (list) {
-    const sd = days[schDayIdx];
-    const daySlots = weekSlots.filter(function (s) { return s.date.getTime() === sd.getTime(); })
-      .sort(function (a, b) { return timeToMin(a.time) - timeToMin(b.time); });
-    list.innerHTML = daySlots.length
-      ? daySlots.map(function (s) { return schListRowHtml(s, alreadyBooked.has(s.id)); }).join('')
-      : '<div class="sch-list-empty">В этот день групповых тренировок нет</div>';
-  }
+  let feats = [];
+  if (s.features) { try { feats = Array.isArray(s.features) ? s.features : JSON.parse(s.features); } catch (e) { } }
+  // Подсказка при наведении — всегда время, название и тренер (узкий слот при нескольких занятиях
+  // в одно время не вмещает текст), плюс описание и особенности, если есть
+  let tipAttr = ' data-name="' + escAttr([s.time, s.name, s.specialist].filter(Boolean).join(' · ')) + '"';
+  if (s.description) tipAttr += ' data-desc="' + escAttr(s.description) + '"';
+  if (feats && feats.length) tipAttr += ' data-feat="' + escAttr(JSON.stringify(feats)) + '"';
+  let h = '<div class="' + cls + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + wgLaneStyle(pos) + '"' + tipAttr + ' onclick="' + (booked || full ? 'openSlotDetail(' + s.id + ')' : 'openBookingModal(' + s.id + ')') + '">';
+  if (heightPx >= 28) h += '<div class="wg-slot-time">' + s.time + '</div>';
+  if (heightPx >= 20) h += '<div class="wg-slot-name">' + s.name + '</div>';
+  // Тренер — когда хватает высоты (занятие от часа); места — от 45 минут
+  if (heightPx >= 88 && s.specialist) h += '<div class="wg-slot-meta wg-slot-spec">' + escAttr(s.specialist) + '</div>';
+  if (heightPx >= 60) h += '<div class="wg-slot-meta">' + spotsText + '</div>';
+  // Кнопка всегда — адаптируется по размеру через CSS
+  h += '<button class="wg-slot-book" onclick="' + bookOnclick + '">' + bookLabel + '</button>';
+  return h + '</div>';
 }
 
 // Строка списка занятий дня (телефон): время и длительность, название, тренер · места · цена, кнопка записи.

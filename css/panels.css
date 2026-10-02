@@ -178,6 +178,11 @@
   display: flex;
 }
 
+/* Окно подтверждения (uiConfirm, js/ui.js) — поверх любого другого окна */
+.confirm-overlay {
+  z-index: 3000;
+}
+
 .admin-modal {
   background: #fff;
   border-radius: var(--r-lg);

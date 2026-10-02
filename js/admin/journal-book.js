@@ -12,8 +12,10 @@
 // без личного кабинета (middleware/booking_client.php). Один телефон — один клиент.
 // Свободное время и станки считает сервер (api/individual.php: times, stations), он же всё перепроверяет при записи.
 // На администратора не действует окно записи клиента (не позже чем за N минут, не дальше M дней).
-// Эта же форма — перенос своей записи клиентом из кабинета («Мои записи», js/client/panel.js cpMoveBooking):
-//   jb.self = true — блока «Клиент» нет, день ограничен окном записи, после переноса обновляется кабинет.
+// Эта же форма у клиента (jb.self = true — блока «Клиент» нет, день выбирается в форме в пределах окна записи,
+// после действия обновляются экраны клиента):
+//   «Свободная запись» на экране «Расписание» (js/site/trainings.js trOpenFree) — запись на индивидуальную тренировку;
+//   перенос своей записи из карточки записи и из кабинета (js/client/panel.js cpMoveBooking).
 
 // ═══ JOURNAL BOOKING ══════════════════════════════════════════════
 
@@ -54,14 +56,14 @@ function jbBuildModal(loc) {
   el.className = 'admin-modal-overlay show';
   el.id = 'jb-modal';
   el.innerHTML = '<div class="admin-modal u-max-w-560">'
-    + '<div class="admin-modal-title">' + (jbIsMove() ? 'Перенос записи' : 'Запись клиента') + '</div>'
+    + '<div class="admin-modal-title">' + (jbIsMove() ? 'Перенос записи' : jb.self ? 'Свободная запись' : 'Запись клиента') + '</div>'
     + '<div class="jr-card-sub" id="jb-sub"></div>'
     + (jb.self ? '' : '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>')
     + '<div id="jb-body"></div>'
     + (jbIsMove() ? '' : '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="1"></textarea></div>')
     + '<div class="ind-total" id="jb-total"></div>'
     + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="jbClose()">Отмена</button>'
-    + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">' + (jbIsMove() ? 'Перенести' : 'Записать') + '</button></div></div>';
+    + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">' + jbSubmitLabel() + '</button></div></div>';
   document.body.appendChild(el);
   const d = parseLocalDate(jb.date);
   const day = DAYS_FULL[(d.getDay() + 6) % 7] + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
@@ -69,9 +71,10 @@ function jbBuildModal(loc) {
   const was = jb.move || jb.gmove;
   document.getElementById('jb-sub').textContent = was
     ? 'Сейчас: ' + day + ', ' + minToTime(was.from) + '–' + minToTime(was.to) + ' · ' + loc.name
-    : day + ' · ' + loc.name;
+    : jb.self ? loc.name : day + ' · ' + loc.name;   // клиент выбирает день в самой форме
 }
 function jbIsMove() { return !!(jb && (jb.move || jb.gmove)); }
+function jbSubmitLabel() { return jbIsMove() ? 'Перенести' : jb.self ? 'Записаться' : 'Записать'; }
 
 // Перенос записи на групповую тренировку из её карточки: та же форма. Клиент задан; выбираются день, тренировка
 // (любая групповая этого филиала в выбранный день) и станок на схеме зала выбранной тренировки.
@@ -337,11 +340,13 @@ function jbRenderBody() {
   const it = jbItem();
   const chips = function (list) { return '<div class="filter-chips">' + list.join('') + '</div>'; };
   let h = '';
-  if (jb.move) h += field('День', '<input type="date" class="form-input" required min="' + fmtLocalDate(today) + '"' + (jb.maxDate ? ' max="' + jb.maxDate + '"' : '') + ' value="' + jb.date + '" onchange="jbMoveDate(this.value)">');
+  // День: при переносе — первым полем (меняют прежде всего его); при записи клиента — после выбора тренировки
+  const dayField = !(jb.move || jb.self) ? '' : field('День', '<input type="date" class="form-input" required min="' + fmtLocalDate(today) + '"' + (jb.maxDate ? ' max="' + jb.maxDate + '"' : '') + ' value="' + jb.date + '" onchange="jbMoveDate(this.value)">');
   if (jb.items.length > 1) {
-    h += field(it.cat === 'training' ? 'Тренировка' : 'Услуга', chips(jb.items.map(function (i) {
-      return indChip(escAttr(i.name), i.id === jb.item, 'jbPick(' + i.id + ')');
-    })));
+    // Занятие — выпадающим списком (и в журнале администратора, и в «Свободной записи» клиента)
+    h += field(it.cat === 'training' ? 'Тренировка' : 'Услуга', '<select class="form-input" required onchange="jbPick(this.value)">' + jb.items.map(function (i) {
+      return '<option value="' + i.id + '"' + (i.id === jb.item ? ' selected' : '') + '>' + escAttr(i.name) + '</option>';
+    }).join('') + '</select>');
   } else {
     h += field(it.cat === 'training' ? 'Тренировка' : 'Услуга', '<div class="form-input form-view">' + escAttr(it.name) + '</div>');
   }
@@ -354,6 +359,8 @@ function jbRenderBody() {
   if (it.durations.length > 1) {
     h += field('Длительность', chips(it.durations.map(function (m) { return indChip(fmtDurShort(m), m === jb.dur, 'jbSelectDur(' + m + ')'); })));
   }
+
+  if (!jb.move) h = h + dayField; else h = dayField + h;
 
   // Время начала
   let time;
@@ -453,15 +460,23 @@ async function jbSubmit() {
   const btn = document.getElementById('jb-submit');
   btn.disabled = true; btn.textContent = 'Записываем...';
   const isNew = !jb.client, name = jb.client ? jb.client.name : data.new_client.name, start = group ? group.from : jb.start;
+  const self = jb.self, date = jb.date;
   try {
     if (group) await BookingsAPI.createFor(data); else await IndividualAPI.create(data);
   } catch (e) {
     // Ошибка показана в apiRequest (время или станок могли занять) — обновляем свободное время
-    btn.textContent = 'Записать';
+    btn.textContent = jbSubmitLabel();
     if (jb && !group) jbLoadTimes();
     return;
   }
   jbClose();
+  if (self) {
+    // клиент записал себя: его записи и экраны сайта — заново
+    const d = parseLocalDate(date);
+    showToast('Вы записаны: ' + it.name + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ' в ' + minToTime(start), 'success');
+    await cpAfterMove();
+    return;
+  }
   showToast(name + ' записан: ' + it.name + ' в ' + minToTime(start), 'success');
   await Promise.allSettled([jrLoad(), loadSlots(jrDate, jrDate), isNew ? loadClients() : Promise.resolve()]);
   renderJournal();

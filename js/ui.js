@@ -63,6 +63,30 @@ document.addEventListener('keydown', e => {
 
 
 
+// ═══ ПОДТВЕРЖДЕНИЕ ДЕЙСТВИЯ ══════════════════════════════════════
+
+// Единое окно подтверждения вместо системного confirm(): заголовок — вопрос («Отменить запись?»), под ним при
+// необходимости пояснение (что произойдёт), кнопки «Нет» и «Да». Используется во всей системе:
+//   if (!await uiConfirm('Удалить клиента?', 'Его записи сохранятся.')) return;
+// Возвращает Promise<boolean>. «Нет» и Esc — отказ; фокус на «Да», поэтому Enter — согласие.
+// Открывается поверх любого окна (.confirm-overlay, css/panels.css).
+function uiConfirm(title, note) {
+  return new Promise(function (resolve) {
+    const el = document.createElement('div');
+    el.className = 'admin-modal-overlay confirm-overlay show';
+    el.innerHTML = '<div class="admin-modal u-max-w-380">'
+      + '<div class="admin-modal-title' + (note ? ' u-mb-8' : '') + '">' + escAttr(title) + '</div>'
+      + (note ? '<div class="u-text-body u-muted u-mb-20">' + escAttr(note) + '</div>' : '')
+      + '<div class="admin-modal-actions"><button class="btn-ghost" data-act="cancel">Нет</button>'
+      + '<button class="btn-danger" data-act="ok">Да</button></div></div>';
+    const done = function (yes) { el.remove(); resolve(yes); };
+    el.querySelector('[data-act="cancel"]').onclick = function () { done(false); };
+    el.querySelector('[data-act="ok"]').onclick = function () { done(true); };
+    document.body.appendChild(el);
+    el.querySelector('[data-act="ok"]').focus();
+  });
+}
+
 // ═══ ТЕЛЕФОН: одно поле для всех мест, где телефон вводится целиком ═══
 // В разметке достаточно класса: <input class="form-input phone-input">. Всё остальное задаётся здесь, одинаково
 // для всех: вид +7 (XXX) XXX-XX-XX при вводе, шаблон в пустом поле, длина и проверка «введён полностью»

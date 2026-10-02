@@ -50,9 +50,18 @@ async function renderHall(slotId) {
   hint.textContent = free > 0 ? ('Свободно: ' + free + '. Кликните место.') : 'Свободных мест нет';
 }
 
+// Плитка станка: значок типа и подпись. Единственное место, где строится разметка станка, — её используют
+// схема зала (hallFill), карточка своей записи (js/site/trainings.js) и админка (блокировка станков на занятие,
+// редактор зала). st — {label, icon}, cls — классы состояния (free / taken / blocked / selected…),
+// attrs — остальные атрибуты кнопки (onclick, disabled, title, data-…)
+function stationHtml(st, cls, attrs) {
+  return '<button type="button" class="station ' + cls + '"' + (attrs ? ' ' + attrs : '') + '>'
+    + '<span class="station-ico">' + (st.icon || '') + '</span><span>' + escAttr(st.label) + '</span></button>';
+}
+
 // Схема зала в элементе hall: сетка cols × rows, станки по координатам (pos_x — колонка, pos_y — ряд).
 // data — {cols, rows, stations: [{id, label, pos_x, pos_y, icon, state}]}; свободный станок вызывает onSelect(id).
-// Общая для записи на групповую тренировку и индивидуальной записи (js/site/individual-page.js)
+// Общая для записи на групповую тренировку, индивидуальной записи и переноса (js/admin/journal-book.js)
 function hallFill(hall, data, selectedId, onSelect) {
   const cols = data.cols || 6, rows = data.rows || 2;
   const byPos = {};
@@ -64,9 +73,8 @@ function hallFill(hall, data, selectedId, onSelect) {
       const st = byPos[x + ',' + y];
       if (!st) { html += '<div class="cell-empty"></div>'; continue; }
       const sel = (Number(st.id) === Number(selectedId)) ? ' selected' : '';
-      const ico = st.icon || '';
       const on = st.state === 'free' ? `onclick="${onSelect}(${st.id})"` : 'disabled';
-      html += `<button type="button" class="station ${st.state}${sel}" data-station="${st.id}" ${on} title="${st.label}"><span class="station-ico">${ico}</span><span>${st.label}</span></button>`;
+      html += stationHtml(st, st.state + sel, `data-station="${st.id}" ${on} title="${escAttr(st.label)}"`);
     }
   }
   hall.innerHTML = html;
@@ -102,7 +110,7 @@ async function confirmBooking() {
     // Подгружаем актуальные записи
     await loadMyBookings();
     closeBookingModal();
-    renderWeekCal();
+    renderSitePages();
     showToast(' Вы записаны! Ждём вас в ' + s.time, 'success');
   } catch (e) {
     // Ошибка/недоступность сервера уже показана в apiRequest; локально запись не подделываем

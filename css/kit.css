@@ -124,6 +124,7 @@ textarea:required:invalid:focus {
 .u-grid { display: grid; }
 .u-block { display: block; }
 .u-inline-block { display: inline-block; }
+.u-phone-only { display: none; }                 /* виден только на телефоне — см. правило в конце файла */
 
 .u-col { flex-direction: column !important; }
 .u-wrap { flex-wrap: wrap !important; }
@@ -222,3 +223,8 @@ textarea:required:invalid:focus {
 .u-max-w-460 { max-width: 460px !important; }
 .u-max-w-520 { max-width: 520px !important; }
 .u-max-w-560 { max-width: 560px !important; }
+
+/* ── Только на телефоне (ширина, при которой шапка сайта сворачивается в меню) ── */
+@media (max-width: 768px) {
+  .u-phone-only { display: block; }
+}

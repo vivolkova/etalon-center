@@ -54,25 +54,6 @@ function escAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Кнопки-фильтры категорий («Все» + категории из справочника activity_category) и легенда.
-// onclickFn — имя глобальной функции-обработчика (cat, btn).
-// cats — какие категории показать (по умолчанию все; сайт передаёт доступные в выбранном филиале).
-function catChipsHtml(current, onclickFn, cats) {
-  return '<button class="chip' + (current === 'all' ? ' active' : '') + '" onclick="' + onclickFn + '(\'all\',this)">Все</button>' +
-    (cats || ACTIVITY_CATS).map(function (c) {
-      return '<button class="chip cat-chip cat-' + c.code + (current === c.code ? ' active' : '') + '" onclick="' + onclickFn + '(\'' + c.code + '\',this)">' + escAttr(c.name) + '</button>';
-    }).join('');
-}
-function catLegendHtml(cats) {
-  return (cats || ACTIVITY_CATS).map(function (c) {
-    return '<div class="sch-legend-item"><div class="sch-legend-dot cat-' + c.code + '"></div>' + escAttr(c.name) + '</div>';
-  }).join('');
-}
-// Выбранная категория пропала из справочника (выключили) или из списка cats — сбросить на «Все»
-function validCat(cat, cats) {
-  return cat === 'all' || (cats || ACTIVITY_CATS).some(function (c) { return c.code === cat; }) ? cat : 'all';
-}
-
 // Занимает ли занятие места в зале (станки, вместимость, блокировки станков): только тренировки.
 // Услуги (байкфит, мастерская…) проходят в своих помещениях.
 function slotUsesHall(cat) { return cat === 'training'; }
@@ -228,10 +209,8 @@ function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   currentPage = name;
-  if (name === 'schedule') renderSchedule();
-  if (name === 'individual') renderIndividualPage();
+  if (name === 'trainings') renderTrainings();
   if (name === 'services') renderServices();
-  if (name === 'bookings') renderBookings();
   if (name === 'client') renderClientPanel();
   if (name === 'admin') { renderAdmin(); admNav('journal', document.querySelector('.adm-nav-item')); }
   window.scrollTo({ top: 0, behavior: 'smooth' });

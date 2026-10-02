@@ -135,12 +135,6 @@ const IndividualAPI = {
     if (p.skip_slot_id) url += `&skip_slot_id=${p.skip_slot_id}`;   // перенос записи: её время не считать занятым
     return apiRequest(url, 'GET', null, true);
   },
-  // Неделя для сетки (7 дней с from): {days: [{date, state, blocks, starts}], duration, step}
-  async week(p) {
-    let url = `/individual.php?action=week&library_id=${p.library_id}&from=${p.from}&duration=${p.duration}`;
-    if (p.specialist_id) url += `&specialist_id=${p.specialist_id}`;
-    return apiRequest(url, 'GET', null, true);
-  },
   // Схема зала на время занятия: {cols, rows, stations: [{…, state: free|taken}]}
   async stations(p) {
     return apiRequest(`/individual.php?action=stations&library_id=${p.library_id}&date=${p.date}&start=${p.start}&duration=${p.duration}`
