@@ -116,6 +116,17 @@ const CATEGORY_GROUPS = ['activity_category', 'service_category'];
 const CATEGORY_GROUPS_SQL = "'activity_category','service_category'";
 
 // ── Валидация ─────────────────────────────────────────────
+// Транзакция записи / занятия. Проверки «свободно ли» (зал, специалист, станок, клиент не в двух местах) идут
+// после блокировки строк (SELECT … FOR UPDATE) и обязаны видеть то, что записал запрос, которого мы ждали.
+// При уровне MySQL по умолчанию (REPEATABLE READ) транзакция читает снимок, сделанный при её первом чтении —
+// то есть ещё ДО ожидания блокировки, — и только что сделанную чужую запись не видит: блокировка есть, а
+// проверка проходит дважды. READ COMMITTED: каждое чтение видит последние зафиксированные данные.
+// Действует только на эту транзакцию.
+function beginCheckedTx(PDO $db): void {
+    $db->exec('SET TRANSACTION ISOLATION LEVEL READ COMMITTED');
+    $db->beginTransaction();
+}
+
 function require_fields(array $data, array $fields): void {
     foreach ($fields as $f) {
         if (empty($data[$f])) err("Поле '$f' обязательно");

@@ -6,18 +6,25 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
+// Что видит клиент: уведомления, адресованные лично ему, и объявления для всех (анонс, информация, акция).
+// Служебные записи о чужих действиях (booking, cancel — «Иван — Байкфит 02.10 11:00») создаются без получателя
+// и предназначены администратору: клиенту их не отдаём — в них имена и занятия других клиентов.
+const NOTIF_PUBLIC_TYPES = ['announce', 'info', 'promo'];
+function notifClientWhere(): string {
+    return "(target_user = ? OR (target_user IS NULL AND type IN ('" . implode("','", NOTIF_PUBLIC_TYPES) . "')))";
+}
+
 // GET — список уведомлений
 if ($method === 'GET' && $action === 'list') {
     $auth = authUser();
     $db   = getDB();
 
-    // Клиент видит уведомления адресованные ему или всем (target_user IS NULL)
-    // Администратор видит все
+    // Администратор видит все; клиент — адресованные ему и объявления для всех (notifClientWhere)
     if ($auth['role'] === 'admin') {
         $stmt = $db->prepare('SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50');
         $stmt->execute();
     } else {
-        $stmt = $db->prepare('SELECT * FROM notifications WHERE target_user IS NULL OR target_user=? ORDER BY created_at DESC LIMIT 20');
+        $stmt = $db->prepare('SELECT * FROM notifications WHERE ' . notifClientWhere() . ' ORDER BY created_at DESC LIMIT 20');
         $stmt->execute([$auth['id']]);
     }
     ok($stmt->fetchAll());
@@ -49,13 +56,17 @@ if ($method === 'POST' && $action === 'create') {
     ok(['id' => $db->lastInsertId()], 'Уведомление создано');
 }
 
-// PUT — пометить прочитанным
+// PUT — пометить прочитанным: администратор — любое, клиент — только то, что он видит
 if ($method === 'PUT' && $action === 'read') {
-    authUser();
+    $auth = authUser();
     $id = (int)(input()['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
-    $db->prepare('UPDATE notifications SET is_read=1 WHERE id=?')->execute([$id]);
+    if ($auth['role'] === 'admin') {
+        $db->prepare('UPDATE notifications SET is_read=1 WHERE id=?')->execute([$id]);
+    } else {
+        $db->prepare('UPDATE notifications SET is_read=1 WHERE id=? AND ' . notifClientWhere())->execute([$id, $auth['id']]);
+    }
     ok(null, 'Прочитано');
 }
 

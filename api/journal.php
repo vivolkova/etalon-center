@@ -13,7 +13,7 @@ $action = $_GET['action'] ?? '';
 // {hours: {from, to}|null (минуты; null — филиал закрыт), stations: [{id, label, type_name}],
 //  categories: [{code, name}] — услуги филиала (вкладки журнала),
 //  specialists: [{id, name, full_name, cats: [код услуги], work: [{from, to}]}] — колонки услуг (кто работает здесь в этот день или уже записан),
-//  slots: [{id, name, cat, type, from, to, price, specialist_id, specialist, individual,
+//  slots: [{id, library_id, name, cat, type, from, to, price, specialist_id, specialist, individual,
 //           bookings: [{id, user_id, name, phone, email, station_id, payment_status, notes}], blocked: [station_id]}]}
 if ($method === 'GET' && $action === 'day') {
     authAdmin();
@@ -30,7 +30,7 @@ if ($method === 'GET' && $action === 'day') {
     $stations = array_map(fn($r) => ['id' => (int)$r['id'], 'label' => $r['label'], 'type_name' => $r['type_name']], $st->fetchAll());
 
     // Занятия дня
-    $st = $db->prepare('SELECT s.id, s.name, s.start_time, s.duration, s.price, s.specialist_id, s.auto_created,
+    $st = $db->prepare('SELECT s.id, s.library_id, s.name, s.start_time, s.duration, s.price, s.specialist_id, s.auto_created,
                                dc.code AS cat, dt.code AS type, sp.name AS spec_name, sp.full_name AS spec_full
                         FROM slots s
                         JOIN dictionaries dc ON dc.id = s.category_id
@@ -44,7 +44,8 @@ if ($method === 'GET' && $action === 'day') {
     foreach ($st->fetchAll() as $r) {
         $from = specTimeToMin(substr($r['start_time'], 0, 5));
         $slots[(int)$r['id']] = [
-            'id' => (int)$r['id'], 'name' => $r['name'], 'cat' => $r['cat'], 'type' => $r['type'],
+            'id' => (int)$r['id'], 'library_id' => $r['library_id'] !== null ? (int)$r['library_id'] : null,
+            'name' => $r['name'], 'cat' => $r['cat'], 'type' => $r['type'],
             'from' => $from, 'to' => $from + (int)$r['duration'], 'price' => (int)$r['price'],
             'specialist_id' => $r['specialist_id'] !== null ? (int)$r['specialist_id'] : null,
             'specialist' => $r['spec_full'] ?: $r['spec_name'],

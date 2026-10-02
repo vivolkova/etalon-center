@@ -132,6 +132,7 @@ const IndividualAPI = {
     let url = `/individual.php?action=times&library_id=${p.library_id}&date=${p.date}&duration=${p.duration}`;
     if (p.specialist_id) url += `&specialist_id=${p.specialist_id}`;
     if (p.user_id) url += `&user_id=${p.user_id}`;   // админ подбирает время клиенту: учесть его записи
+    if (p.skip_slot_id) url += `&skip_slot_id=${p.skip_slot_id}`;   // перенос записи: её время не считать занятым
     return apiRequest(url, 'GET', null, true);
   },
   // Неделя для сетки (7 дней с from): {days: [{date, state, blocks, starts}], duration, step}
@@ -142,11 +143,16 @@ const IndividualAPI = {
   },
   // Схема зала на время занятия: {cols, rows, stations: [{…, state: free|taken}]}
   async stations(p) {
-    return apiRequest(`/individual.php?action=stations&library_id=${p.library_id}&date=${p.date}&start=${p.start}&duration=${p.duration}`, 'GET', null, true);
+    return apiRequest(`/individual.php?action=stations&library_id=${p.library_id}&date=${p.date}&start=${p.start}&duration=${p.duration}`
+      + (p.skip_slot_id ? `&skip_slot_id=${p.skip_slot_id}` : ''), 'GET', null, true);
   },
   // {library_id, specialist_id, date, start, duration, station_id, notes} -> {slot_id, booking_id}
   async create(data) {
     return apiRequest('/individual.php?action=create', 'POST', data);
+  },
+  // Перенос индивидуальной записи (админ): {booking_id, date, start, duration, specialist_id, station_id}
+  async move(data) {
+    return apiRequest('/individual.php?action=move', 'PUT', data);
   },
 };
 

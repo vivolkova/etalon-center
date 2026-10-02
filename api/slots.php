@@ -145,7 +145,7 @@ if ($method === 'POST' && $action === 'create') {
     checkWorkHours($db, $locId, $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
 
     // Зал свободен; специалист нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строк)
-    $db->beginTransaction();
+    beginCheckedTx($db);
     checkSlotRequest($db, $d, null, $lib);
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.
@@ -182,7 +182,7 @@ if ($method === 'PUT' && $action === 'update') {
     checkWorkHours($db, $locId, $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
 
     // Зал свободен; специалист нужен ли, работает ли в это время в этом филиале, свободен ли (с блокировкой строк)
-    $db->beginTransaction();
+    beginCheckedTx($db);
     checkSlotRequest($db, $d, $id, $lib);
 
     // Вместимость не хранится в слоте — она берётся из locations.max_people.

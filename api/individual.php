@@ -136,8 +136,9 @@ function indArgs(PDO $db, array $p): array {
 // hall[дата] — тренировки в зале филиала [{from, to, shared}] (shared — персональная/самостоятельная);
 // spec[дата] — занятия специалиста во всех филиалах [{id, from, to, loc}]; avail[дата] — его рабочие интервалы;
 // mine[дата] — занятия, на которые записан клиент [{id, name, from, to, loc}];
-// stations — активные станки филиала; taken[дата] — занятые и заблокированные станки [{station, from, to}]
-function indLoad(PDO $db, array $lib, ?int $specId, int $userId, string $from, string $to): array {
+// stations — активные станки филиала; taken[дата] — занятые и заблокированные станки [{station, from, to}].
+// $skipSlot — занятие, которое не учитываем (перенос записи: её собственные время и станок считаются свободными)
+function indLoad(PDO $db, array $lib, ?int $specId, int $userId, string $from, string $to, int $skipSlot = 0): array {
     $locId = (int)$lib['location_id'];
     $span  = fn(array $r): array => ['from' => specTimeToMin(substr($r['start_time'], 0, 5)),
                                      'to'   => specTimeToMin(substr($r['start_time'], 0, 5)) + (int)$r['duration']];
@@ -148,8 +149,8 @@ function indLoad(PDO $db, array $lib, ?int $specId, int $userId, string $from, s
                             JOIN dictionaries dc ON dc.id = s.category_id AND dc.code = 'training'
                             LEFT JOIN library l ON l.id = s.library_id
                             LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
-                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ?");
-        $st->execute([$locId, $from, $to]);
+                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.id <> ?");
+        $st->execute([$locId, $from, $to, $skipSlot]);
         foreach ($st->fetchAll() as $r) {
             $d['hall'][$r['slot_date']][] = $span($r) + ['shared' => in_array($r['type'], ['personal', 'free'], true)];
         }
@@ -158,21 +159,21 @@ function indLoad(PDO $db, array $lib, ?int $specId, int $userId, string $from, s
         $d['stations'] = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
         $st = $db->prepare("SELECT b.station_id, s.slot_date, s.start_time, s.duration FROM bookings b
                             JOIN slots s ON s.id = b.slot_id
-                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ?
+                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.id <> ?
                               AND b.status <> 'cancelled' AND b.station_id IS NOT NULL
                             UNION ALL
                             SELECT k.station_id, s.slot_date, s.start_time, s.duration FROM slot_station_blocks k
                             JOIN slots s ON s.id = k.slot_id
-                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ?");
-        $st->execute([$locId, $from, $to, $locId, $from, $to]);
+                            WHERE s.location_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.id <> ?");
+        $st->execute([$locId, $from, $to, $skipSlot, $locId, $from, $to, $skipSlot]);
         foreach ($st->fetchAll() as $r) {
             $d['taken'][$r['slot_date']][] = $span($r) + ['station' => (int)$r['station_id']];
         }
     }
     if ($specId) {
         $st = $db->prepare('SELECT s.id, s.slot_date, s.start_time, s.duration, s.location_id FROM slots s
-                            WHERE s.specialist_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ?');
-        $st->execute([$specId, $from, $to]);
+                            WHERE s.specialist_id = ? AND s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.id <> ?');
+        $st->execute([$specId, $from, $to, $skipSlot]);
         foreach ($st->fetchAll() as $r) {
             $d['spec'][$r['slot_date']][] = $span($r) + ['id' => (int)$r['id'], 'loc' => (int)$r['location_id']];
         }
@@ -184,8 +185,8 @@ function indLoad(PDO $db, array $lib, ?int $specId, int $userId, string $from, s
     if ($userId) {
         $st = $db->prepare("SELECT s.id, s.name, s.slot_date, s.start_time, s.duration, s.location_id FROM bookings b
                             JOIN slots s ON s.id = b.slot_id
-                            WHERE b.user_id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.slot_date BETWEEN ? AND ?");
-        $st->execute([$userId, $from, $to]);
+                            WHERE b.user_id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.id <> ?");
+        $st->execute([$userId, $from, $to, $skipSlot]);
         foreach ($st->fetchAll() as $r) {
             $d['mine'][$r['slot_date']][] = $span($r) + ['id' => (int)$r['id'], 'name' => $r['name'], 'loc' => (int)$r['location_id']];
         }
@@ -336,7 +337,7 @@ if ($method === 'GET' && $action === 'options') {
     ]);
 }
 
-// GET ?action=times&library_id=&specialist_id=&date=&duration= — свободные времена начала: {times: ['10:00', …], message}
+// GET ?action=times&library_id=&specialist_id=&date=&duration=[&user_id=&skip_slot_id=] — свободные времена начала: {times: ['10:00', …], message}
 // message — почему свободного времени нет (пустой список)
 if ($method === 'GET' && $action === 'times') {
     $user  = authUser();
@@ -350,11 +351,13 @@ if ($method === 'GET' && $action === 'times') {
     // выбранного клиента (user_id), если он уже выбран
     $admin = ($user['role'] ?? '') === 'admin';
     $forId = $admin ? (int)($_GET['user_id'] ?? 0) : (int)$user['id'];
+    // Перенос записи (администратор): переносимое занятие не считаем занятым временем
+    $skip  = $admin ? (int)($_GET['skip_slot_id'] ?? 0) : 0;
 
     $none = fn(string $m) => ok(['times' => [], 'message' => $m]);
     if (!$admin && ($e = indWindowError($db, $locId, $date))) $none($e);
     if (!slotBranchHours($db, $locId, $date)) $none('В этот день филиал не работает');
-    $d = indLoad($db, $lib, $specId, $forId, $date, $date);
+    $d = indLoad($db, $lib, $specId, $forId, $date, $date, $skip);
     $d['no_window'] = $admin;
     if ($specId) {
         $here = array_filter($d['avail'][$date] ?? [], fn($iv) => $iv['loc'] === $locId);
@@ -397,7 +400,8 @@ if ($method === 'GET' && $action === 'week') {
 // GET ?action=stations&library_id=&date=&start=HH:MM&duration= — схема зала на время занятия:
 // {cols, rows, stations: [{id, label, pos_x, pos_y, icon, type_name, state: free|taken}]}. Не тренировка — станков нет
 if ($method === 'GET' && $action === 'stations') {
-    authUser();
+    $user = authUser();
+    $skip = ($user['role'] ?? '') === 'admin' ? (int)($_GET['skip_slot_id'] ?? 0) : 0;   // перенос записи: её станок свободен
     $db = getDB();
     $lib = indLibrary($db, (int)($_GET['library_id'] ?? 0));
     $dur = (int)($_GET['duration'] ?? 0) ?: (int)$lib['duration'];
@@ -409,7 +413,7 @@ if ($method === 'GET' && $action === 'stations') {
     $locId = (int)$lib['location_id'];
     if ($lib['cat'] !== 'training') ok(['cols' => 0, 'rows' => 0, 'stations' => []]);
 
-    $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date), $date, $start, $start + $dur);
+    $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date, $skip), $date, $start, $start + $dur);
     $st = $db->prepare('SELECT s.id, s.label, s.pos_x, s.pos_y, t.name AS type_name, t.icon AS icon FROM stations s
                         JOIN station_type t ON t.id = s.type_id
                         WHERE s.location_id = ? AND s.active = 1 ORDER BY s.sort_order, s.id');
@@ -445,7 +449,7 @@ if ($method === 'POST' && $action === 'create') {
         if (!$stationId) err('Выберите станок');
     }
 
-    $db->beginTransaction();
+    beginCheckedTx($db);
     // Для кого запись: клиент — себя; администратор — выбранного или нового клиента (создаётся в этой же транзакции)
     $client = bookingClient($db, $user, $d);
     // Строка клиента — чтобы две параллельные записи одного клиента не пересеклись
@@ -474,6 +478,78 @@ if ($method === 'POST' && $action === 'create') {
                   . ($client['by_admin'] ? ' (записал администратор)' : '')]);
     $db->commit();
     ok(['slot_id' => $slotId, 'booking_id' => $bookingId, 'user_id' => $client['id']], 'Запись создана');
+}
+
+// PUT ?action=move — перенос индивидуальной записи (только администратор):
+// {booking_id, date, start, duration?, specialist_id?, station_id?}. Меняются день, время, длительность, специалист и
+// станок; клиент и само занятие (запись библиотеки) остаются. Запись, комментарий и отметка об оплате сохраняются.
+// Правила те же, что при записи, только переносимое занятие само себе не мешает. Оплаченную запись нельзя
+// перенести с изменением цены (оплаты и возвратов пока нет). Прошедшую запись и на прошедшее время — нельзя.
+if ($method === 'PUT' && $action === 'move') {
+    authAdmin();
+    $d  = input();
+    require_fields($d, ['booking_id', 'date', 'start']);
+    $db = getDB();
+    $st = $db->prepare("SELECT b.id, b.user_id, b.station_id, b.payment_status, u.name AS user_name,
+                               s.id AS slot_id, s.library_id, s.slot_date, s.start_time, s.duration, s.specialist_id, s.price
+                        FROM bookings b
+                        JOIN slots s ON s.id = b.slot_id
+                        JOIN users u ON u.id = b.user_id
+                        WHERE b.id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.auto_created = 1");
+    $st->execute([(int)$d['booking_id']]);
+    $cur = $st->fetch();
+    if (!$cur) err('Запись не найдена или это не индивидуальная запись', 404);
+    $slotId = (int)$cur['slot_id'];
+
+    [$lib, $specId, $dur] = indArgs($db, [
+        'library_id'    => (int)$cur['library_id'],
+        'duration'      => $d['duration'] ?? (int)$cur['duration'],
+        'specialist_id' => $d['specialist_id'] ?? $cur['specialist_id'],
+    ]);
+    $date = (string)$d['date'];
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
+    if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)$d['start'])) err('Некорректное время начала');
+    $start = specTimeToMin((string)$d['start']);
+    if ($start % IND_STEP) err('Время начала — с шагом ' . IND_STEP . ' минут');
+    $stationId = null;
+    if ($lib['cat'] === 'training') {
+        $stationId = (int)($d['station_id'] ?? $cur['station_id']);
+        if (!$stationId) err('Выберите станок');
+    }
+
+    $now = indNow($db, (int)$lib['location_id']);
+    $at  = fn(string $day, string $time) => new DateTimeImmutable($day . ' ' . substr($time, 0, 5), $now->getTimezone());
+    if ($at($cur['slot_date'], $cur['start_time']) < $now) err('Занятие уже началось или прошло — такую запись перенести нельзя');
+    if ($at($date, minToTimeStr($start)) < $now) err('Нельзя перенести запись на прошедшее время');
+
+    $price = indPrice($db, $lib, $dur);
+    if ($cur['payment_status'] === 'paid' && $price !== (int)$cur['price']) {
+        err('Запись оплачена (' . number_format((int)$cur['price'], 0, '', ' ') . ' ₽), а после переноса цена будет '
+            . number_format($price, 0, '', ' ') . ' ₽. Перенос с изменением цены для оплаченных записей пока недоступен');
+    }
+
+    beginCheckedTx($db);
+    $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([(int)$cur['user_id']]);
+    $slot = indSlot($lib, $specId, $date, $start, $dur);
+    $slot['id'] = $slotId;   // само занятие себе не мешает
+    $e = slotRuleError($db, $slot, true)
+        ?? bookingClientClash($db, (int)$cur['user_id'], $date, $start, $dur, true, $slotId);
+    if ($e === null && $stationId) {
+        $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date, $slotId), $date, $start, $start + $dur);
+        if (!in_array($stationId, $free, true)) $e = 'Этот станок недоступен на выбранное время — выберите другой';
+    }
+    if ($e !== null) { $db->rollBack(); err($e); }
+
+    $db->prepare('UPDATE slots SET slot_date = ?, start_time = ?, duration = ?, specialist_id = ?, price = ? WHERE id = ?')
+       ->execute([$date, minToTimeStr($start), $dur, $specId, $price, $slotId]);
+    $db->prepare('UPDATE bookings SET station_id = ? WHERE id = ?')->execute([$stationId, (int)$cur['id']]);
+    $was = specFmtDate($cur['slot_date']) . ' ' . substr($cur['start_time'], 0, 5);
+    $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
+       ->execute(['booking', 'Запись перенесена',
+                  $cur['user_name'] . ' — ' . $lib['name'] . ': ' . $was . ' → ' . specFmtDate($date) . ' ' . minToTimeStr($start)
+                  . ' (перенёс администратор)']);
+    $db->commit();
+    ok(['slot_id' => $slotId, 'booking_id' => (int)$cur['id'], 'price' => $price], 'Запись перенесена');
 }
 
 err('Неизвестный endpoint', 404);

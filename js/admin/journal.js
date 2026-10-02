@@ -241,13 +241,15 @@ function jrOpenSlot(slotId) {
   const d = parseLocalDate(jrData.date);
   const kind = jrKind(s);
   const stations = jrData.stations;
-  // Кто записан: станок, клиент, телефон, оплата, комментарий — и отмена записи
+  // Кто записан: станок, клиент, телефон, оплата, комментарий — и действия: отмена; у индивидуальной записи — перенос
   const rows = s.bookings.map(function (b) {
     const st = jrStationLabel(b.station_id);
     return '<div class="jr-card-row"><div><div class="jr-card-name">' + (st ? escAttr(st) + ' · ' : '') + escAttr(b.name) + '</div>'
       + '<div class="jr-card-meta">' + [b.phone, JR_PAY[b.payment_status] || b.payment_status].filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (b.notes ? '<div class="jr-card-meta">«' + escAttr(b.notes) + '»</div>' : '') + '</div>'
-      + '<button class="action-btn cancel btn-sm" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div>';
+      + '<div class="u-flex u-gap-6 u-shrink-0">'
+      + (s.individual ? '<button class="action-btn confirm btn-sm" onclick="jbOpenMove(' + s.id + ')">Перенести</button>' : '')
+      + '<button class="action-btn cancel btn-sm" onclick="jrCancelBooking(' + b.id + ',' + s.id + ')">Отменить</button></div></div>';
   }).join('');
   // У групповой — схема зала этого занятия: тот же элемент, что в формах записи (hallFill, js/site/booking.js).
   // Нажатие на свободный станок — запись клиента на него

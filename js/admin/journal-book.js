@@ -4,6 +4,8 @@
 //   в колонке специалиста — услуга открытой вкладки журнала (байкфит, массаж…), которую он оказывает.
 // Из карточки групповой тренировки (нажатие на свободный станок схемы зала, jbOpenGroup) — запись на неё:
 //   занятие, время и станок уже заданы, выбирается только клиент.
+// Из карточки индивидуальной записи (кнопка «Перенести», jbOpenMove) — перенос: та же форма с текущими значениями;
+//   клиент и занятие не меняются, выбираются день, время, длительность, специалист и станок (api/individual.php move).
 // Клиент — из базы (поиск по номеру телефона) или новый: имя и телефон, создаётся вместе с записью
 // без личного кабинета (middleware/booking_client.php). Один телефон — один клиент.
 // Свободное время и станки считает сервер (api/individual.php: times, stations), он же всё перепроверяет при записи.
@@ -48,18 +50,47 @@ function jbBuildModal(loc) {
   el.className = 'admin-modal-overlay show';
   el.id = 'jb-modal';
   el.innerHTML = '<div class="admin-modal u-max-w-560">'
-    + '<div class="admin-modal-title">Запись клиента</div>'
+    + '<div class="admin-modal-title">' + (jb.move ? 'Перенос записи' : 'Запись клиента') + '</div>'
     + '<div class="jr-card-sub" id="jb-sub"></div>'
     + '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>'
     + '<div id="jb-body"></div>'
-    + '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="2"></textarea></div>'
+    + (jb.move ? '' : '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="2"></textarea></div>')
     + '<div class="ind-total" id="jb-total"></div>'
     + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="jbClose()">Отмена</button>'
-    + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">Записать</button></div></div>';
+    + '<button class="btn-primary" id="jb-submit" onclick="jbSubmit()">' + (jb.move ? 'Перенести' : 'Записать') + '</button></div></div>';
   document.body.appendChild(el);
   const d = parseLocalDate(jb.date);
-  document.getElementById('jb-sub').textContent = DAYS_FULL[(d.getDay() + 6) % 7] + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ' · ' + loc.name;
+  const day = DAYS_FULL[(d.getDay() + 6) % 7] + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()];
+  // При переносе под заголовком — что переносим (день в форме можно поменять)
+  document.getElementById('jb-sub').textContent = jb.move
+    ? 'Сейчас: ' + day + ', ' + minToTime(jb.move.from) + '–' + minToTime(jb.move.to) + ' · ' + loc.name
+    : day + ' · ' + loc.name;
 }
+
+// Перенос индивидуальной записи из её карточки: та же форма с текущими значениями. Клиент и занятие заданы;
+// выбираются день, время, длительность, специалист, станок. Комментарий и отметка об оплате сохраняются
+async function jbOpenMove(slotId) {
+  const loc = jrLoc();
+  const slot = jrData && jrData.slots.find(function (x) { return x.id === slotId; });
+  const b = slot && slot.bookings[0];
+  if (!loc || !slot || !b) return;
+  let opts;
+  try { opts = await IndividualAPI.options(loc.id); } catch (e) { return; }
+  const item = opts.items.find(function (i) { return i.id === slot.library_id; });
+  if (!item) { showToast('Это занятие больше недоступно для записи — отмените запись и создайте новую', 'error'); return; }
+  jb = {
+    move: { bookingId: b.id, slotId: slot.id, from: slot.from, to: slot.to, price: slot.price, paid: b.payment_status === 'paid' },
+    locId: Number(loc.id), date: jrData.date, items: [item], step: opts.step, fixedSpec: null,
+    item: item.id, spec: slot.specialist_id, dur: slot.to - slot.from,
+    wantStart: slot.from, wantStation: b.station_id, start: null, station: null,
+    client: { id: b.user_id, name: b.name, phone: b.phone }, isNew: false, times: null, message: '', hall: null,
+  };
+  const card = document.getElementById('jr-slot-modal'); if (card) card.remove();
+  jbBuildModal(loc);
+  jbRenderClient();
+  jbLoadTimes();
+}
+function jbMoveDate(val) { if (jb && val) { jb.date = val; jbLoadTimes(); } }
 
 // Запись клиента на групповую тренировку из её карточки (нажатие на свободный станок схемы зала):
 // та же форма, но занятие, время и станок уже заданы — остаётся выбрать клиента
@@ -86,7 +117,7 @@ function jbRenderClient() {
   const box = document.getElementById('jb-client');
   if (jb.client) {
     box.innerHTML = '<div class="jb-picked"><div><b>' + escAttr(jb.client.name) + '</b><span>' + escAttr(jb.client.phone || '') + '</span></div>'
-      + '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button></div>';
+      + (jb.move ? '' : '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button>') + '</div>';
   } else if (jb.isNew) {
     box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required></div>'
       + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required></div></div>'
@@ -158,7 +189,7 @@ async function jbLoadTimes() {
   const req = ++jbReq, mine = jb;
   let res;
   try {
-    res = await IndividualAPI.times({ library_id: jb.item, specialist_id: jb.spec, date: jb.date, duration: jb.dur, user_id: jb.client ? jb.client.id : null });
+    res = await IndividualAPI.times({ library_id: jb.item, specialist_id: jb.spec, date: jb.date, duration: jb.dur, user_id: jb.client ? jb.client.id : null, skip_slot_id: jb.move ? jb.move.slotId : null });
   } catch (e) {
     res = { times: [], message: e.message || 'Не удалось загрузить свободное время' };
   }
@@ -177,7 +208,7 @@ async function jbLoadHall() {
   jbRenderBody();
   const req = ++jbReq, mine = jb;
   let data = null;
-  try { data = await IndividualAPI.stations({ library_id: jb.item, date: jb.date, start: minToTime(jb.start), duration: jb.dur }); } catch (e) { /* подпись в форме */ }
+  try { data = await IndividualAPI.stations({ library_id: jb.item, date: jb.date, start: minToTime(jb.start), duration: jb.dur, skip_slot_id: jb.move ? jb.move.slotId : null }); } catch (e) { /* подпись в форме */ }
   if (jb !== mine || req !== jbReq) return;
   jb.hall = data || { stations: [], error: true };
   const free = function (id) { return jb.hall.stations.some(function (s) { return Number(s.id) === id && s.state === 'free'; }); };
@@ -192,6 +223,7 @@ function jbRenderBody() {
   const it = jbItem();
   const chips = function (list) { return '<div class="filter-chips">' + list.join('') + '</div>'; };
   let h = '';
+  if (jb.move) h += field('День', '<input type="date" class="form-input" required min="' + fmtLocalDate(today) + '" value="' + jb.date + '" onchange="jbMoveDate(this.value)">');
   if (jb.items.length > 1) {
     h += field(it.cat === 'training' ? 'Тренировка' : 'Услуга', chips(jb.items.map(function (i) {
       return indChip(escAttr(i.name), i.id === jb.item, 'jbPick(' + i.id + ')');
@@ -242,11 +274,18 @@ function jbRenderBody() {
   }
 
   const d = parseLocalDate(jb.date);
-  document.getElementById('jb-total').textContent = jb.start !== null
+  let total = jb.start !== null
     ? d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(jb.start) + '–' + minToTime(jb.start + jb.dur) + ' · ' + indPgPrice(it, jb.dur).toLocaleString('ru') + ' ₽'
     : '';
+  if (jb.move && jbMovePriceChanged()) {
+    total += (total ? ' ' : '') + '(было ' + jb.move.price.toLocaleString('ru') + ' ₽)'
+      + (jb.move.paid ? '. Запись оплачена — перенос с другой ценой пока недоступен' : '');
+  }
+  document.getElementById('jb-total').textContent = total;
   jbUpdateSubmit();
 }
+// Перенос: изменится ли цена (другая длительность у самостоятельной тренировки)
+function jbMovePriceChanged() { return indPgPrice(jbItem(), jb.dur) !== jb.move.price; }
 
 // Тело формы для групповой тренировки: занятие и станок — только показ (заданы карточкой)
 function jbRenderGroupBody(field) {
@@ -265,11 +304,13 @@ function jbUpdateSubmit() {
   if (!btn || !jb) return;
   if (jb.group) { btn.disabled = !((jb.client || jb.isNew) && jb.station); return; }
   const it = jb.item ? jbItem() : null;
-  btn.disabled = !(it && (jb.client || jb.isNew) && jb.start !== null && (it.cat !== 'training' || jb.station));
+  btn.disabled = !(it && (jb.client || jb.isNew) && jb.start !== null && (it.cat !== 'training' || jb.station))
+    || !!(jb.move && jb.move.paid && it && jbMovePriceChanged());   // оплаченную запись с другой ценой не переносим
 }
 
 async function jbSubmit() {
   if (!jb) return;
+  if (jb.move) { jbSubmitMove(); return; }
   const group = jb.group || null;
   const it = group || jbItem();
   const notes = document.getElementById('jb-notes').value.trim();
@@ -304,4 +345,26 @@ async function jbSubmit() {
   await Promise.allSettled([jrLoad(), loadSlots(jrDate, jrDate), isNew ? loadClients() : Promise.resolve()]);
   renderJournal();
   if (group) jrOpenSlot(group.id);   // обратно в карточку тренировки — с новым клиентом в списке
+}
+
+async function jbSubmitMove() {
+  const it = jbItem(), mine = jb;
+  const btn = document.getElementById('jb-submit');
+  btn.disabled = true; btn.textContent = 'Переносим...';
+  try {
+    await IndividualAPI.move({
+      booking_id: jb.move.bookingId, date: jb.date, start: minToTime(jb.start), duration: jb.dur,
+      specialist_id: jb.spec, station_id: it.cat === 'training' ? jb.station : null,
+    });
+  } catch (e) {
+    // Ошибка показана в apiRequest (время или станок могли занять) — обновляем свободное время
+    btn.textContent = 'Перенести';
+    if (jb === mine) jbLoadTimes();
+    return;
+  }
+  const d = parseLocalDate(mine.date);
+  jbClose();
+  showToast(mine.client.name + ': запись перенесена на ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(mine.start), 'success');
+  await jrLoad();
+  renderJournal();
 }

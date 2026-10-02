@@ -122,9 +122,12 @@ if ($method === 'POST' && $action === 'create') {
         if ($stmt->fetch()) err('Это место уже занято');
     }
 
-    $db->beginTransaction();
+    beginCheckedTx($db);
     // Для кого запись (нового клиента администратор заводит здесь же — внутри транзакции записи)
     $client = bookingClient($db, $user, $d);
+    // Строка клиента — «очередь по клиенту»: две одновременные записи одного клиента (групповая и индивидуальная,
+    // сайт и журнал, двойное нажатие) идут по очереди, и проверка пересечений ниже видит запись, сделанную первой
+    $db->prepare('SELECT id FROM users WHERE id = ? FOR UPDATE')->execute([$client['id']]);
 
     // Клиент ещё не записан на этот слот и не занят в это время на другом занятии
     $stmt = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
