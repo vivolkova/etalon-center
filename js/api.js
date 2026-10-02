@@ -312,24 +312,6 @@ const SubsAPI = {
   },
 };
 
-// ── NOTIFICATIONS ──────────────────────────────────────────
-const NotifAPI = {
-  async list() {
-    return apiRequest('/notifications.php?action=list');
-  },
-  async unread() {
-    return apiRequest('/notifications.php?action=unread');
-  },
-  async create(type, title, message, targetUser) {
-    return apiRequest('/notifications.php?action=create', 'POST', { type, title, message, target_user: targetUser });
-  },
-  async markRead(id) {
-    return apiRequest('/notifications.php?action=read', 'PUT', { id });
-  },
-  async delete(id) {
-    return apiRequest(`/notifications.php?action=delete&id=${id}`, 'DELETE');
-  },
-};
 
 // ═══ END API CLIENT ════════════════════════════════════════════
 

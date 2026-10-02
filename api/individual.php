@@ -472,10 +472,6 @@ if ($method === 'POST' && $action === 'create') {
     $db->prepare("INSERT INTO bookings (user_id, slot_id, station_id, notes, status) VALUES (?,?,?,?,'booked')")
        ->execute([$client['id'], $slotId, $stationId, $notes !== '' ? $notes : null]);
     $bookingId = (int)$db->lastInsertId();
-    $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
-       ->execute(['booking', 'Новая индивидуальная запись',
-                  $client['name'] . ' — ' . $lib['name'] . ' ' . specFmtDate($date) . ' ' . minToTimeStr($start)
-                  . ($client['by_admin'] ? ' (записал администратор)' : '')]);
     $db->commit();
     ok(['slot_id' => $slotId, 'booking_id' => $bookingId, 'user_id' => $client['id']], 'Запись создана');
 }
@@ -543,11 +539,6 @@ if ($method === 'PUT' && $action === 'move') {
     $db->prepare('UPDATE slots SET slot_date = ?, start_time = ?, duration = ?, specialist_id = ?, price = ? WHERE id = ?')
        ->execute([$date, minToTimeStr($start), $dur, $specId, $price, $slotId]);
     $db->prepare('UPDATE bookings SET station_id = ? WHERE id = ?')->execute([$stationId, (int)$cur['id']]);
-    $was = specFmtDate($cur['slot_date']) . ' ' . substr($cur['start_time'], 0, 5);
-    $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
-       ->execute(['booking', 'Запись перенесена',
-                  $cur['user_name'] . ' — ' . $lib['name'] . ': ' . $was . ' → ' . specFmtDate($date) . ' ' . minToTimeStr($start)
-                  . ' (перенёс администратор)']);
     $db->commit();
     ok(['slot_id' => $slotId, 'booking_id' => (int)$cur['id'], 'price' => $price], 'Запись перенесена');
 }

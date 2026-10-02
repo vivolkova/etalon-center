@@ -138,23 +138,6 @@ async function loadPromos() {
   } catch (e) { /* используем встроенные промокоды */ }
 }
 
-// ── Загрузка уведомлений с сервера ───────────────────────────
-async function loadNotifications() {
-  try {
-    const res = await apiRequest('/notifications.php?action=list');
-    if (res && res.length) {
-      notifications = res.map(function (n) {
-        return {
-          id: n.id, type: n.type || 'info',
-          icon: '', title: n.title, text: n.message || '',
-          time: n.created_at ? n.created_at.slice(11, 16) : '',
-          read: n.is_read == 1
-        };
-      });
-    }
-  } catch (e) { /* используем встроенные уведомления */ }
-}
-
 // ── Загрузка чата с сервера ──────────────────────────────────
 async function loadChatDialogs() {
   if (!currentUser) return;

@@ -2,13 +2,8 @@
 
 // ═══ ADMIN ════════════════════════════════════════════════════════
 
-// Chat & notification state
+// Chat state
 let chatMessages = {}; // {clientEmail: [{from,text,time}]}
-let notifications = [
-  { id: 1, type: 'booking', icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>`, title: 'Новая запись', text: 'Иван Петров записался на Интервальный сайкл (сегодня 10:00)', time: '5 мин назад', read: false },
-  { id: 2, type: 'cancel', icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>`, title: 'Отмена записи', text: 'Мария Сидорова отменила запись на Байкфит стандарт', time: '1 час назад', read: false },
-  { id: 3, type: 'announce', icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>`, title: 'Анонс отправлен', text: 'Анонс «Новое расписание» доставлен всем клиентам', time: 'вчера', read: true },
-];
 let currentChatClient = null;
 
 // Seed demo chat
@@ -264,10 +259,6 @@ function renderAdmin() {
   _set('stat-total', total); _set('stat-confirmed', confirmed);
   _set('stat-pending', pending); _set('stat-revenue', revenue.toLocaleString('ru') + ' ₽');
 
-  // Notification badges
-  const unreadNotif = notifications.filter(n => !n.read).length;
-  const nb = document.getElementById('notif-badge');
-  nb.textContent = unreadNotif; nb.style.display = unreadNotif ? '' : 'none';
 
   const unreadChat = Object.values(chatMessages).filter(msgs => msgs.length && msgs[msgs.length - 1].from === 'client').length;
   const cb = document.getElementById('chat-badge');

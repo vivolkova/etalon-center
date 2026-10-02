@@ -37,18 +37,10 @@ function renderDashboard() {
     if (!sorted.length) { ptEl.innerHTML = '<div style="color:var(--ink-60);font-size:13px;padding:10px 0">Нет данных</div>'; }
     else ptEl.innerHTML = sorted.map(([name, cnt]) => '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span>' + name + '</span><strong>' + cnt + ' зап.</strong></div>').join('');
   }
-  // Лента активности
-  const afEl = document.getElementById('adm-activity-feed');
-  if (afEl) {
-    afEl.innerHTML = notifications.slice(0, 8).map(n => '<div class="activity-item"><div class="activity-dot" style="background:var(--green)"></div><div>' + n.title + ' — ' + n.text.slice(0, 50) + '</div><div class="activity-time">' + n.time + '</div></div>').join('') || '<div style="color:var(--ink-60);font-size:13px;padding:10px 0">Нет событий</div>';
-  }
   updateAdminBadges();
 }
 
 function updateAdminBadges() {
-  const unreadNotif = notifications.filter(n => !n.read).length;
-  const nb = document.getElementById('adm-badge-notif');
-  if (nb) { nb.textContent = unreadNotif; nb.style.display = unreadNotif ? '' : 'none'; }
   const unreadChat = Object.values(chatMessages).filter(msgs => msgs.length && msgs[msgs.length - 1].from === 'client').length;
   const cb = document.getElementById('adm-badge-chat');
   if (cb) { cb.textContent = unreadChat; cb.style.display = unreadChat ? '' : 'none'; }

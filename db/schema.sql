@@ -342,20 +342,6 @@ CREATE TABLE chat_messages (
     CONSTRAINT fk_chat_from FOREIGN KEY (from_user) REFERENCES users(id) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Уведомления ─────────────────────────────────────────────
-CREATE TABLE notifications (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    type        VARCHAR(32) DEFAULT 'info',
-    title       VARCHAR(255) NOT NULL,
-    message     TEXT,
-    target_user INT,
-    is_read     TINYINT(1) DEFAULT 0,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_target (target_user),
-    KEY idx_read (is_read)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- ── Сессии (server-side JWT/сессии) ─────────────────────────
 CREATE TABLE sessions (
     id          VARCHAR(64) PRIMARY KEY,

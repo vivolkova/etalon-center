@@ -18,14 +18,14 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261001-63">
-  <link rel="stylesheet" href="css/site.css?v=20261001-63">
-  <link rel="stylesheet" href="css/panels.css?v=20261001-63">
-  <link rel="stylesheet" href="css/library.css?v=20261001-63">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261001-63">
-  <link rel="stylesheet" href="css/admin.css?v=20261001-63">
+  <link rel="stylesheet" href="css/base.css?v=20261001-64">
+  <link rel="stylesheet" href="css/site.css?v=20261001-64">
+  <link rel="stylesheet" href="css/panels.css?v=20261001-64">
+  <link rel="stylesheet" href="css/library.css?v=20261001-64">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261001-64">
+  <link rel="stylesheet" href="css/admin.css?v=20261001-64">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261001-63">
+  <link rel="stylesheet" href="css/kit.css?v=20261001-64">
 </head>
 
 <body>
@@ -226,7 +226,7 @@
               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
               <path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z" />
-            </svg> Анонсы и акции</div>
+            </svg> Ближайшие занятия</div>
           <div class="cp-nav-item" onclick="switchClientTab('mybookings',this)"><svg width="16" height="16"
               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
@@ -253,9 +253,7 @@
 
         <!-- FEED -->
         <div class="cp-panel active" id="cp-feed">
-          <div class="cp-section-title">Анонсы и акции</div>
-          <div class="ann-grid" id="client-ann-grid"></div>
-          <div class="u-text-ui u-bold u-muted u-mb-12">БЛИЖАЙШИЕ ЗАНЯТИЯ</div>
+          <div class="cp-section-title">Ближайшие занятия</div>
           <div class="cp-slots-grid" id="feed-slots"></div>
         </div>
 
@@ -502,15 +500,6 @@
             Чат
             <span class="adm-nav-badge" id="adm-badge-chat" style="display:none">0</span>
           </div>
-          <div class="adm-nav-item" onclick="admNav('notif',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 01-3.46 0" />
-            </svg>
-            Уведомления
-            <span class="adm-nav-badge" id="adm-badge-notif" style="display:none">0</span>
-          </div>
           <div class="adm-nav-item" onclick="admNav('mailing',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -541,10 +530,6 @@
               <div class="adm-card-title">Популярные тренировки</div>
               <div id="adm-popular-trainings"></div>
             </div>
-          </div>
-          <div class="adm-card" style="margin-top:20px">
-            <div class="adm-card-title">Последние действия</div>
-            <div id="adm-activity-feed"></div>
           </div>
         </div>
 
@@ -888,16 +873,6 @@
           </div>
         </div>
 
-        <!-- УВЕДОМЛЕНИЯ -->
-        <div class="adm-panel" id="adm-notif">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Уведомления</h2>
-            <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openAnnounceModal()">Создать
-              анонс</button>
-          </div>
-          <div class="notif-list" id="notif-list"></div>
-        </div>
-
         <!-- РАССЫЛКИ -->
         <div class="adm-panel" id="adm-mailing">
           <div class="adm-panel-header">
@@ -1141,36 +1116,35 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261001-63"></script>
-  <script src="js/core.js?v=20261001-63"></script>
-  <script src="js/week-grid.js?v=20261001-63"></script>
-  <script src="js/auth.js?v=20261001-63"></script>
-  <script src="js/site/schedule.js?v=20261001-63"></script>
-  <script src="js/site/booking.js?v=20261001-63"></script>
-  <script src="js/site/individual.js?v=20261001-63"></script>
-  <script src="js/site/individual-page.js?v=20261001-63"></script>
-  <script src="js/site/services-bookings.js?v=20261001-63"></script>
-  <script src="js/admin/admin.js?v=20261001-63"></script>
-  <script src="js/admin/schedule.js?v=20261001-63"></script>
-  <script src="js/admin/journal.js?v=20261001-63"></script>
-  <script src="js/admin/journal-book.js?v=20261001-63"></script>
-  <script src="js/admin/chat.js?v=20261001-63"></script>
-  <script src="js/admin/notifications.js?v=20261001-63"></script>
-  <script src="js/client/panel.js?v=20261001-63"></script>
-  <script src="js/client/payment.js?v=20261001-63"></script>
-  <script src="js/client/chat-profile.js?v=20261001-63"></script>
-  <script src="js/site/detail-modals.js?v=20261001-63"></script>
-  <script src="js/admin/library.js?v=20261001-63"></script>
-  <script src="js/admin/data-nav.js?v=20261001-63"></script>
-  <script src="js/admin/dashboard.js?v=20261001-63"></script>
-  <script src="js/admin/specialists.js?v=20261001-63"></script>
-  <script src="js/admin/sales.js?v=20261001-63"></script>
-  <script src="js/admin/settings.js?v=20261001-63"></script>
-  <script src="js/admin/stations.js?v=20261001-63"></script>
-  <script src="js/admin/dictionaries.js?v=20261001-63"></script>
-  <script src="js/ui.js?v=20261001-63"></script>
-  <script src="js/loaders.js?v=20261001-63"></script>
-  <script src="js/init.js?v=20261001-63"></script>
+  <script src="js/api.js?v=20261001-64"></script>
+  <script src="js/core.js?v=20261001-64"></script>
+  <script src="js/week-grid.js?v=20261001-64"></script>
+  <script src="js/auth.js?v=20261001-64"></script>
+  <script src="js/site/schedule.js?v=20261001-64"></script>
+  <script src="js/site/booking.js?v=20261001-64"></script>
+  <script src="js/site/individual.js?v=20261001-64"></script>
+  <script src="js/site/individual-page.js?v=20261001-64"></script>
+  <script src="js/site/services-bookings.js?v=20261001-64"></script>
+  <script src="js/admin/admin.js?v=20261001-64"></script>
+  <script src="js/admin/schedule.js?v=20261001-64"></script>
+  <script src="js/admin/journal.js?v=20261001-64"></script>
+  <script src="js/admin/journal-book.js?v=20261001-64"></script>
+  <script src="js/admin/chat.js?v=20261001-64"></script>
+  <script src="js/client/panel.js?v=20261001-64"></script>
+  <script src="js/client/payment.js?v=20261001-64"></script>
+  <script src="js/client/chat-profile.js?v=20261001-64"></script>
+  <script src="js/site/detail-modals.js?v=20261001-64"></script>
+  <script src="js/admin/library.js?v=20261001-64"></script>
+  <script src="js/admin/data-nav.js?v=20261001-64"></script>
+  <script src="js/admin/dashboard.js?v=20261001-64"></script>
+  <script src="js/admin/specialists.js?v=20261001-64"></script>
+  <script src="js/admin/sales.js?v=20261001-64"></script>
+  <script src="js/admin/settings.js?v=20261001-64"></script>
+  <script src="js/admin/stations.js?v=20261001-64"></script>
+  <script src="js/admin/dictionaries.js?v=20261001-64"></script>
+  <script src="js/ui.js?v=20261001-64"></script>
+  <script src="js/loaders.js?v=20261001-64"></script>
+  <script src="js/init.js?v=20261001-64"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1255,34 +1229,6 @@
     </div>
   </div>
 
-  <!-- MODAL: ANNOUNCE -->
-  <div class="admin-modal-overlay" id="announce-modal">
-    <div class="admin-modal">
-      <div class="admin-modal-title">Новый анонс</div>
-      <div class="form-field">
-        <label class="form-label">Заголовок</label>
-        <input class="form-input" id="ann-title">
-      </div>
-      <div class="form-field">
-        <label class="form-label">Текст сообщения</label>
-        <textarea class="form-input" id="ann-text" rows="4" style="height:auto;resize:vertical"
-         ></textarea>
-      </div>
-      <div class="form-field">
-        <label class="form-label">Тип</label>
-        <select class="form-input" id="ann-type">
-          <option value="announce">Анонс</option>
-          <option value="info">Информация</option>
-          <option value="promo">Акция</option>
-        </select>
-      </div>
-      <div class="admin-modal-actions">
-        <button class="btn-ghost"
-          onclick="document.getElementById('announce-modal').classList.remove('show')">Отмена</button>
-        <button class="btn-primary" onclick="publishAnnounce()">Опубликовать</button>
-      </div>
-    </div>
-  </div>
 
 
 

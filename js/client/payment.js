@@ -129,13 +129,6 @@ function checkPaymentReturn() {
       // Убираем параметры из URL
       history.replaceState({}, '', window.location.pathname);
       showToast('Оплата прошла успешно', 'success');
-      notifications.unshift({
-        id: Date.now(), type: 'booking',
-        icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>`,
-        title: 'Оплата получена',
-        text: (b.clientId || '') + ' — ' + b.service + ' · ' + b.price.toLocaleString('ru') + ' ₽',
-        time: 'только что', read: false
-      });
     }
   }
 }
@@ -147,8 +140,6 @@ function cpPayBooking(id) {
   b.paymentStatus = 'paid';
   renderCpBookings();
   showToast('Оплата прошла успешно', 'success');
-  // Уведомление в панель администратора
-  notifications.unshift({ id: Date.now(), type: 'booking', icon: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg>`, title: 'Оплата получена', text: (currentUser?.name || '') + ' — ' + b.service + ' · ' + b.price.toLocaleString('ru') + ' ₽', time: 'только что', read: false });
 }
 
 async function cpCancelBooking(id) {

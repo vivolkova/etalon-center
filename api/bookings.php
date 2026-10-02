@@ -170,14 +170,6 @@ if ($method === 'POST' && $action === 'create') {
         // Настоящая защита от овербукинга — UNIQUE-индекс выше; это счётчик для отображения.
         $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id = ?')->execute([$slotId]);
 
-        // Уведомление администратору
-        $stmt = $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)');
-        $stmt->execute([
-            'booking',
-            'Новая запись',
-            $client['name'] . ' — ' . $slot['name'] . ($station ? ' (' . $station['label'] . ')' : '') . ' ' . $slot['slot_date']
-                . ($client['by_admin'] ? ' (записал администратор)' : ''),
-        ]);
 
         $db->commit();
         ok(['id' => (int)$bookingId, 'user_id' => $client['id']], 'Запись создана');
@@ -237,12 +229,6 @@ if ($method === 'PUT' && $action === 'status') {
             $db->prepare('UPDATE slots SET taken = taken + 1 WHERE id = ?')->execute([$slotId]);
         }
 
-        $db->prepare('INSERT INTO notifications (type,title,message) VALUES (?,?,?)')
-           ->execute([
-               $status === 'cancelled' ? 'cancel' : 'booking',
-               $status === 'cancelled' ? 'Запись отменена' : 'Запись обновлена',
-               $booking['slot_name'] . ' (запись #' . $id . ')',
-           ]);
 
         $db->commit();
         ok(null, 'Статус обновлён');

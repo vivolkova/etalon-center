@@ -161,66 +161,6 @@
   background: #fff;
 }
 
-/* ── NOTIFICATIONS ── */
-.notif-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.notif-card {
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 16px;
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-}
-
-.notif-card.unread {
-  border-left: 4px solid var(--green);
-}
-
-.notif-card.announce {
-  border-left: 4px solid var(--amber);
-}
-
-.notif-icon {
-  font-size: 0;
-  line-height: 0;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.notif-body {
-  flex: 1;
-}
-
-.notif-title {
-  font-size: 13px;
-  font-weight: 700;
-  margin-bottom: 3px;
-}
-
-.notif-text {
-  font-size: 12px;
-  color: var(--ink-60);
-  line-height: 1.5;
-}
-
-.notif-time {
-  font-size: 11px;
-  color: var(--ink-60);
-  margin-top: 6px;
-}
-
-.notif-actions {
-  display: flex;
-  gap: 6px;
-  margin-top: 8px;
-}
 
 /* ── SLOT/SERVICE MODALS ── */
 .admin-modal-overlay {
@@ -506,56 +446,6 @@
   gap: 8px;
 }
 
-/* announce cards */
-.ann-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-.ann-card {
-  background: #fff;
-  border-radius: var(--r-lg);
-  padding: 20px;
-  border-left: 4px solid var(--green);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, .06);
-}
-
-.ann-card.promo {
-  border-left-color: var(--warning);
-}
-
-.ann-card.info {
-  border-left-color: var(--kind-personal);
-}
-
-.ann-card-tag {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: .5px;
-  margin-bottom: 8px;
-  color: var(--ink-60);
-}
-
-.ann-card-title {
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-.ann-card-text {
-  font-size: 12px;
-  color: var(--ink-60);
-  line-height: 1.6;
-}
-
-.ann-card-time {
-  font-size: 11px;
-  color: var(--ink-60);
-  margin-top: 10px;
-}
 
 /* mini schedule in client panel */
 .cp-slots-grid {
@@ -688,9 +578,6 @@
     padding: 16px;
   }
 
-  .ann-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* ── DETAIL MODAL ── */

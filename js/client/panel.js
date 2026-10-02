@@ -40,22 +40,6 @@ function switchClientTab(name, el) {
 
 // ── FEED ──────────────────────────────────────────────────────────
 function renderClientFeed() {
-  // Announcements
-  const grid = document.getElementById('client-ann-grid');
-  const typeIcon = { announce: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22 11 13 2 9l20-7z"/></svg>`, info: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>`, promo: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"/></svg>` };
-  const typeLabel = { announce: 'Анонс', info: 'Информация', promo: 'Акция' };
-  const anns = notifications.filter(n => ['announce', 'info', 'promo'].includes(n.type)).slice(0, 6);
-  if (!anns.length) {
-    grid.innerHTML = `<div class="u-muted u-text-ui u-py-10">Нет анонсов</div>`;
-  } else {
-    grid.innerHTML = anns.map(n => `
-  <div class="ann-card ${n.type}">
-    <div class="ann-card-tag u-flex u-items-center u-gap-6">${typeIcon[n.type] || ''} ${typeLabel[n.type] || 'Анонс'}</div>
-    <div class="ann-card-title">${n.title}</div>
-    <div class="ann-card-text">${n.text}</div>
-    <div class="ann-card-time">${n.time}</div>
-  </div>`).join('');
-  }
   // Upcoming slots (today's dayOfWeek)
   const todayDow = (new Date().getDay() + 6) % 7;
   const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && slotFree(s) > 0).slice(0, 4);

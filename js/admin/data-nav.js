@@ -67,12 +67,11 @@ async function admNav(name, el) {
     subscriptions: loadSubPlans,
     specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll(), loadDictValues(), loadDictAvailability()]); },
     promos: loadPromos,
-    notif: loadNotifications,
     chat: loadChatDialogs,
     library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats(), loadDictAvailability(), loadDictValues()]); },
     settings: loadLocationsAll,
     finance: loadAdminBookings,
-    dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients(), loadNotifications()]); },
+    dashboard: async function () { await Promise.allSettled([loadAdminBookings(), loadClients()]); },
   };
   if (loaders[name]) await loaders[name]().catch(function () { });
 
@@ -90,7 +89,6 @@ async function admNav(name, el) {
     finance: renderFinance,
     promos: renderPromos,
     chat: renderChat,
-    notif: renderNotifications,
     mailing: renderMailing,
     settings: renderSettings,
   };

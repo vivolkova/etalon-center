@@ -30,7 +30,6 @@ renderSchedule();
   // 3. Если залогинен — загружаем персональные данные
   if (currentUser && Auth.isLoggedIn()) {
     await Promise.allSettled([
-      loadNotifications(),
       loadChatDialogs(),
       currentUser.role === 'admin' ? loadClients() : Promise.resolve(),
       currentUser.role === 'admin' ? loadAdminBookings() : loadMyBookings(),
