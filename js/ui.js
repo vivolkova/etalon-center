@@ -33,12 +33,13 @@ document.addEventListener('click', e => {
 
 // ═══ MULTI-SELECT: выпадающий список с выбором нескольких значений ═══
 
-// msHtml(id, options [{value, label}], selected [value…], placeholder, selectAll) — разметка;
-// selectAll — первым пунктом «Выбрать все». msValues(id) — выбранные значения (строки).
-function msHtml(id, options, selected, placeholder, selectAll) {
+// msHtml(id, options [{value, label}], selected [value…], placeholder, selectAll, required) — разметка;
+// selectAll — первым пунктом «Выбрать все»; required — обязательное поле (красная рамка, пока ничего не выбрано;
+// стиль — css/kit.css). msValues(id) — выбранные значения (строки).
+function msHtml(id, options, selected, placeholder, selectAll, required) {
   const sel = (selected || []).map(String);
   const allChecked = options.length && options.every(o => sel.includes(String(o.value)));
-  return '<div class="ms" id="' + id + '" data-placeholder="' + escAttr(placeholder || '— Выберите —') + '">' +
+  return '<div class="ms' + (required ? ' is-required' : '') + '" id="' + id + '" data-placeholder="' + escAttr(placeholder || '— Выберите —') + '">' +
     '<button type="button" class="form-input ms-btn">' + msLabel(options.filter(o => sel.includes(String(o.value))).map(o => o.label), placeholder) + '</button>' +
     '<div class="ms-panel">' +
     (selectAll ? '<label class="ms-opt ms-all"><input type="checkbox" data-ms-all' + (allChecked ? ' checked' : '') + '> Выбрать все</label>' : '') +

@@ -121,8 +121,8 @@ function openStationModal(id, x, y) {
   const types = STATION_TYPES.filter(function (t) { return Number(t.active) || (s && Number(t.id) === s.type_id); });
   const body =
     '<div class="form-field"><label class="form-label">Название (номер на схеме)</label>' +
-    '<input class="form-input" id="stm-label" value="' + escAttr(s ? s.label : '') + '"></div>' +
-    '<div class="form-field"><label class="form-label">Тип станка</label><select class="form-input" id="stm-type">' +
+    '<input class="form-input" id="stm-label" required value="' + escAttr(s ? s.label : '') + '"></div>' +
+    '<div class="form-field"><label class="form-label">Тип станка</label><select class="form-input" id="stm-type" required>' +
     types.map(function (t) { return '<option value="' + t.id + '"' + (s && Number(t.id) === s.type_id ? ' selected' : '') + '>' + escAttr(t.name) + '</option>'; }).join('') +
     '</select></div>' +
     '<div class="set-hint u-mb-10">Место: ряд ' + ((s ? s.pos_y : y) + 1) + ', колонка ' + ((s ? s.pos_x : x) + 1) +
@@ -191,7 +191,7 @@ function openStationTypeModal(id) {
   const t = id ? STATION_TYPES.find(function (v) { return Number(v.id) === id; }) : null;
   const body =
     '<div class="form-field"><label class="form-label">Название</label>' +
-    '<input class="form-input" id="stt-name" value="' + escAttr(t ? t.name : '') + '"></div>' +
+    '<input class="form-input" id="stt-name" required value="' + escAttr(t ? t.name : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Иконка (SVG)</label>' +
     '<textarea class="form-input" id="stt-icon" rows="4" style="height:auto;font-family:monospace;font-size:11px" placeholder="<svg viewBox=&quot;0 0 64 64&quot;>…</svg>">' + escAttr(t && t.icon ? t.icon : '') + '</textarea>' +
     '<div class="st-type-ico u-mt-6" id="stt-preview">' + (t && t.icon ? t.icon : '') + '</div></div>' +

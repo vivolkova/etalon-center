@@ -70,10 +70,10 @@ function openDictModal(id, group) {
   const body =
     '<div class="set-hint u-mb-10">' + escAttr(DICT_GROUP_LABEL[g] || g) + '</div>' +
     '<div class="form-field"><label class="form-label">Название</label>' +
-    '<input class="form-input" id="dm-name" value="' + escAttr(d ? d.name : '') + '"></div>' +
+    '<input class="form-input" id="dm-name" required value="' + escAttr(d ? d.name : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Код</label>' +
     (d ? '<div class="form-input form-view">' + escAttr(d.code) + '</div>'
-       : '<input class="form-input" id="dm-code">') +
+       : '<input class="form-input" id="dm-code" required>') +
     '<div class="set-hint">Латиница, цифры и _. После создания не меняется — на код опирается приложение.</div></div>' +
     (DICT_CATEGORY_GROUPS.indexOf(g) >= 0
       ? '<div class="form-field"><label class="form-label">Кто ведёт (тип специалиста)</label><select class="form-input" id="dm-ref">' +
@@ -83,7 +83,7 @@ function openDictModal(id, group) {
       : '') +
     // Филиалы — явным списком (новый филиал автоматически не добавляется)
     '<div class="form-field"><label class="form-label">Филиалы</label>' +
-    msHtml('dm-locs', locOptions, d ? d.location_ids : [], '— Выберите филиалы —', true) + '</div>' +
+    msHtml('dm-locs', locOptions, d ? d.location_ids : [], '— Выберите филиалы —', true, true) + '</div>' +
     '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="dm-active"' + (!d || d.active ? ' checked' : '') + '> Активно</label></div>' +
     (g === 'service_category' && !d

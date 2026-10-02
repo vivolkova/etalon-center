@@ -144,7 +144,7 @@ function trmTypesHtml(t) {
   cur.forEach(function (code) {
     if (!list.some(function (x) { return x.code === code; })) list.push({ code: code, name: specTypeName(code) + ' (отключён)' });
   });
-  return msHtml('trm-types', list.map(function (x) { return { value: x.code, label: x.name }; }), cur, '— Выберите специализацию —');
+  return msHtml('trm-types', list.map(function (x) { return { value: x.code, label: x.name }; }), cur, '— Выберите специализацию —', false, true);
 }
 
 function openTrainerModal(id, tab) {
@@ -166,7 +166,7 @@ function openTrainerModal(id, tab) {
     '</div>' +
     // ── Основное
     '<div data-trm-pane="main">' +
-    '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
+    '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" required value="' + (t ? t.full : '') + '" placeholder="Имя Фамилия"></div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
@@ -542,9 +542,9 @@ function openScheduleModal(specId, s) {
     }).join('') + '</span>';
   const body =
     '<div class="form-field"><label class="form-label">Название</label>' +
-    '<input class="form-input" id="sch-name" value="' + escAttr(s ? s.name : '') + '"></div>' +
+    '<input class="form-input" id="sch-name" required value="' + escAttr(s ? s.name : '') + '"></div>' +
     '<div class="form-row">' +
-    '<div class="form-field"><label class="form-label">С</label><input type="date" class="form-input" id="sch-from" value="' + (s ? s.date_from : '') + '"></div>' +
+    '<div class="form-field"><label class="form-label">С</label><input type="date" class="form-input" id="sch-from" required value="' + (s ? s.date_from : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">По</label>' +
     '<input type="date" class="form-input" id="sch-to" value="' + (s && s.date_to ? s.date_to : '') + '"></div>' +
     '</div>' +
@@ -608,9 +608,9 @@ function openExceptionModal(specId, e, type) {
   const custom = type === 'custom';
   const body =
     '<div class="form-row">' +
-    '<div class="form-field"><label class="form-label">С</label><input type="date" class="form-input" id="exc-from" value="' + (e ? e.date_from : '') + '"></div>' +
+    '<div class="form-field"><label class="form-label">С</label><input type="date" class="form-input" id="exc-from" required value="' + (e ? e.date_from : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">По</label>' +
-    '<input type="date" class="form-input" id="exc-to" value="' + (e ? e.date_to : '') + '"></div>' +
+    '<input type="date" class="form-input" id="exc-to" required value="' + (e ? e.date_to : '') + '"></div>' +
     '</div>' +
     (custom
       ? '<div class="form-field" id="exc-iv-wrap"><label class="form-label">Часы работы в эти даты</label><div id="exc-iv-body"></div></div>'

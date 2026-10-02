@@ -29,9 +29,9 @@ async function renderParamsTab() {
   if (!list.length) { box.innerHTML = '<div class="set-hint">Параметров нет</div>'; return; }
   box.innerHTML = list.map(function (p) {
     const input = p.type === 'int'
-      ? '<input class="form-input u-w-120" type="number" data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
+      ? '<input class="form-input u-w-120" type="number" required data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
         (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + '>'
-      : '<input class="form-input u-w-260" data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
+      : '<input class="form-input u-w-260" required data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
     return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
       '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.name) + '</label>' + input + '</div>';
   }).join('');

@@ -27,6 +27,22 @@
   font-size: 12px;
 }
 
+/* Обязательное поле. Пометка — атрибут required у input / select / textarea; у списка с выбором нескольких
+   значений (msHtml в js/ui.js) — класс is-required. Пока поле не заполнено или заполнено неверно
+   (нет значения, некорректный email, число вне диапазона) — красная рамка; заполнили — обычная. */
+input:required:invalid,
+select:required:invalid,
+textarea:required:invalid,
+.ms.is-required:not(:has(.ms-panel input:checked)) .ms-btn {
+  border-color: var(--danger);
+}
+
+input:required:invalid:focus,
+select:required:invalid:focus,
+textarea:required:invalid:focus {
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+
 /* Подпись с флажком или переключателем: «☑ Действующий филиал» */
 .check-label {
   display: flex;
