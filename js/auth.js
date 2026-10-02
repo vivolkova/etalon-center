@@ -112,7 +112,13 @@ async function loadMyBookings() {
         type: b.type || null,
         date: b.slot_date,
         time: b.start_time ? b.start_time.slice(0, 5) : '',
+        dur: Number(b.duration),
         specialist: b.specialist_name || '',
+        // для переноса записи клиентом (js/client/panel.js cpMoveBooking)
+        individual: Number(b.auto_created) === 1,
+        libraryId: b.library_id != null ? Number(b.library_id) : null,
+        specialistId: b.specialist_id != null ? Number(b.specialist_id) : null,
+        stationId: b.station_id != null ? Number(b.station_id) : null,
         location_id: b.location_id != null ? Number(b.location_id) : null,
         price: Number(b.price),
         status: b.status,

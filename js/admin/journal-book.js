@@ -12,6 +12,8 @@
 // без личного кабинета (middleware/booking_client.php). Один телефон — один клиент.
 // Свободное время и станки считает сервер (api/individual.php: times, stations), он же всё перепроверяет при записи.
 // На администратора не действует окно записи клиента (не позже чем за N минут, не дальше M дней).
+// Эта же форма — перенос своей записи клиентом из кабинета («Мои записи», js/client/panel.js cpMoveBooking):
+//   jb.self = true — блока «Клиент» нет, день ограничен окном записи, после переноса обновляется кабинет.
 
 // ═══ JOURNAL BOOKING ══════════════════════════════════════════════
 
@@ -54,7 +56,7 @@ function jbBuildModal(loc) {
   el.innerHTML = '<div class="admin-modal u-max-w-560">'
     + '<div class="admin-modal-title">' + (jbIsMove() ? 'Перенос записи' : 'Запись клиента') + '</div>'
     + '<div class="jr-card-sub" id="jb-sub"></div>'
-    + '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>'
+    + (jb.self ? '' : '<div class="form-field"><label class="form-label">Клиент</label><div id="jb-client"></div></div>')
     + '<div id="jb-body"></div>'
     + (jbIsMove() ? '' : '<div class="form-field"><label class="form-label">Комментарий</label><textarea class="form-input form-textarea" id="jb-notes" rows="1"></textarea></div>')
     + '<div class="ind-total" id="jb-total"></div>'
@@ -104,7 +106,9 @@ async function jbGroupMoveDay(date) {
     .map(function (x) {
       const from = timeToMin(x.start_time.slice(0, 5));
       return { id: Number(x.id), name: x.name, from: from, to: from + Number(x.duration), specialist: x.specialist_full || x.specialist_name || '', price: Number(x.price) };
-    });
+    })
+    // клиенту — только тренировки, которые ещё не начались (своя текущая остаётся: на ней можно сменить станок)
+    .filter(function (x) { return !jb.self || x.id === jb.gmove.slotId || new Date(date + 'T' + minToTime(x.from)) > new Date(); });
   // Остаёмся на той же тренировке, если она в этот день; иначе тренировку нужно выбрать
   if (!jb.slots.some(function (x) { return x.id === jb.target; })) jb.target = null;
   jbGroupMoveTarget(jb.target);
@@ -223,6 +227,7 @@ function jbItem() { return jb.items.find(function (i) { return i.id === jb.item;
 // ── Клиент: поиск в базе по телефону или новый ──
 function jbRenderClient() {
   const box = document.getElementById('jb-client');
+  if (!box) return;   // клиент переносит свою запись — блока «Клиент» нет
   if (jb.client) {
     box.innerHTML = '<div class="jb-picked"><div><b>' + escAttr(jb.client.name) + '</b><span>' + escAttr(jb.client.phone || '') + '</span></div>'
       + (jbIsMove() ? '' : '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button>') + '</div>';
@@ -332,7 +337,7 @@ function jbRenderBody() {
   const it = jbItem();
   const chips = function (list) { return '<div class="filter-chips">' + list.join('') + '</div>'; };
   let h = '';
-  if (jb.move) h += field('День', '<input type="date" class="form-input" required min="' + fmtLocalDate(today) + '" value="' + jb.date + '" onchange="jbMoveDate(this.value)">');
+  if (jb.move) h += field('День', '<input type="date" class="form-input" required min="' + fmtLocalDate(today) + '"' + (jb.maxDate ? ' max="' + jb.maxDate + '"' : '') + ' value="' + jb.date + '" onchange="jbMoveDate(this.value)">');
   if (jb.items.length > 1) {
     h += field(it.cat === 'training' ? 'Тренировка' : 'Услуга', chips(jb.items.map(function (i) {
       return indChip(escAttr(i.name), i.id === jb.item, 'jbPick(' + i.id + ')');
@@ -359,7 +364,7 @@ function jbRenderBody() {
       + jb.times.map(function (m) { return '<option value="' + minToTime(m) + '"' + (m === jb.start ? ' selected' : '') + '>' + minToTime(m) + '–' + minToTime(m + jb.dur) + '</option>'; }).join('')
       + '</select>';
     if (jb.start === null && jb.wantStart !== null) {
-      time += '<div class="ind-hint">На ' + minToTime(jb.wantStart) + ' записать нельзя (занято или не работает) — выберите другое время</div>';
+      time += '<div class="ind-hint">На ' + minToTime(jb.wantStart) + (jb.move ? ' перенести' : ' записать') + ' нельзя (занято или не работает) — выберите другое время</div>';
     }
   }
   h += field('Время', time);
@@ -480,7 +485,8 @@ async function jbSubmitMove() {
   }
   const d = parseLocalDate(mine.date);
   jbClose();
-  showToast(mine.client.name + ': запись перенесена на ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(mine.start), 'success');
+  showToast((mine.self ? 'Запись перенесена на ' : mine.client.name + ': запись перенесена на ') + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(mine.start), 'success');
+  if (mine.self) { await cpAfterMove(); return; }
   await jrLoad();
   renderJournal();
 }
@@ -498,9 +504,12 @@ async function jbSubmitGroupMove() {
     return;
   }
   const d = parseLocalDate(mine.date), sameSlot = mine.target === mine.gmove.slotId;
+  const st = mine.hall.stations.find(function (x) { return Number(x.id) === mine.station; });
   jbClose();
-  showToast(mine.client.name + (sameSlot ? ': станок изменён — ' + jrStationLabel(mine.station)
-    : ': запись перенесена на ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(t.from) + ' · ' + t.name), 'success');
+  const what = sameSlot ? 'станок изменён — ' + (st ? st.label : '')
+    : 'запись перенесена на ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(t.from) + ' · ' + t.name;
+  showToast(mine.self ? what[0].toUpperCase() + what.slice(1) : mine.client.name + ': ' + what, 'success');
+  if (mine.self) { await cpAfterMove(); return; }
   // Счётчики мест и недельное расписание берут данные из слотов — перечитываем и их
   await Promise.allSettled([jrLoad(), loadSlots(jrDate, jrDate)]);
   renderJournal();

@@ -150,7 +150,7 @@ const IndividualAPI = {
   async create(data) {
     return apiRequest('/individual.php?action=create', 'POST', data);
   },
-  // Перенос индивидуальной записи (админ): {booking_id, date, start, duration, specialist_id, station_id}
+  // Перенос индивидуальной записи (админ — любой, клиент — своей): {booking_id, date, start, duration, specialist_id, station_id}
   async move(data) {
     return apiRequest('/individual.php?action=move', 'PUT', data);
   },
@@ -180,7 +180,7 @@ const BookingsAPI = {
   async createFor(data) {
     return apiRequest('/bookings.php?action=create', 'POST', data);
   },
-  // Перенос записи на групповую тренировку (админ): {booking_id, slot_id, station_id} — другой станок или другая тренировка
+  // Перенос записи на групповую тренировку (админ — любой, клиент — своей): {booking_id, slot_id, station_id} — другой станок или другая тренировка
   async move(data) {
     return apiRequest('/bookings.php?action=move', 'PUT', data);
   },

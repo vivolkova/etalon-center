@@ -58,6 +58,16 @@ function bookingClient(PDO $db, array $actor, array $d): array {
     return ['id' => (int)$db->lastInsertId(), 'name' => $name, 'by_admin' => true, 'created' => true];
 }
 
+// Клиент переносит свою запись сам, пока до её начала больше client_booking_lead_minutes (тот же параметр,
+// что у записи); позже — через администратора. $date, $time — начало переносимого занятия. Текст ошибки или null
+function bookingMoveLate(PDO $db, int $locId, string $date, string $time): ?string {
+    $now   = branchNow($db, $locId);
+    $lead  = settingInt($db, 'client_booking_lead_minutes', 60);
+    $start = new DateTimeImmutable($date . ' ' . substr($time, 0, 5), $now->getTimezone());
+    if ($start >= $now->modify('+' . $lead . ' minutes')) return null;
+    return 'Перенести запись самостоятельно можно не позже чем за ' . fmtMinutes($lead) . ' до начала — свяжитесь с администратором';
+}
+
 // Клиент уже записан на другое занятие, пересекающееся по времени. Текст ошибки или null.
 // $skipSlot — занятие, которое не считаем (перенос записи: её собственное время не помеха)
 function bookingClientClash(PDO $db, int $userId, string $date, int $start, int $dur, bool $byAdmin = false, int $skipSlot = 0): ?string {

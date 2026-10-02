@@ -14,7 +14,8 @@ if ($method === 'GET' && $action === 'my') {
     $db   = getDB();
     $stmt = $db->prepare('
         SELECT b.*, s.name AS slot_name, s.slot_date, s.start_time, s.duration, s.price AS price, dc.code AS category,
-               dt.code AS type, s.location_id, t.name AS specialist_name, st.label AS station_label
+               dt.code AS type, s.location_id, s.library_id, s.specialist_id, s.auto_created,
+               t.name AS specialist_name, st.label AS station_label
         FROM bookings b
         JOIN slots s ON b.slot_id = s.id
         JOIN dictionaries dc ON s.category_id = dc.id
@@ -180,12 +181,15 @@ if ($method === 'POST' && $action === 'create') {
     }
 }
 
-// PUT ?action=move — перенос записи на групповую тренировку (только администратор): {booking_id, slot_id, station_id}.
+// PUT ?action=move — перенос записи на групповую тренировку (администратор — любой, клиент — своей):
+// {booking_id, slot_id, station_id}.
 // slot_id — та же тренировка (пересадка на другой станок) или другая групповая тренировка этого же филиала.
 // Запись, комментарий и отметка об оплате сохраняются. Оплаченную запись нельзя перенести на тренировку с другой
 // ценой (оплаты и возвратов пока нет). Запись, которая уже началась, и перенос на прошедшую тренировку — нельзя.
+// Клиент переносит не позже чем за client_booking_lead_minutes до начала.
 if ($method === 'PUT' && $action === 'move') {
-    authAdmin();
+    $user  = authUser();
+    $admin = ($user['role'] ?? '') === 'admin';
     $d = input();
     require_fields($d, ['booking_id', 'slot_id', 'station_id']);
     $db = getDB();
@@ -199,7 +203,9 @@ if ($method === 'PUT' && $action === 'move') {
                         WHERE b.id = ? AND b.status <> 'cancelled' AND s.active = 1");
     $st->execute([$bookingId]);
     $cur = $st->fetch();
-    if (!$cur || (int)$cur['auto_created']) err('Запись не найдена или это не запись на групповую тренировку', 404);
+    if (!$cur || (int)$cur['auto_created'] || (!$admin && (int)$cur['user_id'] !== (int)$user['id'])) {
+        err('Запись не найдена или это не запись на групповую тренировку', 404);
+    }
     $fromId = (int)$cur['slot_id'];
     $locId  = (int)$cur['location_id'];
 
@@ -216,6 +222,7 @@ if ($method === 'PUT' && $action === 'move') {
     $at  = fn(array $slot) => new DateTimeImmutable($slot['slot_date'] . ' ' . substr($slot['start_time'], 0, 5), $now->getTimezone());
     if ($at($cur) < $now) err('Занятие уже началось или прошло — такую запись перенести нельзя');
     if ($toId !== $fromId && $at($to) < $now) err('Нельзя перенести запись на прошедшую тренировку');
+    if (!$admin && ($e = bookingMoveLate($db, $locId, $cur['slot_date'], $cur['start_time']))) err($e);
 
     if ($cur['payment_status'] === 'paid' && (int)$to['price'] !== (int)$cur['price']) {
         err('Запись оплачена (' . number_format((int)$cur['price'], 0, '', ' ') . ' ₽), а у выбранной тренировки цена '
@@ -234,9 +241,9 @@ if ($method === 'PUT' && $action === 'move') {
     if ($toId !== $fromId) {
         $st = $db->prepare('SELECT id FROM bookings WHERE user_id=? AND slot_id=? AND status <> "cancelled"');
         $st->execute([(int)$cur['user_id'], $toId]);
-        if ($st->fetch()) $fail('Клиент уже записан на эту тренировку');
+        if ($st->fetch()) $fail($admin ? 'Клиент уже записан на эту тренировку' : 'Вы уже записаны на эту тренировку');
         // Клиент не занят в это время на другом занятии (свою переносимую запись не считаем)
-        $clash = bookingClientClash($db, (int)$cur['user_id'], $to['slot_date'], specTimeToMin(substr($to['start_time'], 0, 5)), (int)$to['duration'], true, $fromId);
+        $clash = bookingClientClash($db, (int)$cur['user_id'], $to['slot_date'], specTimeToMin(substr($to['start_time'], 0, 5)), (int)$to['duration'], $admin, $fromId);
         if ($clash) $fail($clash);
         if ($taken[$toId] >= bookingHallCapacity($db, $toId, $locId)) $fail('На этой тренировке свободных мест нет');
     }

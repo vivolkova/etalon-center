@@ -96,10 +96,61 @@ function renderCpBookings() {
   </div>
   <div class="u-flex u-gap-6 u-shrink-0">
     ${b.status === 'booked' && b.paymentStatus !== 'paid' ? `<button class="btn-pay" onclick="openPaymentModal(${b.id})">Оплатить</button>` : ''}
+    ${cpCanMove(b) ? `<button class="action-btn confirm" onclick="cpMoveBooking(${b.id})">Перенести</button>` : ''}
     ${b.status !== 'cancelled' ? `<button class="btn-cancel" onclick="cpCancelBooking(${b.id})">Отменить</button>` : ''}
   </div>
 </div>`;
   }).join('');
+}
+
+// ── ПЕРЕНОС СВОЕЙ ЗАПИСИ ──────────────────────────────────────────
+// Та же форма, что у администратора в журнале записи (js/admin/journal-book.js), без выбора клиента.
+// Индивидуальная запись: день, время, длительность, специалист, станок; групповая — другой станок или другая
+// групповая тренировка этого филиала. Срок (не позже чем за N минут до начала) и окно записи проверяет сервер.
+
+// Перенести можно активную запись на занятие, которое ещё не началось
+function cpCanMove(b) {
+  return b.status === 'booked' && new Date(b.date + 'T' + b.time) > new Date();
+}
+
+async function cpMoveBooking(id) {
+  const b = bookings.find(x => Number(x.id) === id);
+  const loc = b && LOCATIONS.find(l => Number(l.id) === b.location_id);
+  if (!b || !loc) return;
+  const from = timeToMin(b.time);
+  const was = { bookingId: Number(b.id), slotId: Number(b.slotId), from: from, to: from + b.dur, price: b.price, paid: b.paymentStatus === 'paid' };
+  const base = {
+    self: true, locId: Number(loc.id), date: b.date, isNew: false, hall: null,
+    client: { id: currentUser.id, name: currentUser.name },
+  };
+  if (!b.individual) {
+    was.station = b.stationId;
+    jb = Object.assign(base, { gmove: was, items: [], item: null, slots: null, target: was.slotId, station: b.stationId });
+    jbBuildModal(loc);
+    jbGroupMoveDay(jb.date);
+    return;
+  }
+  // Варианты берём свежие: специалистов и длительности могли поменять
+  let opts;
+  try { opts = await IndividualAPI.options(loc.id); } catch (e) { return; }
+  const item = opts.items.find(i => i.id === b.libraryId);
+  if (!item || !item.bookable) { showToast('Это занятие больше недоступно для записи — отмените запись и запишитесь заново', 'error'); return; }
+  const max = parseLocalDate(opts.today);
+  max.setDate(max.getDate() + opts.horizon_days);
+  jb = Object.assign(base, {
+    move: was, maxDate: fmtLocalDate(max), items: [item], step: opts.step, fixedSpec: null,
+    item: item.id, spec: b.specialistId, dur: b.dur,
+    wantStart: from, wantStation: b.stationId, start: null, station: null, times: null, message: '',
+  });
+  jbBuildModal(loc);
+  jbLoadTimes();
+}
+
+// После переноса: свои записи и слоты — заново (счётчики мест групповых тренировок)
+async function cpAfterMove() {
+  await Promise.allSettled([loadMyBookings(), loadSlots()]);
+  renderCpBookings();
+  renderWeekCal();
 }
 
 

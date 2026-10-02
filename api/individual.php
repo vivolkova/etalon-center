@@ -115,6 +115,16 @@ function indArgs(PDO $db, array $p): array {
     return [$lib, $specId, $dur];
 }
 
+// Перенос записи: занятие, которое не считаем занятым (его время и станок свободны для него самого).
+// Администратор переносит любую запись; клиент — только свою индивидуальную, чужое занятие не пропускаем
+function indSkipSlot(PDO $db, array $user, int $slotId): int {
+    if (!$slotId || ($user['role'] ?? '') === 'admin') return $slotId;
+    $st = $db->prepare("SELECT 1 FROM bookings b JOIN slots s ON s.id = b.slot_id
+                        WHERE s.id = ? AND s.active = 1 AND s.auto_created = 1 AND b.user_id = ? AND b.status <> 'cancelled'");
+    $st->execute([$slotId, (int)$user['id']]);
+    return $st->fetchColumn() ? $slotId : 0;
+}
+
 // ═══ Занятость и свободное время — расчёт в памяти по данным, загруженным один раз на диапазон дат ═══
 // Те же правила, что в slot_rules.php (зал, график специалиста, его занятия) плюс записи клиента и станки.
 // Используется для показа (week / times / stations); при записи всё перепроверяет slotRuleError в транзакции.
@@ -338,8 +348,8 @@ if ($method === 'GET' && $action === 'times') {
     // выбранного клиента (user_id), если он уже выбран
     $admin = ($user['role'] ?? '') === 'admin';
     $forId = $admin ? (int)($_GET['user_id'] ?? 0) : (int)$user['id'];
-    // Перенос записи (администратор): переносимое занятие не считаем занятым временем
-    $skip  = $admin ? (int)($_GET['skip_slot_id'] ?? 0) : 0;
+    // Перенос записи: переносимое занятие не считаем занятым временем
+    $skip  = indSkipSlot($db, $user, (int)($_GET['skip_slot_id'] ?? 0));
 
     $none = fn(string $m) => ok(['times' => [], 'message' => $m]);
     if (!$admin && ($e = indWindowError($db, $locId, $date))) $none($e);
@@ -388,8 +398,8 @@ if ($method === 'GET' && $action === 'week') {
 // {cols, rows, stations: [{id, label, pos_x, pos_y, icon, type_name, state: free|taken}]}. Не тренировка — станков нет
 if ($method === 'GET' && $action === 'stations') {
     $user = authUser();
-    $skip = ($user['role'] ?? '') === 'admin' ? (int)($_GET['skip_slot_id'] ?? 0) : 0;   // перенос записи: её станок свободен
     $db = getDB();
+    $skip = indSkipSlot($db, $user, (int)($_GET['skip_slot_id'] ?? 0));   // перенос записи: её станок свободен
     $lib = indLibrary($db, (int)($_GET['library_id'] ?? 0));
     $dur = (int)($_GET['duration'] ?? 0) ?: (int)$lib['duration'];
     if (!in_array($dur, indDurations($db, $lib), true)) err('Недопустимая длительность');
@@ -463,13 +473,15 @@ if ($method === 'POST' && $action === 'create') {
     ok(['slot_id' => $slotId, 'booking_id' => $bookingId, 'user_id' => $client['id']], 'Запись создана');
 }
 
-// PUT ?action=move — перенос индивидуальной записи (только администратор):
+// PUT ?action=move — перенос индивидуальной записи (администратор — любой, клиент — своей):
 // {booking_id, date, start, duration?, specialist_id?, station_id?}. Меняются день, время, длительность, специалист и
 // станок; клиент и само занятие (запись библиотеки) остаются. Запись, комментарий и отметка об оплате сохраняются.
 // Правила те же, что при записи, только переносимое занятие само себе не мешает. Оплаченную запись нельзя
 // перенести с изменением цены (оплаты и возвратов пока нет). Прошедшую запись и на прошедшее время — нельзя.
+// Клиент переносит не позже чем за client_booking_lead_minutes до начала, новое время — в окне записи.
 if ($method === 'PUT' && $action === 'move') {
-    authAdmin();
+    $user  = authUser();
+    $admin = ($user['role'] ?? '') === 'admin';
     $d  = input();
     require_fields($d, ['booking_id', 'date', 'start']);
     $db = getDB();
@@ -481,7 +493,7 @@ if ($method === 'PUT' && $action === 'move') {
                         WHERE b.id = ? AND b.status <> 'cancelled' AND s.active = 1 AND s.auto_created = 1");
     $st->execute([(int)$d['booking_id']]);
     $cur = $st->fetch();
-    if (!$cur) err('Запись не найдена или это не индивидуальная запись', 404);
+    if (!$cur || (!$admin && (int)$cur['user_id'] !== (int)$user['id'])) err('Запись не найдена или это не индивидуальная запись', 404);
     $slotId = (int)$cur['slot_id'];
 
     [$lib, $specId, $dur] = indArgs($db, [
@@ -504,6 +516,10 @@ if ($method === 'PUT' && $action === 'move') {
     $at  = fn(string $day, string $time) => new DateTimeImmutable($day . ' ' . substr($time, 0, 5), $now->getTimezone());
     if ($at($cur['slot_date'], $cur['start_time']) < $now) err('Занятие уже началось или прошло — такую запись перенести нельзя');
     if ($at($date, minToTimeStr($start)) < $now) err('Нельзя перенести запись на прошедшее время');
+    if (!$admin) {
+        if ($e = bookingMoveLate($db, (int)$lib['location_id'], $cur['slot_date'], $cur['start_time'])) err($e);
+        if ($e = indWindowError($db, (int)$lib['location_id'], $date, $start)) err($e);
+    }
 
     $price = indPrice($db, $lib, $dur);
     if ($cur['payment_status'] === 'paid' && $price !== (int)$cur['price']) {
@@ -516,7 +532,7 @@ if ($method === 'PUT' && $action === 'move') {
     $slot = indSlot($lib, $specId, $date, $start, $dur);
     $slot['id'] = $slotId;   // само занятие себе не мешает
     $e = slotRuleError($db, $slot, true)
-        ?? bookingClientClash($db, (int)$cur['user_id'], $date, $start, $dur, true, $slotId);
+        ?? bookingClientClash($db, (int)$cur['user_id'], $date, $start, $dur, $admin, $slotId);
     if ($e === null && $stationId) {
         $free = indFreeStations(indLoad($db, $lib, null, 0, $date, $date, $slotId), $date, $start, $start + $dur);
         if (!in_array($stationId, $free, true)) $e = 'Этот станок недоступен на выбранное время — выберите другой';
