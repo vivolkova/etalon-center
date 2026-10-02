@@ -29,6 +29,24 @@ document.addEventListener('click', e => {
   if (t instanceof Element && Array.from(t.classList).some(c => c.endsWith('modal-overlay'))) e.stopPropagation();
 }, true);
 
+// ═══ MODALS: CLOSE ON ESC ════════════════════════════════════════
+
+// Esc закрывает верхнее открытое окно — так же, как его собственная кнопка («×», «Отмена», «Закрыть»):
+// нажимаем эту кнопку, поэтому срабатывает вся уборка формы. Правило общее — действует и для новых модалок.
+// Открытый выпадающий список (.ms) Esc сначала сворачивает, окно остаётся.
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const list = document.querySelector('.ms.open');
+  if (list) { list.classList.remove('open'); return; }
+  const open = Array.from(document.querySelectorAll('.show')).filter(m => Array.from(m.classList).some(c => c.endsWith('modal-overlay')));
+  const modal = open[open.length - 1];
+  if (!modal) return;
+  const visible = b => b.offsetParent !== null && !b.disabled;
+  const btn = Array.from(modal.querySelectorAll('.modal-close, [data-act="cancel"]')).find(visible)
+    || Array.from(modal.querySelectorAll('button')).find(b => visible(b) && /^(Отмена|Закрыть)$/.test(b.textContent.trim()));
+  if (btn) btn.click(); else modal.classList.remove('show');
+});
+
 
 
 // ═══ ТЕЛЕФОН: одно поле для всех мест, где телефон вводится целиком ═══
