@@ -282,8 +282,6 @@ async function confirmAddToSchedule() {
     return;
   }
   closeLtsModal();
-  const schTab = document.querySelector('.atab[onclick*="schedule"]');
-  if (schTab) switchAdminTab('schedule', schTab);
   renderAdminSchedule();
   if (failed.length) showToast('Добавлено ' + added + ' из ' + total + '. Не добавлены: ' + ltsFailText(failed), 'error');
   else showToast('Добавлено ' + added + ' занятий в расписание', 'success');

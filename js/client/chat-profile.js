@@ -1,42 +1,4 @@
-// Кабинет клиента: чат и профиль
-
-// ── CLIENT CHAT ───────────────────────────────────────────────────
-function renderClientChat() {
-  const email = currentUser?.email;
-  if (!email) return;
-  if (!chatMessages[email]) chatMessages[email] = [];
-  const msgs = chatMessages[email];
-  const area = document.getElementById('client-chat-msgs');
-  area.innerHTML = msgs.length
-    ? msgs.map(m => `<div class="chat-msg ${m.from === 'admin' ? 'client' : 'admin'}">
-    <div>${m.text}</div>
-    <div class="chat-msg-meta">${m.from === 'admin' ? 'Администратор · ' : 'Вы · '}${m.time}</div>
-  </div>`).join('')
-    : `<div class="empty-state u-text-ui">Напишите нам — ответим в течение дня </div>`;
-  area.scrollTop = area.scrollHeight;
-  // Clear badge
-  document.getElementById('client-chat-badge').style.display = 'none';
-}
-
-function clientSendMsg() {
-  const input = document.getElementById('client-chat-input');
-  const text = input.value.trim();
-  if (!text || !currentUser) return;
-  const email = currentUser.email;
-  if (!chatMessages[email]) chatMessages[email] = [];
-  const now = new Date();
-  const time = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
-  chatMessages[email].push({ from: 'client', text, time });
-  input.value = '';
-  renderClientChat();
-  // Auto-reply simulation
-  setTimeout(() => {
-    chatMessages[email].push({ from: 'admin', text: 'Спасибо за сообщение! Мы ответим в ближайшее время. Если вопрос срочный — звоните: +7 495 000-00-00', time: (new Date().getHours()) + ':' + String(new Date().getMinutes()).padStart(2, '0') });
-    if (currentUser) renderClientChat();
-    // Also update admin chat
-    if (typeof renderChat === 'function') renderChat();
-  }, 1500);
-}
+// Кабинет клиента: профиль
 
 // ── PROFILE ───────────────────────────────────────────────────────
 function renderProfileForm() {

@@ -19,12 +19,6 @@ function renderClientPanel() {
   badge.className = 'cp-user-badge c-badge ' + (cData?.type || 'new');
   badge.textContent = { new: 'Новый', vip: 'VIP' }[cData?.type || 'new'] || 'Новый';
 
-  // Chat badge
-  const myMsgs = chatMessages[currentUser.email] || [];
-  const lastMsg = myMsgs[myMsgs.length - 1];
-  const chatBadge = document.getElementById('client-chat-badge');
-  chatBadge.style.display = (lastMsg && lastMsg.from === 'admin') ? '' : 'none';
-
   renderClientFeed();
 }
 
@@ -34,7 +28,6 @@ function switchClientTab(name, el) {
   el.classList.add('active');
   document.getElementById('cp-' + name).classList.add('active');
   if (name === 'mybookings') renderCpBookings();
-  if (name === 'chat') renderClientChat();
   if (name === 'profile') renderProfileForm();
 }
 
@@ -95,12 +88,25 @@ function renderCpBookings() {
     ${b.paymentStatus === 'paid' ? `<span class="pay-badge paid"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Оплачено</span>` : b.status === 'booked' ? `<span class="pay-badge unpaid">Не оплачено</span>` : ''}
   </div>
   <div class="u-flex u-gap-6 u-shrink-0">
-    ${b.status === 'booked' && b.paymentStatus !== 'paid' ? `<button class="btn-pay" onclick="openPaymentModal(${b.id})">Оплатить</button>` : ''}
     ${cpCanMove(b) ? `<button class="action-btn confirm" onclick="cpMoveBooking(${b.id})">Перенести</button>` : ''}
     ${b.status !== 'cancelled' ? `<button class="btn-cancel" onclick="cpCancelBooking(${b.id})">Отменить</button>` : ''}
   </div>
 </div>`;
   }).join('');
+}
+
+async function cpCancelBooking(id) {
+  if (!await uiConfirm('Отменить запись?')) return;
+  try {
+    await BookingsAPI.setStatus(id, 'cancelled');   // пишем в БД
+    // перечитываем свои записи и слоты (у группового освободилось место, индивидуальное снято целиком)
+    await Promise.allSettled([loadMyBookings(), loadSlots()]);
+    renderCpBookings();                               // перерисовываем кабинет
+    renderSitePages();                                // и открытый экран сайта
+    showToast('Запись отменена');
+  } catch (e) {
+    showToast('Не удалось отменить запись', 'error');
+  }
 }
 
 // ── ПЕРЕНОС СВОЕЙ ЗАПИСИ ──────────────────────────────────────────

@@ -18,14 +18,14 @@
     rel="stylesheet">
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/base.css?v=20261002-100">
-  <link rel="stylesheet" href="css/site.css?v=20261002-100">
-  <link rel="stylesheet" href="css/panels.css?v=20261002-100">
-  <link rel="stylesheet" href="css/library.css?v=20261002-100">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261002-100">
-  <link rel="stylesheet" href="css/admin.css?v=20261002-100">
+  <link rel="stylesheet" href="css/base.css?v=20261003-000">
+  <link rel="stylesheet" href="css/site.css?v=20261003-000">
+  <link rel="stylesheet" href="css/panels.css?v=20261003-000">
+  <link rel="stylesheet" href="css/library.css?v=20261003-000">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261003-000">
+  <link rel="stylesheet" href="css/admin.css?v=20261003-000">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261002-100">
+  <link rel="stylesheet" href="css/kit.css?v=20261003-000">
 </head>
 
 <body>
@@ -174,13 +174,6 @@
               stroke-linejoin="round">
               <path d="M2 9a3 3 0 010 6v2a2 2 0 002 2h16a2 2 0 002-2v-2a3 3 0 010-6V7a2 2 0 00-2-2H4a2 2 0 00-2 2v2z" />
             </svg> Мои записи</div>
-          <div class="cp-nav-item" onclick="switchClientTab('chat',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-            </svg> Чат с администратором
-            <span class="cp-nav-badge" id="client-chat-badge" style="display:none">!</span>
-          </div>
           <div class="cp-nav-item" onclick="switchClientTab('profile',this)"><svg width="16" height="16"
               viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
               stroke-linejoin="round">
@@ -208,29 +201,6 @@
             <button class="chip" onclick="cpBookingFilter('cancelled',this)">Отменённые</button>
           </div>
           <div class="bookings-list" id="cp-bookings-list"></div>
-        </div>
-
-        <!-- CHAT -->
-        <div class="cp-panel" id="cp-chat">
-          <div class="cp-section-title">Чат с администратором</div>
-          <div class="client-chat-layout">
-            <div class="client-chat-header">
-              <div class="u-flex u-items-center u-justify-center u-bold u-w-32 u-h-32 u-bg-white-20 u-round"
-               >
-                A</div>
-              <div>
-                <div>ETALONCENTER</div>
-                <div class="u-text-caption u-opacity-75">Служба поддержки · Онлайн</div>
-              </div>
-            </div>
-            <div class="client-chat-msgs" id="client-chat-msgs"></div>
-            <div class="client-chat-inp">
-              <input class="form-input" id="client-chat-input" placeholder="Напишите сообщение..."
-                onkeydown="if(event.key==='Enter')clientSendMsg()">
-              <button class="btn-primary u-nowrap"
-                onclick="clientSendMsg()">Отправить</button>
-            </div>
-          </div>
         </div>
 
         <!-- PROFILE -->
@@ -330,7 +300,6 @@
               <polyline points="14 2 14 8 20 8" />
             </svg>
             Записи
-            <span class="adm-nav-badge" id="adm-badge-bookings" style="display:none">0</span>
           </div>
           <div class="adm-nav-item" onclick="admNav('clients',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -377,137 +346,11 @@
             </svg>
             Настройки
           </div>
-          <div class="adm-nav-section adm-nav-section--later">В разработке</div>
-          <div class="adm-nav-item" onclick="admNav('dashboard',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="7" height="7" />
-              <rect x="14" y="3" width="7" height="7" />
-              <rect x="14" y="14" width="7" height="7" />
-              <rect x="3" y="14" width="7" height="7" />
-            </svg>
-            Дашборд
-          </div>
-          <div class="adm-nav-item" onclick="admNav('analytics',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="20" x2="18" y2="10" />
-              <line x1="12" y1="20" x2="12" y2="4" />
-              <line x1="6" y1="20" x2="6" y2="14" />
-            </svg>
-            Аналитика
-          </div>
-          <div class="adm-nav-item" onclick="admNav('subscriptions',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="1" y="4" width="22" height="16" rx="2" />
-              <path d="M1 10h22" />
-            </svg>
-            Абонементы
-          </div>
-          <div class="adm-nav-item" onclick="admNav('waitlist',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6" />
-              <line x1="8" y1="12" x2="21" y2="12" />
-              <line x1="8" y1="18" x2="21" y2="18" />
-              <line x1="3" y1="6" x2="3.01" y2="6" />
-              <line x1="3" y1="12" x2="3.01" y2="12" />
-              <line x1="3" y1="18" x2="3.01" y2="18" />
-            </svg>
-            Лист ожидания
-          </div>
-          <div class="adm-nav-item" onclick="admNav('finance',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="1" x2="12" y2="23" />
-              <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-            </svg>
-            Финансы
-          </div>
-          <div class="adm-nav-item" onclick="admNav('promos',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 12 20 22 4 22 4 12" />
-              <rect x="2" y="7" width="20" height="5" />
-              <path d="M12 22V7m0 0H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7zm0 0h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z" />
-            </svg>
-            Скидки и промокоды
-          </div>
-          <div class="adm-nav-item" onclick="admNav('chat',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-            </svg>
-            Чат
-            <span class="adm-nav-badge" id="adm-badge-chat" style="display:none">0</span>
-          </div>
-          <div class="adm-nav-item" onclick="admNav('mailing',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-              <polyline points="22,6 12,13 2,6" />
-            </svg>
-            Рассылки
-          </div>
         </nav>
       </aside>
 
       <!-- Основной контент -->
       <div class="adm-main">
-
-        <!-- ДАШБОРД -->
-        <div class="adm-panel" id="adm-dashboard">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Дашборд</h2>
-            <div id="adm-dash-date" style="font-size:13px;color:var(--ink-60)"></div>
-          </div>
-          <div class="adm-kpi-grid" id="adm-kpi-grid"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
-            <div class="adm-card">
-              <div class="adm-card-title">Записи сегодня</div>
-              <div id="adm-today-bookings"></div>
-            </div>
-            <div class="adm-card">
-              <div class="adm-card-title">Популярные тренировки</div>
-              <div id="adm-popular-trainings"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- АНАЛИТИКА -->
-        <div class="adm-panel" id="adm-analytics">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Аналитика</h2>
-            <select class="form-input" id="analytics-period" style="width:160px;height:36px;font-size:13px"
-              onchange="renderAnalytics()">
-              <option value="week">Эта неделя</option>
-              <option value="month">Этот месяц</option>
-              <option value="quarter">Квартал</option>
-            </select>
-          </div>
-          <div class="adm-kpi-grid" id="analytics-kpi"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
-            <div class="adm-card">
-              <div class="adm-card-title">Посещаемость по дням</div>
-              <div id="chart-attendance" style="height:200px"></div>
-            </div>
-            <div class="adm-card">
-              <div class="adm-card-title">Выручка по неделям</div>
-              <div id="chart-revenue" style="height:200px"></div>
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
-            <div class="adm-card">
-              <div class="adm-card-title">Популярность тренировок</div>
-              <div id="chart-trainings" style="height:200px"></div>
-            </div>
-            <div class="adm-card">
-              <div class="adm-card-title">Новые клиенты</div>
-              <div id="chart-clients" style="height:200px"></div>
-            </div>
-          </div>
-        </div>
 
         <!-- РАСПИСАНИЕ -->
         <!-- ЖУРНАЛ ЗАПИСИ: день филиала по станкам и специалистам (js/admin/journal.js) -->
@@ -705,155 +548,6 @@
           </div>
         </div>
 
-        <!-- АБОНЕМЕНТЫ -->
-        <div class="adm-panel" id="adm-subscriptions">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Абонементы</h2>
-            <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openSubModal(null)">+ Создать
-              абонемент</button>
-          </div>
-          <div
-            style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:28px"
-            id="sub-plans-grid"></div>
-          <div class="adm-card-title" style="margin-bottom:12px">Проданные абонементы</div>
-          <div class="admin-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Клиент</th>
-                  <th>Абонемент</th>
-                  <th>Куплен</th>
-                  <th>Истекает</th>
-                  <th>Занятий осталось</th>
-                  <th>Статус</th>
-                </tr>
-              </thead>
-              <tbody id="sub-sales-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ЛИСТ ОЖИДАНИЯ -->
-        <div class="adm-panel" id="adm-waitlist">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Лист ожидания</h2>
-          </div>
-          <div class="admin-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Клиент</th>
-                  <th>Тренировка</th>
-                  <th>Дата</th>
-                  <th>Добавлен</th>
-                  <th>Действия</th>
-                </tr>
-              </thead>
-              <tbody id="waitlist-tbody"></tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- ФИНАНСЫ -->
-        <div class="adm-panel" id="adm-finance">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Финансы</h2>
-            <select class="form-input" id="finance-period" style="width:160px;height:36px;font-size:13px"
-              onchange="renderFinance()">
-              <option value="week">Неделя</option>
-              <option value="month" selected>Месяц</option>
-              <option value="all">Всё время</option>
-            </select>
-          </div>
-          <div class="adm-kpi-grid" id="finance-kpi"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
-            <div class="adm-card">
-              <div class="adm-card-title">Транзакции</div>
-              <div id="finance-transactions"></div>
-            </div>
-            <div class="adm-card">
-              <div class="adm-card-title">Отчёт по клиентам</div>
-              <div id="finance-clients-report"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ПРОМОКОДЫ -->
-        <div class="adm-panel" id="adm-promos">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Скидки и промокоды</h2>
-            <button class="btn-primary" style="padding:8px 16px;font-size:13px" onclick="openPromoModal(null)">+ Создать
-              промокод</button>
-          </div>
-          <div id="promos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">
-          </div>
-        </div>
-
-        <!-- ЧАТ -->
-        <div class="adm-panel" id="adm-chat">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Чат с клиентами</h2>
-          </div>
-          <div class="chat-layout">
-            <div class="chat-sidebar">
-              <div class="chat-search"><input class="form-input" placeholder="Поиск клиента..."
-                  oninput="filterChats(this.value)" style="font-size:13px"></div>
-              <div class="chat-list" id="chat-list"></div>
-            </div>
-            <div class="chat-area">
-              <div class="chat-header" id="chat-header">
-                <div style="color:var(--ink-60);font-size:13px">Выберите чат слева</div>
-              </div>
-              <div class="chat-messages" id="chat-messages"></div>
-              <div class="chat-input-row" id="chat-input-row" style="display:none">
-                <input class="form-input" id="chat-input" placeholder="Сообщение..."
-                  onkeydown="if(event.key==='Enter')sendChatMsg()">
-                <button class="btn-primary" style="padding:10px 18px;white-space:nowrap"
-                  onclick="sendChatMsg()">Отправить</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- РАССЫЛКИ -->
-        <div class="adm-panel" id="adm-mailing">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Рассылки</h2>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-            <div class="adm-card">
-              <div class="adm-card-title" style="margin-bottom:14px">Новая рассылка</div>
-              <div class="form-field">
-                <label class="form-label">Аудитория</label>
-                <select class="form-input" id="mail-audience">
-                  <option value="all">Все клиенты</option>
-                  <option value="active">Активные</option>
-                  <option value="vip">VIP</option>
-                  <option value="inactive">Неактивные (>30 дней)</option>
-                  <option value="new">Новые (эта неделя)</option>
-                </select>
-              </div>
-              <div class="form-field">
-                <label class="form-label">Тема</label>
-                <input class="form-input" id="mail-subject">
-              </div>
-              <div class="form-field">
-                <label class="form-label">Сообщение</label>
-                <textarea class="form-input" id="mail-body" rows="5" style="height:auto;resize:vertical"
-                 ></textarea>
-              </div>
-              <div style="display:flex;gap:8px;margin-top:12px">
-                <button class="btn-ghost" onclick="previewMailing()">Предпросмотр</button>
-                <button class="btn-primary" onclick="sendMailing()">Отправить рассылку</button>
-              </div>
-            </div>
-            <div class="adm-card">
-              <div class="adm-card-title" style="margin-bottom:14px">История рассылок</div>
-              <div id="mailing-history"></div>
-            </div>
-          </div>
-        </div>
-
         <!-- НАСТРОЙКИ -->
         <div class="adm-panel" id="adm-settings">
           <div class="adm-panel-header">
@@ -1031,35 +725,31 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261002-100"></script>
-  <script src="js/core.js?v=20261002-100"></script>
-  <script src="js/week-grid.js?v=20261002-100"></script>
-  <script src="js/auth.js?v=20261002-100"></script>
-  <script src="js/site/schedule.js?v=20261002-100"></script>
-  <script src="js/site/booking.js?v=20261002-100"></script>
-  <script src="js/site/individual.js?v=20261002-100"></script>
-  <script src="js/site/trainings.js?v=20261002-100"></script>
-  <script src="js/site/services-bookings.js?v=20261002-100"></script>
-  <script src="js/admin/admin.js?v=20261002-100"></script>
-  <script src="js/admin/schedule.js?v=20261002-100"></script>
-  <script src="js/admin/journal.js?v=20261002-100"></script>
-  <script src="js/admin/journal-book.js?v=20261002-100"></script>
-  <script src="js/admin/chat.js?v=20261002-100"></script>
-  <script src="js/client/panel.js?v=20261002-100"></script>
-  <script src="js/client/payment.js?v=20261002-100"></script>
-  <script src="js/client/chat-profile.js?v=20261002-100"></script>
-  <script src="js/site/detail-modals.js?v=20261002-100"></script>
-  <script src="js/admin/library.js?v=20261002-100"></script>
-  <script src="js/admin/data-nav.js?v=20261002-100"></script>
-  <script src="js/admin/dashboard.js?v=20261002-100"></script>
-  <script src="js/admin/specialists.js?v=20261002-100"></script>
-  <script src="js/admin/sales.js?v=20261002-100"></script>
-  <script src="js/admin/settings.js?v=20261002-100"></script>
-  <script src="js/admin/stations.js?v=20261002-100"></script>
-  <script src="js/admin/dictionaries.js?v=20261002-100"></script>
-  <script src="js/ui.js?v=20261002-100"></script>
-  <script src="js/loaders.js?v=20261002-100"></script>
-  <script src="js/init.js?v=20261002-100"></script>
+  <script src="js/api.js?v=20261003-000"></script>
+  <script src="js/core.js?v=20261003-000"></script>
+  <script src="js/week-grid.js?v=20261003-000"></script>
+  <script src="js/auth.js?v=20261003-000"></script>
+  <script src="js/site/schedule.js?v=20261003-000"></script>
+  <script src="js/site/booking.js?v=20261003-000"></script>
+  <script src="js/site/individual.js?v=20261003-000"></script>
+  <script src="js/site/trainings.js?v=20261003-000"></script>
+  <script src="js/site/services-bookings.js?v=20261003-000"></script>
+  <script src="js/admin/admin.js?v=20261003-000"></script>
+  <script src="js/admin/schedule.js?v=20261003-000"></script>
+  <script src="js/admin/journal.js?v=20261003-000"></script>
+  <script src="js/admin/journal-book.js?v=20261003-000"></script>
+  <script src="js/client/panel.js?v=20261003-000"></script>
+  <script src="js/client/chat-profile.js?v=20261003-000"></script>
+  <script src="js/site/detail-modals.js?v=20261003-000"></script>
+  <script src="js/admin/library.js?v=20261003-000"></script>
+  <script src="js/admin/data-nav.js?v=20261003-000"></script>
+  <script src="js/admin/specialists.js?v=20261003-000"></script>
+  <script src="js/admin/settings.js?v=20261003-000"></script>
+  <script src="js/admin/stations.js?v=20261003-000"></script>
+  <script src="js/admin/dictionaries.js?v=20261003-000"></script>
+  <script src="js/ui.js?v=20261003-000"></script>
+  <script src="js/loaders.js?v=20261003-000"></script>
+  <script src="js/init.js?v=20261003-000"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1145,112 +835,6 @@
   </div>
 
 
-
-
-  <!-- MODAL: PAYMENT -->
-  <div class="admin-modal-overlay" id="payment-modal">
-    <div class="admin-modal pay-modal">
-
-      <!-- Шаг 1: выбор метода -->
-      <div id="pay-step-1">
-        <div class="admin-modal-title">Оплата записи</div>
-        <div class="u-text-ui u-muted u-mb-4" id="pay-service-name"></div>
-        <div class="pay-amount" id="pay-amount">0 ₽</div>
-        <div class="pay-desc">Выберите способ оплаты</div>
-
-        <div class="pay-methods" id="pay-methods">
-          <div class="pay-method selected" onclick="selectPayMethod('bank_card', this)">
-            <div class="pay-method-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                stroke-linecap="round" stroke-linejoin="round">
-                <rect x="1" y="4" width="22" height="16" rx="2" />
-                <path d="M1 10h22" />
-              </svg>
-            </div>
-            <div>
-              <div class="pay-method-name">Банковская карта</div>
-              <div class="pay-method-sub">Visa, Mastercard, Мир</div>
-            </div>
-          </div>
-          <div class="pay-method" onclick="selectPayMethod('sbp', this)">
-            <div class="pay-method-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-              </svg>
-            </div>
-            <div>
-              <div class="pay-method-name">СБП</div>
-              <div class="pay-method-sub">Оплата по QR-коду</div>
-            </div>
-          </div>
-          <div class="pay-method" onclick="selectPayMethod('yoo_money', this)">
-            <div class="pay-method-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-                stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 6v6l4 2" />
-              </svg>
-            </div>
-            <div>
-              <div class="pay-method-name">ЮMoney</div>
-              <div class="pay-method-sub">Кошелёк ЮMoney</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="pay-secure">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          </svg>
-          Оплата защищена · ЮКасса
-        </div>
-
-        <div class="admin-modal-actions u-mt-16">
-          <button class="btn-ghost" onclick="closePaymentModal()">Отмена</button>
-          <button class="btn-primary" onclick="initiateYookassaPayment()">Перейти к оплате</button>
-        </div>
-      </div>
-
-      <!-- Шаг 2: ожидание / редирект -->
-      <div id="pay-step-2" style="display:none">
-        <div class="pay-status-block">
-          <div class="pay-spinner"></div>
-          <div class="u-strong u-mb-6 u-text-lead">Создаём платёж…</div>
-          <div class="u-text-ui u-muted">Подождите, идёт подключение к ЮКассе</div>
-        </div>
-      </div>
-
-      <!-- Шаг 3: ссылка готова -->
-      <div id="pay-step-3" style="display:none">
-        <div class="pay-status-block">
-          <div class="pay-status-icon u-bg-brand-light">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
-              <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
-            </svg>
-          </div>
-          <div class="u-strong u-mb-6 u-text-lead">Ссылка на оплату готова</div>
-          <div class="u-text-ui u-muted u-mb-16">Нажмите кнопку ниже для перехода на
-            страницу оплаты ЮКассы</div>
-          <a id="pay-link" href="#" target="_blank" rel="noopener noreferrer" class="btn-primary u-inline-block u-text-body u-radius-md"
-            style="padding:12px 28px;text-decoration:none">
-            Оплатить на сайте ЮКассы
-          </a>
-          <div class="u-mt-12">
-            <button class="btn-ghost u-text-small" onclick="closePaymentModal()">Закрыть</button>
-          </div>
-          <div class="u-text-caption u-muted" style="margin-top:14px;line-height:1.5">
-            После оплаты статус записи обновится автоматически.<br>
-            ID платежа: <span id="pay-id" style="font-family:monospace"></span>
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
 
 
   <!-- MODAL: LOCATION -->
@@ -1519,7 +1103,6 @@
         История записей</div>
       <div id="cp-history" style="max-height:280px;overflow-y:auto"></div>
       <div class="u-mt-16 u-flex u-gap-8 u-wrap">
-        <button class="btn-primary u-text-ui" id="cp-chat-btn">Написать</button>
         <button class="btn-ghost u-text-ui" id="cp-edit-btn">Редактировать</button>
       </div>
     </div>

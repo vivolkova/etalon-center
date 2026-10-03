@@ -297,12 +297,6 @@ async function saveLocation() {
   renderLocations();
 }
 
-// Совместимость: старый renderAdmin теперь рендерит дашборд
-function renderAdmin() {
-  renderDashboard();
-  updateAdminBadges();
-}
-
 // Совместимость: filterBookingsSearch
 // ── Панель → Записи ───────────────────────────────────────────────
 // Период (по дате занятия) и филиал уходят в запрос к серверу; статус и поиск фильтруют загруженный список.
@@ -386,7 +380,6 @@ function renderAdminBookingsFiltered(list) {
       '<td class="u-flex u-gap-4 u-wrap">' +
 
       (b.status !== 'cancelled' ? '<button class="action-btn cancel btn-sm" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
-      '<button class="action-btn confirm btn-sm" data-chat-email="' + (b.email || '') + '" data-chat-name="' + (b.name || '') + '" onclick="this.dispatchEvent(new CustomEvent(\'admchat\',{bubbles:true}))">Чат</button>' +
       '</td></tr>';
   }).join('');
 }

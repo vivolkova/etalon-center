@@ -267,49 +267,5 @@ const SpecialistHoursAPI = {
   async deleteException(id) { return apiRequest(`/specialist_hours.php?action=exception_delete&id=${id}`, 'DELETE'); },
 };
 
-// ── CHAT ───────────────────────────────────────────────────
-const ChatAPI = {
-  async messages(userId) {
-    let url = '/chat.php?action=messages';
-    if (userId) url += `&user_id=${userId}`;
-    return apiRequest(url);
-  },
-  async dialogs() {
-    return apiRequest('/chat.php?action=dialogs');
-  },
-  async unread() {
-    return apiRequest('/chat.php?action=unread');
-  },
-  async send(message, toUser) {
-    return apiRequest('/chat.php?action=send', 'POST', { message, to_user: toUser });
-  },
-};
-
-// ── SUBSCRIPTIONS ──────────────────────────────────────────
-const SubsAPI = {
-  async plans() {
-    return apiRequest('/subscriptions.php?action=plans');
-  },
-  async my() {
-    return apiRequest('/subscriptions.php?action=my');
-  },
-  async all() {
-    return apiRequest('/subscriptions.php?action=all');
-  },
-  async createPlan(data) {
-    return apiRequest('/subscriptions.php?action=create_plan', 'POST', data);
-  },
-  async sell(userId, planId, paymentId) {
-    return apiRequest('/subscriptions.php?action=sell', 'POST', { user_id: userId, plan_id: planId, payment_id: paymentId });
-  },
-  async updatePlan(data) {
-    return apiRequest('/subscriptions.php?action=update_plan', 'PUT', data);
-  },
-  async deletePlan(id) {
-    return apiRequest(`/subscriptions.php?action=delete_plan&id=${id}`, 'DELETE');
-  },
-};
-
-
 // ═══ END API CLIENT ════════════════════════════════════════════
 

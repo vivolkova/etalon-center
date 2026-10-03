@@ -96,10 +96,6 @@ JOIN dictionaries d ON d.group_code = 'specialist_type'
  AND (sp.full_name, d.code) IN (('Анна Козлова', 'trainer'), ('Максим Романов', 'trainer'),
                                 ('Максим Романов', 'bikefitter'), ('Игорь Белов', 'bikefitter'));
 
-INSERT INTO subscription_plans (location_id, name, sessions, price, validity, color, sort_order) VALUES
-(1, 'Старт',   4, 4200, 30, '#6b7280', 1),
-(1, 'Базовый', 8, 7500, 30, '#00BAB3', 2);
-
 -- Локальный админ: admin@local / admin123
 INSERT INTO users (email, password, name, phone, role_id, type) VALUES
 ('admin@local', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', 'Админ (dev)', '',

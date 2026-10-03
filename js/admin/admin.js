@@ -1,33 +1,6 @@
-// Админка: общее, демо-чат, клиенты
+// Админка: клиенты
 
 // ═══ ADMIN ════════════════════════════════════════════════════════
-
-// Chat state
-let chatMessages = {}; // {clientEmail: [{from,text,time}]}
-let currentChatClient = null;
-
-// Seed demo chat
-(function () {
-  const clients = ['ivan@mail.ru', 'maria@mail.ru'];
-  clients.forEach(e => {
-    chatMessages[e] = [
-      { from: 'client', text: 'Добрый день! Хочу уточнить расписание на следующей неделе.', time: '09:15' },
-      { from: 'admin', text: 'Здравствуйте! Расписание на следующей неделе уже опубликовано на сайте. Что именно вас интересует?', time: '09:18' },
-      { from: 'client', text: 'Есть ли утренние тренировки в четверг?', time: '09:20' },
-    ];
-  });
-  chatMessages['pete@sport.ru'] = [
-    { from: 'client', text: 'Когда можно сделать байкфит?', time: 'вчера' },
-    { from: 'admin', text: 'Запись открыта на любой день. Перейдите в Расписание и выберите удобное время.', time: 'вчера' },
-  ];
-})();
-
-function switchAdminTab(name, btn) {
-  // Совместимость: перенаправляем в admNav
-  const navItem = document.querySelector('.adm-nav-item[onclick*="admNav(\'' + name + '\'"]') ||
-    document.querySelector('.adm-nav-item[onclick*="' + name + '"]');
-  admNav(name, navItem);
-}
 
 // ── CLIENTS ──────────────────────────────────────────────────────────
 
@@ -98,7 +71,6 @@ function renderAdminClients(list) {
     <div class="u-flex u-gap-4 u-wrap">
       <button class="action-btn confirm btn-sm" onclick="openClientProfile('${c.email}')">Просмотр</button>
       <button class="action-btn confirm btn-sm" onclick="openClientModal('${c.email}')">Ред.</button>
-      <button class="action-btn confirm btn-sm" onclick="openChatWith('${c.email}','${c.name}')">Чат</button>
       <button class="action-btn cancel btn-sm" onclick="deleteClient('${c.email}')">Уд.</button>
     </div>
   </td>
@@ -235,13 +207,6 @@ function openClientProfile(email) {
     }).join('');
   }
 
-  document.getElementById('cp-chat-btn').onclick = () => {
-    document.getElementById('client-profile-modal').classList.remove('show');
-    openChatWith(email, c.name);
-    // Switch to chat tab
-    const chatTabBtn = document.querySelector('.atab:nth-child(5)');
-    if (chatTabBtn) switchAdminTab('chat', chatTabBtn);
-  };
   document.getElementById('cp-edit-btn').onclick = () => {
     document.getElementById('client-profile-modal').classList.remove('show');
     openClientModal(email);

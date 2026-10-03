@@ -1,4 +1,4 @@
-/* Админка: модалка «В расписание» (дни), раскладка панели, абонементы, промокоды, графики, рассылки, схема зала, форма слота */
+/* Админка: модалка «В расписание» (дни), раскладка панели, схема зала, форма слота */
 
 .lts-day-btn {
   width: 38px;
@@ -121,16 +121,6 @@
   color: var(--green);
 }
 
-.adm-nav-badge {
-  background: var(--danger);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  border-radius: var(--r-sm);
-  padding: 1px 5px;
-  margin-left: auto;
-}
-
 .adm-main {
   background: var(--surface);
   overflow-y: auto;
@@ -201,165 +191,6 @@
   font-size: 11px;
   color: var(--ink-60);
   margin-top: 3px;
-}
-
-.adm-kpi-delta {
-  font-size: 11px;
-  font-weight: 600;
-  margin-top: 4px;
-}
-
-.adm-kpi-delta.up {
-  color: var(--success);
-}
-
-.adm-kpi-delta.down {
-  color: var(--danger);
-}
-
-/* Абонементы */
-.sub-plan-card {
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 20px;
-  transition: .15s;
-}
-
-.sub-plan-card:hover {
-  border-color: var(--green);
-}
-
-.sub-plan-name {
-  font-size: 15px;
-  font-weight: 700;
-  margin-bottom: 4px;
-}
-
-.sub-plan-price {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--green);
-  margin: 8px 0;
-}
-
-.sub-plan-features {
-  font-size: 12px;
-  color: var(--ink-60);
-  line-height: 1.8;
-}
-
-/* Промокоды */
-.promo-card {
-  background: #fff;
-  border: 1.5px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 16px;
-}
-
-.promo-code {
-  font-family: monospace;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  background: var(--surface);
-  padding: 6px 12px;
-  border-radius: var(--r-md);
-  display: inline-block;
-  margin-bottom: 8px;
-}
-
-.promo-info {
-  font-size: 12px;
-  color: var(--ink-60);
-}
-
-/* Графики (canvas-based) */
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 6px;
-  height: 160px;
-  padding-top: 10px;
-}
-
-.bar-chart-bar {
-  flex: 1;
-  border-radius: 4px 4px 0 0;
-  position: relative;
-  min-width: 24px;
-  transition: opacity .15s;
-  cursor: default;
-}
-
-.bar-chart-bar:hover {
-  opacity: .8;
-}
-
-.bar-chart-label {
-  font-size: 11px;
-  color: var(--ink-60);
-  text-align: center;
-  margin-top: 4px;
-}
-
-.bar-chart-val {
-  position: absolute;
-  top: -18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-/* История рассылок */
-.mail-hist-item {
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.mail-hist-item:last-child {
-  border-bottom: none;
-}
-
-.mail-hist-subject {
-  font-weight: 600;
-  margin-bottom: 2px;
-}
-
-.mail-hist-meta {
-  color: var(--ink-60);
-}
-
-/* Activity feed */
-.activity-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
-
-.activity-item:last-child {
-  border-bottom: none;
-}
-
-.activity-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.activity-time {
-  color: var(--ink-60);
-  white-space: nowrap;
-  margin-left: auto;
 }
 
 @media(max-width:900px) {
@@ -1118,15 +949,4 @@
 
 .jb-picked .jb-link {
   margin-top: 0;
-}
-
-/* Группа «В разработке» в меню панели: разделы, которые ещё не проработаны, — приглушены */
-.adm-nav-section--later {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-}
-
-.adm-nav-section--later ~ .adm-nav-item:not(.active) {
-  opacity: .6;
 }

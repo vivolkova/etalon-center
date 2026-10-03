@@ -291,57 +291,6 @@ CREATE TABLE slot_station_blocks (
     CONSTRAINT fk_ssb_station FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Абонементы: тарифы и покупки ────────────────────────────
-CREATE TABLE subscription_plans (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    name        VARCHAR(128) NOT NULL,
-    sessions    INT DEFAULT 8,
-    price       INT NOT NULL,
-    validity    INT DEFAULT 30,
-    color       VARCHAR(16) DEFAULT '#00BAB3',
-    features    JSON,
-    active      TINYINT(1) DEFAULT 1,
-    sort_order  INT DEFAULT 0,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    location_id INT NOT NULL,
-    KEY fk_plans_location (location_id),
-    CONSTRAINT fk_plans_location FOREIGN KEY (location_id) REFERENCES locations(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE TABLE subscriptions (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    user_id       INT NOT NULL,
-    plan_id       INT NOT NULL,
-    sessions_left INT NOT NULL,
-    expires_at    DATE NOT NULL,
-    status        ENUM('active','expired','cancelled') DEFAULT 'active',
-    payment_id    VARCHAR(128),
-    price_paid    INT NOT NULL,
-    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_user (user_id),
-    KEY idx_status (status),
-    KEY plan_id (plan_id),
-    CONSTRAINT fk_subs_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    CONSTRAINT fk_subs_plan FOREIGN KEY (plan_id) REFERENCES subscription_plans(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Чат ─────────────────────────────────────────────────────
-CREATE TABLE chat_messages (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    from_user   INT NOT NULL,
-    to_user     INT,
-    message     TEXT NOT NULL,
-    is_read     TINYINT(1) DEFAULT 0,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_from (from_user),
-    KEY idx_to (to_user),
-    KEY idx_read (is_read),
-    CONSTRAINT fk_chat_from FOREIGN KEY (from_user) REFERENCES users(id) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- ── Сессии (server-side JWT/сессии) ─────────────────────────
 CREATE TABLE sessions (
     id          VARCHAR(64) PRIMARY KEY,
@@ -351,21 +300,6 @@ CREATE TABLE sessions (
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     KEY idx_user (user_id),
     CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Промокоды ───────────────────────────────────────────────
-CREATE TABLE promo_codes (
-    id          INT AUTO_INCREMENT PRIMARY KEY,
-    code        VARCHAR(32) NOT NULL UNIQUE,
-    type        ENUM('percent','fixed') DEFAULT 'percent',
-    value       INT NOT NULL,
-    max_uses    INT DEFAULT 100,
-    used_count  INT DEFAULT 0,
-    expires_at  DATE,
-    description VARCHAR(255),
-    active      TINYINT(1) DEFAULT 1,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Параметры студии, которые меняет администратор ──────────

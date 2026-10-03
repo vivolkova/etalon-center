@@ -2,20 +2,15 @@
 
 // ═══ INIT ═════════════════════════════════════════════════════════
 
-// Возврат со страницы оплаты ЮKassa (?payment=success). Вызов перенесён сюда из client/payment.js:
-// при загрузке все функции должны быть уже подключены.
-checkPaymentReturn();
-
 renderServices();
 
 // Загружаем все данные с сервера при старте
 (async function () {
-  // 1. Загружаем публичные данные (слоты, тренеры, планы абонементов)
+  // 1. Загружаем публичные данные (слоты, тренеры, библиотека, справочники)
   await Promise.allSettled([
     loadLocations(),
     loadSlots(),
     loadSpecialists(),
-    loadSubPlans(),
     loadLibrary(),
     loadActivityCats(),
     loadDictValues(),
@@ -29,7 +24,6 @@ renderServices();
   // 3. Если залогинен — загружаем персональные данные
   if (currentUser && Auth.isLoggedIn()) {
     await Promise.allSettled([
-      loadChatDialogs(),
       currentUser.role === 'admin' ? loadClients() : Promise.resolve(),
       currentUser.role === 'admin' ? loadAdminBookings() : loadMyBookings(),
     ]);

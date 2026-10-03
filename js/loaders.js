@@ -1,4 +1,4 @@
-// Загрузка данных с сервера (специалисты, клиенты, абонементы, промокоды, уведомления, чат, записи)
+// Загрузка данных с сервера (специалисты, клиенты, записи)
 
 // ── Загрузка тренеров с сервера ───────────────────────────────
 async function loadSpecialists() {
@@ -99,67 +99,6 @@ async function loadClients() {
       });
     }
   } catch (e) { /* используем встроенных клиентов */ }
-}
-
-// ── Загрузка абонементов с сервера ───────────────────────────
-async function loadSubPlans() {
-  try {
-    const res = await apiRequest('/subscriptions.php?action=plans');
-    if (res && res.length) {
-      SUB_PLANS = res.map(function (p) {
-        var features = p.features;
-        if (typeof features === 'string') {
-          try { features = JSON.parse(features); } catch (e) { features = []; }
-        }
-        return {
-          id: p.id, name: p.name, sessions: parseInt(p.sessions),
-          price: parseInt(p.price), validity: parseInt(p.validity),
-          color: p.color || '#00BAB3', features: features || []
-        };
-      });
-    }
-  } catch (e) { /* используем встроенные планы */ }
-}
-
-// ── Загрузка промокодов с сервера ────────────────────────────
-async function loadPromos() {
-  try {
-    const res = await apiRequest('/promos.php?action=list');
-    if (res && res.length) {
-      PROMOS = res.map(function (p) {
-        return {
-          id: p.id, code: p.code, type: p.type, value: parseInt(p.value),
-          maxUses: parseInt(p.max_uses), uses: parseInt(p.used_count) || 0,
-          expires: p.expires_at || '', desc: p.description || '',
-          active: p.active == 1
-        };
-      });
-    }
-  } catch (e) { /* используем встроенные промокоды */ }
-}
-
-// ── Загрузка чата с сервера ──────────────────────────────────
-async function loadChatDialogs() {
-  if (!currentUser) return;
-  try {
-    if (currentUser.role === 'admin') {
-      const dialogs = await ChatAPI.dialogs();
-      dialogs.forEach(function (d) {
-        if (!chatMessages[d.email]) chatMessages[d.email] = [];
-      });
-    } else {
-      const msgs = await ChatAPI.messages();
-      if (msgs && msgs.length) {
-        chatMessages[currentUser.email] = msgs.map(function (m) {
-          return {
-            from: m.from_role === 'admin' ? 'admin' : 'client',
-            text: m.message,
-            time: m.created_at ? m.created_at.slice(11, 16) : ''
-          };
-        });
-      }
-    }
-  } catch (e) { /* используем встроенные данные */ }
 }
 
 // ── Загрузка всех записей для администратора ─────────────────

@@ -212,7 +212,7 @@ function showPage(name) {
   if (name === 'trainings') renderTrainings();
   if (name === 'services') renderServices();
   if (name === 'client') renderClientPanel();
-  if (name === 'admin') { renderAdmin(); admNav('journal', document.querySelector('.adm-nav-item')); }
+  if (name === 'admin') { admNav('journal', document.querySelector('.adm-nav-item')); }
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
