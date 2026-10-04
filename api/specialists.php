@@ -74,6 +74,23 @@ if ($method === 'GET' && $action === 'list') {
     ok($rows);
 }
 
+// POST — человек по телефону (admin), для формы нового специалиста: его имя подставляется в форму.
+// {id, first_name, last_name, name, specialist_id — если он уже специалист} или null. Телефон — в теле запроса, не в адресе
+if ($method === 'POST' && $action === 'person') {
+    authAdmin();
+    $phone = phoneDigits((string)(input()['phone'] ?? ''));
+    if ($phone === null) ok(null);
+    $st = getDB()->prepare('SELECT u.id, u.first_name, u.last_name, u.name,
+                                   (SELECT sp.id FROM specialists sp WHERE sp.user_id = u.id) AS specialist_id
+                            FROM users u WHERE u.phone = ?');
+    $st->execute([$phone]);
+    $p = $st->fetch();
+    if (!$p) ok(null);
+    $p['id'] = (int)$p['id'];
+    $p['specialist_id'] = $p['specialist_id'] !== null ? (int)$p['specialist_id'] : null;
+    ok($p);
+}
+
 // POST — создать специалиста (admin): {first_name, last_name, phone, types:[коды] — специализация, experience, active}.
 // Человек с таким телефоном уже есть (например, клиент) — специалистом становится он, второй записи в users не будет
 if ($method === 'POST' && $action === 'create') {

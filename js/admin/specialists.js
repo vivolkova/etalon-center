@@ -166,11 +166,13 @@ function openTrainerModal(id, tab) {
     '</div>' +
     // ── Основное
     '<div data-trm-pane="main">' +
+    // Телефон — первым: по нему ищем человека в базе (trmFindPerson), имя и фамилия подставляются
+    '<div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="trm-phone" required value="' + (t ? escAttr(t.phone) : '') + '">' +
+    '<div class="set-hint" id="trm-phone-hint"></div></div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="trm-first" required value="' + (t ? escAttr(t.firstName) : '') + '"></div>' +
     '<div class="form-field"><label class="form-label">Фамилия</label><input class="form-input" id="trm-last" required value="' + (t ? escAttr(t.lastName) : '') + '"></div>' +
     '</div>' +
-    '<div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="trm-phone" required value="' + (t ? escAttr(t.phone) : '') + '"></div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
@@ -197,6 +199,8 @@ function openTrainerModal(id, tab) {
   document.getElementById('trm-cancel').onclick = function () { el.remove(); };
   document.getElementById('trm-close').onclick = function () { el.remove(); };
   document.getElementById('trm-save').onclick = function () { saveTrainer(t ? t.id : null); };
+  // Новый специалист: как только номер набран полностью — ищем человека в базе
+  if (!t) document.getElementById('trm-phone').addEventListener('input', trmFindPerson);
 
   el.querySelectorAll('[data-trm-tab]').forEach(function (b) {
     b.onclick = function () { if (!b.disabled) trmSwitchTab(b.getAttribute('data-trm-tab')); };
@@ -223,6 +227,36 @@ function openTrainerModal(id, tab) {
   });
   trmHours = { schedules: [], exceptions: [] };
   trmReloadHours(t.id);
+}
+
+// Новый специалист: человек с этим телефоном уже может быть в базе (например, клиент). Тогда специалистом
+// становится он: имя и фамилия подставляются в форму — их видно и можно исправить (сменилась фамилия).
+// Номера нет — будет создан новый человек. Уже специалист — сохранить нельзя.
+let trmFindSeq = 0;
+let trmFound = null;   // имя и фамилия, подставленные по номеру: при смене номера убираем их, если их не правили
+async function trmFindPerson() {
+  const inp = document.getElementById('trm-phone'), hint = document.getElementById('trm-phone-hint');
+  const save = document.getElementById('trm-save');
+  if (!inp || !hint) return;
+  const seq = ++trmFindSeq;
+  hint.textContent = ''; save.disabled = false;
+  const first = document.getElementById('trm-first'), last = document.getElementById('trm-last');
+  if (trmFound && first.value === trmFound.first && last.value === trmFound.last) { first.value = ''; last.value = ''; }
+  trmFound = null;
+  if (inp.value.replace(/\D+/g, '').length < 11) return;   // номер ещё не набран
+  let p;
+  try { p = await SpecialistsAPI.person(inp.value); } catch (e) { return; }
+  if (seq !== trmFindSeq || !document.getElementById('trm-phone-hint')) return;   // номер уже изменили или окно закрыли
+  if (!p) { hint.textContent = 'Этого номера нет в базе — будет добавлен новый человек'; return; }
+  if (p.specialist_id) {
+    hint.textContent = 'Специалист с этим номером уже есть: ' + p.name;
+    save.disabled = true;
+    return;
+  }
+  first.value = p.first_name;
+  last.value = p.last_name;
+  trmFound = { first: p.first_name, last: p.last_name };
+  hint.textContent = 'Этот номер уже есть в базе: ' + p.name + '. Специалистом станет этот человек. Имя и фамилия подставлены — если изменились, исправьте';
 }
 
 function trmSwitchTab(tab) {
