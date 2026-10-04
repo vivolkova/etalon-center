@@ -1,100 +1,118 @@
 <?php
-// api/auth.php — Авторизация
+// api/auth.php — Регистрация, вход, профиль. Логин — номер телефона.
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
-// POST /api/auth.php?action=register
-if ($method === 'POST' && $action === 'register') {
-    $d = input();
-    require_fields($d, ['email', 'password', 'name']);
-
-    $email = strtolower(trim($d['email']));
-    $name  = trim($d['name']);
-    $phone = trim($d['phone'] ?? '');
-
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) err('Неверный email');
-    if (strlen($d['password']) < 6) err('Пароль минимум 6 символов');
-
-    $db = getDB();
-    $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
-    $stmt->execute([$email]);
-    if ($stmt->fetch()) err('Email уже зарегистрирован');
-
-    $hash = password_hash($d['password'], PASSWORD_BCRYPT);
-    $stmt = $db->prepare('INSERT INTO users (email, password, name, phone, role_id, type) VALUES (?,?,?,?,?,?)');
-    $stmt->execute([$email, $hash, $name, $phone, 1, 'new']);
-
-    $userId = (int)$db->lastInsertId();
-    $token  = jwtEncode(['id' => $userId, 'email' => $email, 'name' => $name, 'role' => 'client']);
-    ok([
-        'token' => $token,
-        'user'  => ['id' => $userId, 'email' => $email, 'name' => $name, 'phone' => $phone, 'role' => 'client', 'type' => 'new'],
-    ]);
+// Пользователь для ответа и токена
+function authUserData(PDO $db, int $id): ?array {
+    $st = $db->prepare('SELECT id, first_name, last_name, name, phone, type, active, has_account, birth_date, notes, created_at
+                        FROM users WHERE id = ?');
+    $st->execute([$id]);
+    $u = $st->fetch();
+    if (!$u) return null;
+    $u['id']    = (int)$u['id'];
+    $u['phone'] = phoneView($u['phone']);
+    $u['role']  = userRole($db, $u['id']);
+    return $u;
 }
 
-// POST /api/auth.php?action=login
-if ($method === 'POST' && $action === 'login') {
+function authToken(array $u): string {
+    return jwtEncode(['id' => $u['id'], 'name' => $u['name'], 'role' => $u['role']]);
+}
+
+// POST /api/auth.php?action=register — имя, фамилия, телефон, пароль
+if ($method === 'POST' && $action === 'register') {
     $d = input();
-    require_fields($d, ['email', 'password']);
+    $first = trim((string)($d['first_name'] ?? ''));
+    $last  = trim((string)($d['last_name'] ?? ''));
+    $pass  = (string)($d['password'] ?? '');
+    if ($first === '') err('Укажите имя');
+    if ($last === '')  err('Укажите фамилию');
+    $phone = phoneDigits((string)($d['phone'] ?? ''));
+    if ($phone === null) err('Укажите номер телефона полностью');
+    if ($problem = passwordProblem($pass)) err($problem);
 
-    $email = strtolower(trim($d['email']));
-    $db    = getDB();
-    $stmt  = $db->prepare('SELECT u.*, d.code AS role FROM users u JOIN dictionaries d ON u.role_id = d.id AND d.group_code = "user_role" WHERE u.email = ?');
-    $stmt->execute([$email]);
-    $user  = $stmt->fetch();
-
-    if (!$user || !password_verify($d['password'], $user['password'])) {
-        err('Неверный email или пароль');
+    $db = getDB();
+    $st = $db->prepare('SELECT has_account, active FROM users WHERE phone = ?');
+    $st->execute([$phone]);
+    if ($ex = $st->fetch()) {
+        if ((int)$ex['active'] === 0) err('Учётная запись с этим номером отключена — обратитесь к администратору');
+        if ((int)$ex['has_account'] === 1) err('Этот номер уже зарегистрирован. Войдите, а если забыли пароль — обратитесь к администратору');
+        err('Вы уже есть в нашей базе: администратор записывал вас по телефону. Чтобы получить доступ к кабинету и своим записям, обратитесь к администратору');
     }
-    if ((int)$user['active'] === 0) {
-        err('Учётная запись отключена');
+
+    try {
+        $db->prepare('INSERT INTO users (first_name, last_name, phone, password, has_account, account_created_at)
+                      VALUES (?, ?, ?, ?, 1, NOW())')
+           ->execute([$first, $last, $phone, password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12])]);
+    } catch (PDOException $e) {
+        // второй запрос с тем же номером успел раньше
+        if (isDuplicatePhone($e)) err('Этот номер уже зарегистрирован');
+        throw $e;
     }
+    $u = authUserData($db, (int)$db->lastInsertId());
+    ok(['token' => authToken($u), 'user' => $u]);
+}
 
-    $token = jwtEncode([
-        'id'    => $user['id'],
-        'email' => $user['email'],
-        'name'  => $user['name'],
-        'role'  => $user['role'],
-    ]);
+// POST /api/auth.php?action=login — телефон и пароль
+if ($method === 'POST' && $action === 'login') {
+    $d     = input();
+    $phone = phoneDigits((string)($d['phone'] ?? ''));
+    $pass  = (string)($d['password'] ?? '');
+    $fail  = 'Неверный номер телефона или пароль';
+    if ($phone === null || $pass === '') err($fail);
 
-    unset($user['password']);
-    ok(['token' => $token, 'user' => $user]);
+    $db = getDB();
+    $st = $db->prepare('SELECT id, password, active, has_account FROM users WHERE phone = ?');
+    $st->execute([$phone]);
+    $row = $st->fetch();
+
+    // Одна и та же ошибка, когда номера нет, пароль неверный или кабинета нет: по ответу нельзя узнать, чей это номер
+    if (!$row || !(int)$row['has_account'] || $row['password'] === null || !password_verify($pass, $row['password'])) err($fail);
+    if ((int)$row['active'] === 0) err('Учётная запись отключена');
+
+    $u = authUserData($db, (int)$row['id']);
+    ok(['token' => authToken($u), 'user' => $u]);
 }
 
 // GET /api/auth.php?action=me
 if ($method === 'GET' && $action === 'me') {
     $payload = authUser();
-    $db      = getDB();
-    $stmt    = $db->prepare('SELECT u.id,u.email,u.name,u.phone,d.code AS role,u.type,u.active,u.bike,u.birth_date,u.notes,u.created_at FROM users u JOIN dictionaries d ON u.role_id = d.id AND d.group_code = "user_role" WHERE u.id = ?');
-    $stmt->execute([$payload['id']]);
-    $user = $stmt->fetch();
-    if (!$user) err('Пользователь не найден', 404);
-    if ((int)$user['active'] === 0) err('Учётная запись отключена', 403);
-    ok($user);
+    $u = authUserData(getDB(), (int)$payload['id']);
+    if (!$u) err('Пользователь не найден', 404);
+    if ((int)$u['active'] === 0) err('Учётная запись отключена', 403);
+    ok($u);
 }
 
-// PUT /api/auth.php?action=update
+// PUT /api/auth.php?action=update — профиль. Телефон здесь не меняется: он логин, меняет его администратор
 if ($method === 'PUT' && $action === 'update') {
     $payload = authUser();
     $d = input();
 
     $fields = [];
     $params = [];
-    if (!empty($d['name']))   { $fields[] = 'name=?';       $params[] = $d['name']; }
-    if (!empty($d['phone']))  { $fields[] = 'phone=?';      $params[] = $d['phone']; }
-    if (!empty($d['bike']))   { $fields[] = 'bike=?';       $params[] = $d['bike']; }
+    if (isset($d['first_name'])) {
+        $first = trim((string)$d['first_name']);
+        if ($first === '') err('Укажите имя');
+        $fields[] = 'first_name=?'; $params[] = $first;
+    }
+    if (isset($d['last_name'])) {
+        $last = trim((string)$d['last_name']);
+        if ($last === '') err('Укажите фамилию');
+        $fields[] = 'last_name=?'; $params[] = $last;
+    }
     if (!empty($d['birth_date'])) { $fields[] = 'birth_date=?'; $params[] = $d['birth_date']; }
-    if (isset($d['notes']))   { $fields[] = 'notes=?';      $params[] = $d['notes']; }
+    if (isset($d['notes']))       { $fields[] = 'notes=?';      $params[] = $d['notes']; }
 
     if (empty($fields)) err('Нет данных для обновления');
 
     $params[] = $payload['id'];
     $db = getDB();
     $db->prepare('UPDATE users SET ' . implode(',', $fields) . ' WHERE id=?')->execute($params);
-    ok(null, 'Профиль обновлён');
+    ok(authUserData($db, (int)$payload['id']), 'Профиль обновлён');
 }
 
 err('Неизвестный endpoint', 404);

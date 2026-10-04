@@ -11,8 +11,8 @@ function clientAvatarColor(name) {
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-function getClientStats(email) {
-  const cb = bookings.filter(b => b.clientId === email && b.status !== 'cancelled');
+function getClientStats(id) {
+  const cb = bookings.filter(b => b.clientId === id && b.status !== 'cancelled');
   const total = cb.length;
   const spent = cb.reduce((s, b) => s + b.price, 0);
   const last = cb.length ? new Date(Math.max(...cb.map(b => new Date(b.date)))) : null;
@@ -27,7 +27,7 @@ function renderAdminClients(list) {
   const total = CLIENTS.length;
   const vips = CLIENTS.filter(c => c.type === 'vip').length;
   const newOnes = CLIENTS.filter(c => c.type === 'new').length;
-  const totalRevenue = CLIENTS.reduce((s, c) => s + getClientStats(c.email).spent, 0);
+  const totalRevenue = CLIENTS.reduce((s, c) => s + getClientStats(c.id).spent, 0);
   statsEl.innerHTML = [
     { val: total, label: 'Всего клиентов', color: 'var(--green)' },
     { val: vips, label: 'VIP', color: '#c07a10' },
@@ -44,21 +44,19 @@ function renderAdminClients(list) {
   tbody.innerHTML = rows.map(c => {
     const av = clientAvatarColor(c.name);
     const init = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-    const stats = getClientStats(c.email);
+    const stats = getClientStats(c.id);
     const lastStr = stats.last
       ? stats.last.getDate() + ' ' + ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'][stats.last.getMonth()]
       : '—';
     const regD = c.regDate ? new Date(c.regDate) : null;
     const regStr = regD ? regD.getDate() + ' ' + ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'][regD.getMonth()] + ' ' + regD.getFullYear() : '—';
-    const bikeLbl = { road: 'Шоссейный', mtb: 'Горный', gravel: 'Гравийный', triathlon: 'Триатлонный' }[c.bike] || '—';
     return `<tr>
   <td>
     <div class="client-name-cell">
       <div class="client-avatar" style="background:${av}20;color:${av}">${init}</div>
       <div>
         <div class="u-strong u-text-ui">${c.name}</div>
-        <div class="u-muted u-text-caption">${c.hasAccount ? c.email : 'без личного кабинета'}</div>
-        <div class="u-muted u-text-caption u-mt-2">${bikeLbl}</div>
+        <div class="u-muted u-text-caption">${c.hasAccount ? '' : 'без личного кабинета'}</div>
       </div>
     </div>
   </td>
@@ -66,12 +64,12 @@ function renderAdminClients(list) {
   <td class="u-strong u-center">${stats.total}</td>
   <td class="u-strong u-brand">${stats.spent ? stats.spent.toLocaleString('ru') + ' ₽' : '—'}</td>
   <td class="u-text-small u-muted">${lastStr}<br><span class="u-text-caption">рег. ${regStr}</span></td>
-  <td><span class="c-badge ${c.type}">${{ new: 'Новый', vip: 'VIP' }[c.type] || c.type}</span></td>
+  <td><span class="c-badge ${c.type}">${{ new: 'Новый', regular: 'Постоянный', vip: 'VIP' }[c.type] || c.type}</span></td>
   <td>
     <div class="u-flex u-gap-4 u-wrap">
-      <button class="action-btn confirm btn-sm" onclick="openClientProfile('${c.email}')">Просмотр</button>
-      <button class="action-btn confirm btn-sm" onclick="openClientModal('${c.email}')">Ред.</button>
-      <button class="action-btn cancel btn-sm" onclick="deleteClient('${c.email}')">Уд.</button>
+      <button class="action-btn confirm btn-sm" onclick="openClientProfile(${c.id})">Просмотр</button>
+      <button class="action-btn confirm btn-sm" onclick="openClientModal(${c.id})">Ред.</button>
+      <button class="action-btn cancel btn-sm" onclick="deleteClient(${c.id})">Уд.</button>
     </div>
   </td>
 </tr>`;
@@ -86,55 +84,52 @@ function filterClients(q) {
     const lq = q.toLowerCase();
     list = list.filter(c =>
       c.name.toLowerCase().includes(lq) ||
-      c.email.toLowerCase().includes(lq) ||
       (c.phone || '').includes(lq)
     );
   }
   renderAdminClients(list);
 }
 
-function openClientModal(emailOrNull) {
+function openClientModal(idOrNull) {
   const modal = document.getElementById('client-modal');
-  if (emailOrNull) {
-    const c = CLIENTS.find(x => x.email === emailOrNull);
+  if (idOrNull) {
+    const c = CLIENTS.find(x => x.id === idOrNull);
     if (!c) return;
     document.getElementById('client-modal-title').textContent = 'Редактировать клиента';
-    document.getElementById('cm-email-orig').value = c.email;
-    document.getElementById('cm-name').value = c.name;
+    document.getElementById('cm-id').value = c.id;
+    document.getElementById('cm-first-name').value = c.firstName;
+    document.getElementById('cm-last-name').value = c.lastName;
     document.getElementById('cm-phone').value = maskPhone(c.phone || '');   // единый вид +7 (XXX) XXX-XX-XX
-    document.getElementById('cm-email').value = c.email;
     document.getElementById('cm-type').value = c.type;
     document.getElementById('cm-birth').value = c.birth || '';
-    document.getElementById('cm-bike').value = c.bike || '';
     document.getElementById('cm-notes').value = c.notes || '';
   } else {
     document.getElementById('client-modal-title').textContent = 'Добавить клиента';
-    document.getElementById('cm-email-orig').value = '';
-    ['cm-name', 'cm-phone', 'cm-email', 'cm-birth', 'cm-notes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('cm-id').value = '';
+    ['cm-first-name', 'cm-last-name', 'cm-phone', 'cm-birth', 'cm-notes'].forEach(id => document.getElementById(id).value = '');
     document.getElementById('cm-type').value = 'new';
-    document.getElementById('cm-bike').value = '';
   }
   modal.classList.add('show');
 }
 function closeClientModal() { document.getElementById('client-modal').classList.remove('show'); }
 
 async function saveClient() {
-  const name = document.getElementById('cm-name').value.trim();
-  const email = document.getElementById('cm-email').value.trim();
-  if (!name || !email) { showToast('Имя и email обязательны', 'error'); return; }
-  const orig = document.getElementById('cm-email-orig').value;
+  const first = document.getElementById('cm-first-name').value.trim();
+  const phone = document.getElementById('cm-phone').value.trim();
+  const last = document.getElementById('cm-last-name').value.trim();
+  if (!first || !last || !phone) { showToast('Имя, фамилия и телефон обязательны', 'error'); return; }
+  const id = Number(document.getElementById('cm-id').value) || 0;
   const apiData = {
-    name, email,
-    phone: document.getElementById('cm-phone').value.trim(),
+    first_name: first,
+    last_name: last,
+    phone: phone,
     type: document.getElementById('cm-type').value,
     birth_date: document.getElementById('cm-birth').value,
-    bike: document.getElementById('cm-bike').value,
     notes: document.getElementById('cm-notes').value.trim(),
   };
   try {
-    if (orig) {
-      const existing = CLIENTS.find(c => c.email === orig);
-      await ClientsAPI.update({ id: existing ? existing.id : 0, ...apiData });
+    if (id) {
+      await ClientsAPI.update({ id: id, ...apiData });
       showToast('Клиент обновлён', 'success');
     } else {
       await ClientsAPI.create(apiData);
@@ -144,30 +139,28 @@ async function saveClient() {
     await loadClients();
     renderAdminClients();
   } catch (e) {
-    showToast('Ошибка сохранения: ' + (e.message || 'проверьте подключение'), 'error');
+    // Отказ сервера (занятый телефон, не указано имя) или нет связи — сообщение уже показано (apiRequest)
   }
 }
 
-async function deleteClient(email) {
+async function deleteClient(id) {
   if (!await uiConfirm('Удалить клиента?', 'Его записи сохранятся.')) return;
-  const client = CLIENTS.find(c => c.email === email);
   try {
-    if (client && client.id) await ClientsAPI.delete(client.id);
+    await ClientsAPI.delete(id);
     await loadClients();
     renderAdminClients();
     showToast('Клиент удалён');
   } catch (e) {
-    showToast('Ошибка удаления', 'error');
+    // Отказ сервера или нет связи — сообщение уже показано (apiRequest)
   }
 }
 
-function openClientProfile(email) {
-  const c = CLIENTS.find(x => x.email === email);
+function openClientProfile(id) {
+  const c = CLIENTS.find(x => x.id === id);
   if (!c) return;
   const av = clientAvatarColor(c.name);
   const init = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const stats = getClientStats(email);
-  const bikeLbl = { road: 'Шоссейный', mtb: 'Горный', gravel: 'Гравийный', triathlon: 'Триатлонный' }[c.bike] || '—';
+  const stats = getClientStats(id);
   const MONTHS_FULL3 = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 
   document.getElementById('cp-header').innerHTML = `
@@ -175,8 +168,8 @@ function openClientProfile(email) {
   <div class="client-avatar" style="width:52px;height:52px;font-size:20px;background:${av}20;color:${av}">${init}</div>
   <div>
     <div class="u-bold u-text-lead">${c.name}</div>
-    <div class="u-text-small u-muted u-mt-2">${c.email} · ${c.phone || '—'}</div>
-    <div class="u-text-small u-muted u-mt-2">${bikeLbl}${c.birth ? ' · ДР: ' + c.birth : ''}</div>
+    <div class="u-text-small u-muted u-mt-2">${c.phone || '—'}${c.hasAccount ? '' : ' · без личного кабинета'}</div>
+    <div class="u-text-small u-muted u-mt-2">${c.birth ? 'ДР: ' + c.birth : ''}</div>
     ${c.notes ? `<div class="u-text-small u-muted u-mt-4 u-max-w-380 u-lh-tight"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${c.notes}</div>` : ''}
   </div>
 </div>`;
@@ -188,7 +181,7 @@ function openClientProfile(email) {
     { val: lastStr, label: 'Последний визит', color: 'var(--ink)' },
   ].map(s => `<div class="cp-stat-card"><div class="cp-stat-val" style="color:${s.color}">${s.val}</div><div class="cp-stat-label">${s.label}</div></div>`).join('');
 
-  const history = bookings.filter(b => b.clientId === email).sort((a, b) => new Date(b.date) - new Date(a.date));
+  const history = bookings.filter(b => b.clientId === id).sort((a, b) => new Date(b.date) - new Date(a.date));
   const histEl = document.getElementById('cp-history');
   if (!history.length) {
     histEl.innerHTML = `<div class="u-text-ui empty-state">Записей нет</div>`;
@@ -209,7 +202,7 @@ function openClientProfile(email) {
 
   document.getElementById('cp-edit-btn').onclick = () => {
     document.getElementById('client-profile-modal').classList.remove('show');
-    openClientModal(email);
+    openClientModal(id);
   };
 
   document.getElementById('client-profile-modal').classList.add('show');

@@ -13,15 +13,15 @@
   <title>ETALON CENTER — Запись на тренировки</title>
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/fonts.css?v=20261003-001">
-  <link rel="stylesheet" href="css/base.css?v=20261003-001">
-  <link rel="stylesheet" href="css/site.css?v=20261003-001">
-  <link rel="stylesheet" href="css/panels.css?v=20261003-001">
-  <link rel="stylesheet" href="css/library.css?v=20261003-001">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261003-001">
-  <link rel="stylesheet" href="css/admin.css?v=20261003-001">
+  <link rel="stylesheet" href="css/fonts.css?v=20261003-004">
+  <link rel="stylesheet" href="css/base.css?v=20261003-004">
+  <link rel="stylesheet" href="css/site.css?v=20261003-004">
+  <link rel="stylesheet" href="css/panels.css?v=20261003-004">
+  <link rel="stylesheet" href="css/library.css?v=20261003-004">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261003-004">
+  <link rel="stylesheet" href="css/admin.css?v=20261003-004">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261003-001">
+  <link rel="stylesheet" href="css/kit.css?v=20261003-004">
 </head>
 
 <body>
@@ -156,7 +156,7 @@
         <div class="cp-sidebar-user">
           <div class="cp-user-avatar u-bg-brand-light u-brand" id="cp-user-avatar">И</div>
           <div class="cp-user-name" id="cp-user-name">Клиент</div>
-          <div class="cp-user-email" id="cp-user-email">email@mail.ru</div>
+          <div class="cp-user-phone" id="cp-user-phone"></div>
           <span class="cp-user-badge c-badge active" id="cp-user-badge">Активный</span>
         </div>
         <nav>
@@ -207,39 +207,28 @@
               <div class="profile-avatar-big u-bg-brand-light u-brand" id="profile-avatar-big">И</div>
               <div>
                 <div class="u-text-lead u-bold" id="profile-display-name">Клиент</div>
-                <div class="u-text-small u-muted u-mt-4" id="profile-display-email">—</div>
+                <div class="u-text-small u-muted u-mt-4" id="profile-display-phone">—</div>
                 <div class="u-text-small u-muted u-mt-2" id="profile-stats-line">0 записей</div>
               </div>
             </div>
             <div class="form-row">
               <div class="form-field">
-                <label class="form-label">Имя и фамилия</label>
-                <input class="form-input" id="pf-name" required>
+                <label class="form-label">Имя</label>
+                <input class="form-input" id="pf-first-name" required>
               </div>
               <div class="form-field">
-                <label class="form-label">Телефон</label>
-                <input class="form-input phone-input" id="pf-phone">
+                <label class="form-label">Фамилия</label>
+                <input class="form-input" id="pf-last-name" required>
               </div>
             </div>
             <div class="form-field">
-              <label class="form-label">Email</label>
-              <input class="form-input" id="pf-email" type="email" disabled>
+              <label class="form-label">Телефон</label>
+              <input class="form-input" id="pf-phone" disabled>
+              <div class="set-hint">Телефон — ваш логин. Чтобы изменить номер, обратитесь к администратору</div>
             </div>
-            <div class="form-row">
-              <div class="form-field">
-                <label class="form-label">Дата рождения</label>
-                <input class="form-input" id="pf-birth" type="date">
-              </div>
-              <div class="form-field">
-                <label class="form-label">Тип велосипеда</label>
-                <select class="form-input" id="pf-bike">
-                  <option value="">— не указан —</option>
-                  <option value="road">Шоссейный</option>
-                  <option value="mtb">Горный</option>
-                  <option value="gravel">Гравийный</option>
-                  <option value="triathlon">Триатлонный</option>
-                </select>
-              </div>
+            <div class="form-field">
+              <label class="form-label">Дата рождения</label>
+              <input class="form-input" id="pf-birth" type="date">
             </div>
             <div class="form-field">
               <label class="form-label">О себе / цели тренировок</label>
@@ -516,12 +505,13 @@
               Добавить</button>
           </div>
           <div class="u-flex u-gap-8 u-mb-16 u-wrap">
-            <input class="form-input u-flex-1 input-sm u-text-ui u-min-w-220" id="clients-search" placeholder="Поиск по имени, email, телефону..."
+            <input class="form-input u-flex-1 input-sm u-text-ui u-min-w-220" id="clients-search" placeholder="Поиск по имени, телефону..."
               oninput="filterClients(this.value)">
             <select class="form-input u-w-150 input-sm u-text-ui" id="clients-filter"
               onchange="filterClients(document.getElementById('clients-search').value)">
               <option value="all">Все клиенты</option>
               <option value="vip">VIP</option>
+              <option value="regular">Постоянные</option>
               <option value="new">Новые</option>
             </select>
           </div>
@@ -721,31 +711,31 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261003-001"></script>
-  <script src="js/core.js?v=20261003-001"></script>
-  <script src="js/week-grid.js?v=20261003-001"></script>
-  <script src="js/auth.js?v=20261003-001"></script>
-  <script src="js/site/schedule.js?v=20261003-001"></script>
-  <script src="js/site/booking.js?v=20261003-001"></script>
-  <script src="js/site/individual.js?v=20261003-001"></script>
-  <script src="js/site/trainings.js?v=20261003-001"></script>
-  <script src="js/site/services-bookings.js?v=20261003-001"></script>
-  <script src="js/admin/admin.js?v=20261003-001"></script>
-  <script src="js/admin/schedule.js?v=20261003-001"></script>
-  <script src="js/admin/journal.js?v=20261003-001"></script>
-  <script src="js/admin/journal-book.js?v=20261003-001"></script>
-  <script src="js/client/panel.js?v=20261003-001"></script>
-  <script src="js/client/chat-profile.js?v=20261003-001"></script>
-  <script src="js/site/detail-modals.js?v=20261003-001"></script>
-  <script src="js/admin/library.js?v=20261003-001"></script>
-  <script src="js/admin/data-nav.js?v=20261003-001"></script>
-  <script src="js/admin/specialists.js?v=20261003-001"></script>
-  <script src="js/admin/settings.js?v=20261003-001"></script>
-  <script src="js/admin/stations.js?v=20261003-001"></script>
-  <script src="js/admin/dictionaries.js?v=20261003-001"></script>
-  <script src="js/ui.js?v=20261003-001"></script>
-  <script src="js/loaders.js?v=20261003-001"></script>
-  <script src="js/init.js?v=20261003-001"></script>
+  <script src="js/api.js?v=20261003-004"></script>
+  <script src="js/core.js?v=20261003-004"></script>
+  <script src="js/week-grid.js?v=20261003-004"></script>
+  <script src="js/auth.js?v=20261003-004"></script>
+  <script src="js/site/schedule.js?v=20261003-004"></script>
+  <script src="js/site/booking.js?v=20261003-004"></script>
+  <script src="js/site/individual.js?v=20261003-004"></script>
+  <script src="js/site/trainings.js?v=20261003-004"></script>
+  <script src="js/site/services-bookings.js?v=20261003-004"></script>
+  <script src="js/admin/admin.js?v=20261003-004"></script>
+  <script src="js/admin/schedule.js?v=20261003-004"></script>
+  <script src="js/admin/journal.js?v=20261003-004"></script>
+  <script src="js/admin/journal-book.js?v=20261003-004"></script>
+  <script src="js/client/panel.js?v=20261003-004"></script>
+  <script src="js/client/chat-profile.js?v=20261003-004"></script>
+  <script src="js/site/detail-modals.js?v=20261003-004"></script>
+  <script src="js/admin/library.js?v=20261003-004"></script>
+  <script src="js/admin/data-nav.js?v=20261003-004"></script>
+  <script src="js/admin/specialists.js?v=20261003-004"></script>
+  <script src="js/admin/settings.js?v=20261003-004"></script>
+  <script src="js/admin/stations.js?v=20261003-004"></script>
+  <script src="js/admin/dictionaries.js?v=20261003-004"></script>
+  <script src="js/ui.js?v=20261003-004"></script>
+  <script src="js/loaders.js?v=20261003-004"></script>
+  <script src="js/init.js?v=20261003-004"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1033,45 +1023,34 @@
   <div class="admin-modal-overlay" id="client-modal">
     <div class="admin-modal u-max-w-520">
       <div class="admin-modal-title" id="client-modal-title">Добавить клиента</div>
-      <input type="hidden" id="cm-email-orig">
+      <input type="hidden" id="cm-id">
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Имя и фамилия</label>
-          <input class="form-input" id="cm-name" required>
+          <label class="form-label">Имя</label>
+          <input class="form-input" id="cm-first-name" required>
         </div>
         <div class="form-field">
-          <label class="form-label">Телефон</label>
-          <input class="form-input phone-input" id="cm-phone">
+          <label class="form-label">Фамилия</label>
+          <input class="form-input" id="cm-last-name" required>
         </div>
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Email</label>
-          <input class="form-input" id="cm-email" required type="email">
+          <label class="form-label">Телефон</label>
+          <input class="form-input phone-input" id="cm-phone" required>
         </div>
         <div class="form-field">
           <label class="form-label">Статус</label>
           <select class="form-input" id="cm-type">
             <option value="new">Новый</option>
+            <option value="regular">Постоянный</option>
             <option value="vip">VIP</option>
           </select>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Дата рождения</label>
-          <input class="form-input" id="cm-birth" type="date">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Тип велосипеда</label>
-          <select class="form-input" id="cm-bike">
-            <option value="">— не указан —</option>
-            <option value="road">Шоссейный</option>
-            <option value="mtb">Горный</option>
-            <option value="gravel">Гравийный</option>
-            <option value="triathlon">Триатлонный</option>
-          </select>
-        </div>
+      <div class="form-field">
+        <label class="form-label">Дата рождения</label>
+        <input class="form-input" id="cm-birth" type="date">
       </div>
       <div class="form-field">
         <label class="form-label">Заметки</label>

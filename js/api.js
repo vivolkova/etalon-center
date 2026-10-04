@@ -63,13 +63,13 @@ async function apiRequest(endpoint, method = 'GET', body = null, silent = false)
 
 // ── AUTH ───────────────────────────────────────────────────
 const AuthAPI = {
-  async register(email, password, name, phone) {
-    const res = await apiRequest('/auth.php?action=register', 'POST', { email, password, name, phone });
+  async register(data) {   // { first_name, last_name, phone, password }
+    const res = await apiRequest('/auth.php?action=register', 'POST', data);
     Auth.setToken(res.token);
     return res.user;
   },
-  async login(email, password) {
-    const res = await apiRequest('/auth.php?action=login', 'POST', { email, password });
+  async login(phone, password) {
+    const res = await apiRequest('/auth.php?action=login', 'POST', { phone, password });
     Auth.setToken(res.token);
     return res.user;
   },

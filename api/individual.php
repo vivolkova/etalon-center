@@ -86,7 +86,7 @@ function indSpecialists(PDO $db, array $lib): array {
     if (!activityNeedsSpecialist($lib['cat'], $lib['type']) || !$lib['ref_id']) return [];
     $locId = (int)$lib['location_id'];
     if (!dictAvailableAt($db, (int)$lib['ref_id'], $locId)) return [];
-    $st = $db->prepare('SELECT s.id, s.name, s.full_name FROM specialists s
+    $st = $db->prepare('SELECT s.id, s.name, s.full_name FROM specialists_view s
                         JOIN specialist_types t ON t.specialist_id = s.id AND t.type_id = ? AND t.active = 1
                         WHERE s.active = 1 ORDER BY s.name');
     $st->execute([(int)$lib['ref_id']]);
@@ -342,7 +342,7 @@ if ($method === 'GET' && $action === 'stations') {
 }
 
 // POST ?action=create — записаться: {library_id, specialist_id, date, start, duration, station_id, notes}.
-// Администратор записывает клиента: плюс user_id или new_client: {name, phone, email?} (middleware/booking_client.php)
+// Администратор записывает клиента: плюс user_id или new_client: {first_name, last_name, phone} (middleware/booking_client.php)
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();
     $d    = input();

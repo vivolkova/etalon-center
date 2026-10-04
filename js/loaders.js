@@ -25,6 +25,7 @@ async function loadSpecialistsAll() {
     SPECIALISTS_ALL = (res || []).map(function (t) {
       return {
         id: t.id, name: t.name, full: t.full_name,
+        firstName: t.first_name || '', lastName: t.last_name || '', phone: t.phone || '',
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
         types: t.types || [],
         location_ids: (t.location_ids || []).map(Number),   // филиалы из графика (специалист к филиалу не привязан)
@@ -84,12 +85,12 @@ function smApplySpecialistFilter(cat) {
 async function loadClients() {
   try {
     const res = await apiRequest('/clients.php?action=list');
-    if (res && res.length) {
+    if (res) {
       CLIENTS = res.map(function (c) {
         return {
-          id: parseInt(c.id) || 0, email: c.email, name: c.name, phone: c.phone || '',
+          id: parseInt(c.id) || 0, firstName: c.first_name || '', lastName: c.last_name || '', name: c.name, phone: c.phone || '',
           hasAccount: c.has_account == null || Number(c.has_account) === 1,   // false — заведён админом по телефону, входа на сайт нет
-          type: c.type || 'new', bike: c.bike || '',
+          type: c.type || 'new',
           birth: c.birth_date || '', notes: c.notes || '',
           regDate: c.created_at ? c.created_at.slice(0, 10) : '',
           totalBookings: parseInt(c.total_bookings) || 0,
@@ -98,7 +99,7 @@ async function loadClients() {
         };
       });
     }
-  } catch (e) { /* используем встроенных клиентов */ }
+  } catch (e) { /* сервер недоступен — список остаётся прежним */ }
 }
 
 // ── Загрузка всех записей для администратора ─────────────────
@@ -108,14 +109,14 @@ async function loadAdminBookings(opts) {
     const data = await BookingsAPI.all(opts);
     bookings = data.map(function (b) {
       return {
-        id: b.id, slotId: b.slot_id, name: b.user_name, email: b.user_email, phone: b.user_phone || '',
+        id: b.id, slotId: b.slot_id, name: b.user_name, phone: b.user_phone || '',
         service: b.slot_name, cat: b.category, type: b.type || null, location_id: b.location_id != null ? Number(b.location_id) : null,
         date: b.slot_date, time: b.start_time ? b.start_time.slice(0, 5) : '',
         specialist: b.specialist_name || '', specialistFull: b.specialist_full || b.specialist_name || '',
         station: b.station_label || '', stationType: b.station_type_name || '',
         price: Number(b.price),
         status: b.status, paymentStatus: b.payment_status,
-        clientId: b.user_email
+        clientId: Number(b.user_id)
       };
     });
   } catch (e) {

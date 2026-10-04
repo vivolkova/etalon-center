@@ -236,6 +236,7 @@ function jbRenderClient() {
       + (jbIsMove() ? '' : '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button>') + '</div>';
   } else if (jb.isNew) {
     box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required></div>'
+      + '<div><label class="form-label">Фамилия</label><input class="form-input" id="jb-new-last" required></div>'
       + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required></div></div>'
       + '<button class="btn-ghost jb-link" onclick="jbSetNew(false)">Найти по телефону</button>';
   } else {
@@ -451,15 +452,16 @@ async function jbSubmit() {
   if (jb.client) data.user_id = jb.client.id;
   else {
     data.new_client = {
-      name: document.getElementById('jb-new-name').value.trim(),
+      first_name: document.getElementById('jb-new-name').value.trim(),
+      last_name: document.getElementById('jb-new-last').value.trim(),
       phone: document.getElementById('jb-new-phone').value.trim(),
     };
-    if (!data.new_client.name) { showToast('Укажите имя клиента', 'error'); return; }
+    if (!data.new_client.first_name || !data.new_client.last_name) { showToast('Укажите имя и фамилию клиента', 'error'); return; }
     if (data.new_client.phone.replace(/\D+/g, '').length < 10) { showToast('Укажите телефон клиента (не меньше 10 цифр)', 'error'); return; }
   }
   const btn = document.getElementById('jb-submit');
   btn.disabled = true; btn.textContent = 'Записываем...';
-  const isNew = !jb.client, name = jb.client ? jb.client.name : data.new_client.name, start = group ? group.from : jb.start;
+  const isNew = !jb.client, name = jb.client ? jb.client.name : (data.new_client.first_name + ' ' + data.new_client.last_name).trim(), start = group ? group.from : jb.start;
   const self = jb.self, date = jb.date;
   try {
     if (group) await BookingsAPI.createFor(data); else await IndividualAPI.create(data);

@@ -87,7 +87,7 @@ if ($method === 'GET' && $action === 'list') {
                                        WHERE b.slot_id = s.id
                                          AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked
             FROM slots s
-            LEFT JOIN specialists t   ON s.specialist_id = t.id
+            LEFT JOIN specialists_view t ON s.specialist_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
@@ -119,7 +119,7 @@ if ($method === 'GET' && $action === 'get') {
                                        WHERE b.slot_id = s.id
                                          AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked
                           FROM slots s
-                          LEFT JOIN specialists t   ON s.specialist_id = t.id
+                          LEFT JOIN specialists_view t ON s.specialist_id = t.id
                           LEFT JOIN library  l   ON s.library_id = l.id
                           JOIN locations   loc ON s.location_id = loc.id
                           JOIN dictionaries dc ON s.category_id = dc.id

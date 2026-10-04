@@ -143,9 +143,7 @@ function checkSlotSpecialist(PDO $db, array $s): void {
     if ($s['cat'] === 'training' && ($s['type'] ?? null) === 'free') slotFail('У самостоятельной тренировки нет тренера');
 
     // Блокируем строку специалиста до конца транзакции
-    $st = $db->prepare('SELECT id, full_name, active FROM specialists WHERE id = ? FOR UPDATE');
-    $st->execute([$specId]);
-    $sp = $st->fetch();
+    $sp = lockSpecialistRow($db, $specId);
     if (!$sp) slotFail('Специалист не найден', 404);
     $who = $sp['full_name'];
     if (!(int)$sp['active']) slotFail($who . ' — неактивный специалист');
@@ -228,11 +226,23 @@ function minToTimeStr(int $m): string {
 
 // Заблокировать строку специалиста до конца транзакции (чтобы параллельно не поставили занятие): [full_name, active]
 function lockSpecialist(PDO $db, int $specId): array {
-    $st = $db->prepare('SELECT id, full_name, active FROM specialists WHERE id = ? FOR UPDATE');
-    $st->execute([$specId]);
-    $sp = $st->fetch();
+    $sp = lockSpecialistRow($db, $specId);
     if (!$sp) err('Специалист не найден', 404);
     return $sp;
+}
+// Блокируется только строка specialists; имя — из users (specialists_view), его блокировать незачем. [id, active, full_name] или null
+function lockSpecialistRow(PDO $db, int $specId): ?array {
+    $st = $db->prepare('SELECT id, active FROM specialists WHERE id = ? FOR UPDATE');
+    $st->execute([$specId]);
+    $sp = $st->fetch();
+    if (!$sp) return null;
+    $sp['full_name'] = specialistName($db, $specId);
+    return $sp;
+}
+function specialistName(PDO $db, int $specId): string {
+    $st = $db->prepare('SELECT full_name FROM specialists_view WHERE id = ?');
+    $st->execute([$specId]);
+    return (string)$st->fetchColumn();
 }
 
 // Будущие (с сегодняшнего дня) активные занятия специалиста в датах [$from; $to] ($to = null — без конца),
@@ -294,9 +304,7 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
 function specialistSlotsGuard(PDO $db, int $specId, ?string $from, ?string $to, string $what): void {
     $conf = specialistSlotConflicts($db, $specId, $from, $to);
     if (!$conf) return;
-    $st = $db->prepare('SELECT full_name FROM specialists WHERE id = ?');
-    $st->execute([$specId]);
-    $who = (string)$st->fetchColumn();
+    $who = specialistName($db, $specId);
     $db->rollBack();
     $list = array_map(fn($c) => specFmtDate($c['slot']['slot_date']) . ' ' . substr($c['slot']['start_time'], 0, 5)
         . ' «' . $c['slot']['name'] . '» — ' . $c['reason'], array_slice($conf, 0, 5));

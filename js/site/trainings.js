@@ -35,7 +35,7 @@ function trSelectDay(i) { trDayIdx = i; renderTrainings(); }
 function trMyBookings(locId, from, to) {
   if (!currentUser) return [];
   return bookings.filter(function (b) {
-    return b.clientId === currentUser.email && b.status === 'booked' && b.location_id === locId && b.date >= from && b.date <= to;
+    return b.clientId === currentUser.id && b.status === 'booked' && b.location_id === locId && b.date >= from && b.date <= to;
   });
 }
 

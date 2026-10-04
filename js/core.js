@@ -195,10 +195,6 @@ function hallCapOf(locId) {
 let LOCATIONS = [];    // активные филиалы (для выпадающих списков)
 let LOCATIONS_ALL = []; // все филиалы, включая неактивные (для раздела Настройки)
 
-// Fake user db
-const USERS = [
-  { email: 'admin@velo.ru', password: 'admin123', name: 'Администратор', phone: '+7 495 000-00-00', role: 'admin' },
-];
 
 // ─── CLIENT DATABASE ────────────────────────────────────────────────
 let CLIENTS = [];

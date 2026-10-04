@@ -2,7 +2,7 @@
 -- Эталон — ПОЛНАЯ СТРУКТУРА БД (единый файл, без миграций).
 -- Накатывать на чистую базу:  mysql -u USER -p DBNAME < db/schema.sql
 -- Данные (справочники + тестовые) — отдельно: db/seed.sql
--- Диалект: MySQL 8. Кодировка: utf8mb4. В структуре нет русских значений
+-- Диалект: MySQL 8.0.13 и новее (индексы по выражениям). Кодировка: utf8mb4. В структуре нет русских значений
 -- по умолчанию — только латинские коды; русские подписи хранятся в данных.
 -- Таблицы идут в порядке зависимостей, поэтому FOREIGN_KEY_CHECKS не нужен.
 -- ============================================================
@@ -88,38 +88,89 @@ CREATE TABLE station_type (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Пользователи ────────────────────────────────────────────
+-- Один человек — одна строка; телефон уникален и служит логином. Email не храним.
+-- phone — только цифры в едином виде 7XXXXXXXXXX (phoneDigits в middleware/auth.php), на экран — phoneView.
+-- has_account = 0 — клиента завёл администратор при записи по телефону: пароля нет, войти на сайт он не может.
+-- Роли сотрудников — в user_roles; клиентом может быть любой пользователь.
 CREATE TABLE users (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    email       VARCHAR(255) NOT NULL UNIQUE,
-    password    VARCHAR(255) NOT NULL,           -- bcrypt hash
-    name        VARCHAR(255) NOT NULL,
-    phone       VARCHAR(32)  NOT NULL,
-    role_id     INT NOT NULL,                    -- dictionaries.user_role
-    type        ENUM('new','vip') DEFAULT 'new',           -- категория клиента
+    first_name  VARCHAR(100) NOT NULL,
+    last_name   VARCHAR(100) NOT NULL,
+    -- «Имя Фамилия» для показа и поиска: в базе не хранится, вычисляется при чтении; порядок слов задан в одном месте
+    name        VARCHAR(201) GENERATED ALWAYS AS (CONCAT(first_name, ' ', last_name)) VIRTUAL,
+    phone       VARCHAR(15)  NOT NULL,
+    password    VARCHAR(255) NULL,                      -- bcrypt hash; NULL — кабинета нет
+    type        ENUM('new','regular','vip') DEFAULT 'new',   -- категория клиента: new — новый (ставится при появлении), regular — постоянный, vip
     active      TINYINT(1)   NOT NULL DEFAULT 1,        -- soft-delete: 0 = удалён/отключён
-    has_account TINYINT(1)   NOT NULL DEFAULT 1,        -- 0 — без личного кабинета: клиента завёл администратор при записи по телефону,
-                                                        --     войти на сайт он не может, email служебный <телефон>@phone.invalid
-    bike        VARCHAR(64),
+    has_account TINYINT(1)   NOT NULL DEFAULT 1,        -- 1 — есть личный кабинет (может войти)
+    account_created_at    DATETIME NULL,                -- когда создан кабинет
+    phone_verified_at     DATETIME NULL,                -- когда номер подтверждён; NULL — не подтверждён
+    phone_verified_by     INT NULL,                     -- users.id администратора, подтвердившего вручную
+    phone_verified_method ENUM('admin','max','telegram') NULL,
     birth_date  DATE,
     notes       TEXT,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY fk_users_role (role_id),
-    CONSTRAINT fk_users_role FOREIGN KEY (role_id) REFERENCES dictionaries(id)
+    UNIQUE KEY uq_users_phone (phone),
+    CONSTRAINT fk_users_verified_by FOREIGN KEY (phone_verified_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Роли сотрудников ────────────────────────────────────────
+-- У человека может быть несколько ролей (dictionaries.user_role: studio_admin, trainer, mechanic, system_admin).
+-- location_id — филиал роли: обязателен у администратора студии (два филиала — две строки); NULL — все филиалы.
+-- У тренера и механика филиалы определяет график (specialist_schedules), location_id пуст.
+-- История изменений (amnd_*): действующая строка — amnd_state = 'A' (active) и сохраняет свой id; прежняя версия — копия
+-- строки с amnd_state = 'I' (inactive); удалённая запись (роль снята) — amnd_state = 'C' (closed), отдельного поля active в таблицах с историей нет; amnd_prev — id копии с предыдущей версией; amnd_date — когда записана версия;
+-- updated_by — кто записал.
+-- Уникальность (человек, роль, филиал) действует только среди действующих строк: последняя часть индекса — выражение,
+-- равное 1 у действующей строки и пустое у копий (пустые значения в уникальном индексе друг другу не мешают).
+-- IFNULL(location_id, 0) — чтобы роль «на все филиалы» (филиал пуст) тоже нельзя было выдать дважды.
+-- Индексы по выражениям — MySQL 8.0.13 и новее.
+CREATE TABLE user_roles (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    user_id     INT NOT NULL,
+    role_id     INT NOT NULL,                      -- dictionaries.user_role
+    location_id INT NULL,
+    amnd_state  CHAR(1)  NOT NULL DEFAULT 'A',
+    amnd_date   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    amnd_prev   INT NULL,
+    updated_by  INT NULL,                          -- users.id; NULL — начальные данные
+    UNIQUE KEY uq_user_role (user_id, role_id, (IFNULL(location_id, 0)), (IF(amnd_state = 'A', 1, NULL))),
+    KEY fk_user_roles_role (role_id),
+    KEY fk_user_roles_location (location_id),
+    CONSTRAINT fk_user_roles_user     FOREIGN KEY (user_id)     REFERENCES users(id),
+    CONSTRAINT fk_user_roles_role     FOREIGN KEY (role_id)     REFERENCES dictionaries(id),
+    CONSTRAINT fk_user_roles_location FOREIGN KEY (location_id) REFERENCES locations(id),
+    CONSTRAINT fk_user_roles_prev     FOREIGN KEY (amnd_prev)   REFERENCES user_roles(id),
+    CONSTRAINT fk_user_roles_by       FOREIGN KEY (updated_by)  REFERENCES users(id),
+    CONSTRAINT chk_user_roles_state   CHECK (amnd_state IN ('A','I','C'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Специалисты (тренеры, байкфиттеры, мастера) ────────────
+-- Специалист — это человек из users (user_id обязателен): имя, фамилия и телефон берутся оттуда и здесь не повторяются.
+-- Под этой учётной записью он входит и видит своё расписание.
 -- Не привязан к филиалу: в каком филиале работает — задаётся у интервалов графика (specialist_schedules.week).
 -- Специализация — типы из справочника specialist_type, может быть несколько (тренер и байкфиттер) — specialist_types.
 CREATE TABLE specialists (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    name        VARCHAR(128) NOT NULL,
-    full_name   VARCHAR(255) NOT NULL,
+    user_id     INT NOT NULL,                    -- users.id: один человек — один специалист
     experience  INT DEFAULT 0,
     active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_specialists_user (user_id),
+    CONSTRAINT fk_specialists_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Специалист вместе с именем из users — для чтения (запись идёт в таблицы specialists и users).
+-- name — короткое имя для сетки расписания («Анна К.»), full_name — полное («Анна Козлова»).
+CREATE VIEW specialists_view AS
+SELECT sp.id, sp.user_id, sp.experience, sp.active, sp.created_at, sp.updated_at,
+       u.first_name, u.last_name, u.phone,
+       CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS name,
+       u.name AS full_name
+FROM specialists sp
+JOIN users u ON u.id = sp.user_id;
 
 -- ── Типы специалиста (тренер / байкфиттер / мастер), может быть несколько ──
 -- Тип сняли со специалиста — active = 0 (физически не удаляем).
@@ -291,15 +342,128 @@ CREATE TABLE slot_station_blocks (
     CONSTRAINT fk_ssb_station FOREIGN KEY (station_id) REFERENCES stations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Сессии (server-side JWT/сессии) ─────────────────────────
+-- ── Сессии: один вход — одна строка («кто вошёл и когда») ───
+-- В cookie лежит случайный секрет, здесь — только его отпечаток (SHA-256). Сессия действует, пока ended_at пусто
+-- и expires_at не наступил. Строки не удаляются (кроме очистки журналов администратором системы).
 CREATE TABLE sessions (
-    id          VARCHAR(64) PRIMARY KEY,
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    token_hash   CHAR(64) NOT NULL,
+    user_id      INT NOT NULL,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- момент входа
+    last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,   -- последнее обращение
+    expires_at   DATETIME NOT NULL,                             -- продлевается при обращениях
+    ended_at     DATETIME NULL,
+    end_reason   ENUM('logout','password','admin','expired') NULL,
+    ip           VARCHAR(45) NOT NULL,
+    user_agent   VARCHAR(255) NULL,
+    UNIQUE KEY uq_session_token (token_hash),
+    KEY idx_session_user (user_id, created_at),
+    CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Попытки входа, регистрации и использования ссылок ───────
+-- Защита от перебора (считаем неудачные за последние минуты) и журнал попыток.
+CREATE TABLE auth_attempts (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    kind        ENUM('login','register','link') NOT NULL,
+    phone       VARCHAR(15) NULL,                  -- какой номер вводили
+    success     TINYINT(1) NOT NULL,
+    session_id  INT NULL,                          -- созданная сессия при удачном входе
+    ip          VARCHAR(45) NOT NULL,
+    user_agent  VARCHAR(255) NULL,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    KEY idx_attempt_phone (phone, created_at),
+    KEY idx_attempt_ip (ip, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Одноразовые ссылки от администратора ────────────────────
+-- activate — создать кабинет, reset — сменить пароль. Действует 24 часа, срабатывает один раз.
+-- token_hash — отпечаток (SHA-256) секрета из ссылки; сам секрет не хранится.
+CREATE TABLE auth_links (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
+    purpose     ENUM('activate','reset') NOT NULL,
+    token_hash  CHAR(64) NOT NULL,
     expires_at  DATETIME NOT NULL,
-    created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    KEY idx_user (user_id),
-    CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
+    used_at     DATETIME NULL,
+    created_by  INT NOT NULL,                      -- users.id администратора
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_auth_link_token (token_hash),
+    KEY idx_auth_link_user (user_id),
+    CONSTRAINT fk_auth_link_user  FOREIGN KEY (user_id)    REFERENCES users(id),
+    CONSTRAINT fk_auth_link_admin FOREIGN KEY (created_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Документы: оферта, правила, политика, тексты согласий ───
+-- acceptance: required — без согласия нельзя зарегистрироваться, новая редакция принимается заново;
+-- optional — добровольное согласие, можно отозвать; none — документ просто опубликован.
+-- История изменений (amnd_*) — как в user_roles.
+CREATE TABLE documents (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    code        VARCHAR(40)  NOT NULL,             -- offer, rules, privacy, pd_consent, photo_consent
+    name        VARCHAR(255) NOT NULL,
+    acceptance  ENUM('required','optional','none') NOT NULL,
+    amnd_state  CHAR(1)  NOT NULL DEFAULT 'A',
+    amnd_date   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    amnd_prev   INT NULL,
+    updated_by  INT NULL,
+    UNIQUE KEY uq_documents_code (code, (IF(amnd_state = 'A', 1, NULL))),   -- код уникален среди действующих строк
+    CONSTRAINT fk_documents_prev  FOREIGN KEY (amnd_prev)  REFERENCES documents(id),
+    CONSTRAINT fk_documents_by    FOREIGN KEY (updated_by) REFERENCES users(id),
+    CONSTRAINT chk_documents_state CHECK (amnd_state IN ('A','I','C'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Редакции документов ─────────────────────────────────────
+-- Действующая редакция — с наибольшим номером. Опубликованная редакция не меняется и не удаляется:
+-- любая правка — новая редакция. body — простой текст: пустая строка делит абзацы, «# » в начале строки — заголовок.
+CREATE TABLE document_versions (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    document_id  INT NOT NULL,
+    version      INT NOT NULL,
+    body         MEDIUMTEXT NOT NULL,
+    published_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    published_by INT NULL,                         -- users.id; NULL — начальные данные
+    UNIQUE KEY uq_doc_version (document_id, version),
+    CONSTRAINT fk_docver_document FOREIGN KEY (document_id)  REFERENCES documents(id),
+    CONSTRAINT fk_docver_user     FOREIGN KEY (published_by) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Согласия: кто какую редакцию принял ─────────────────────
+-- Строки не удаляются: отзыв — revoked_at. source: site — галочка на сайте, admin — отмечено бумажное согласие.
+-- given_by — кто дал согласие, если не сам клиент (родитель несовершеннолетнего); NULL — сам.
+CREATE TABLE user_consents (
+    id                  INT AUTO_INCREMENT PRIMARY KEY,
+    user_id             INT NOT NULL,
+    document_version_id INT NOT NULL,
+    accepted_at         DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    revoked_at          DATETIME NULL,
+    source              ENUM('site','admin') NOT NULL,
+    recorded_by         INT NULL,                  -- users.id администратора, если source = admin
+    given_by            VARCHAR(255) NULL,
+    ip                  VARCHAR(45) NULL,
+    UNIQUE KEY uq_consent (user_id, document_version_id),
+    KEY fk_consent_version (document_version_id),
+    CONSTRAINT fk_consent_user    FOREIGN KEY (user_id)             REFERENCES users(id),
+    CONSTRAINT fk_consent_version FOREIGN KEY (document_version_id) REFERENCES document_versions(id),
+    CONSTRAINT fk_consent_admin   FOREIGN KEY (recorded_by)         REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Журнал действий: кто, когда и что сделал ────────────────
+-- Только добавление. action — код действия (auth.register, role.granted, document.published…),
+-- entity + entity_id — над чем (имя таблицы и id строки), details — подробности. Пароли и секреты сюда не пишутся.
+CREATE TABLE action_log (
+    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    user_id     INT NULL,                          -- кто; NULL — не вошедший посетитель
+    session_id  INT NULL,
+    action      VARCHAR(64) NOT NULL,
+    entity      VARCHAR(64) NULL,
+    entity_id   INT NULL,
+    details     JSON NULL,
+    ip          VARCHAR(45) NULL,
+    KEY idx_log_user (user_id, created_at),
+    KEY idx_log_entity (entity, entity_id),
+    KEY idx_log_action (action, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── Параметры студии, которые меняет администратор ──────────

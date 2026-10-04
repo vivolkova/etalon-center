@@ -166,7 +166,11 @@ function openTrainerModal(id, tab) {
     '</div>' +
     // ── Основное
     '<div data-trm-pane="main">' +
-    '<div class="form-field"><label class="form-label">Полное имя</label><input class="form-input" id="trm-name" required value="' + (t ? t.full : '') + '"></div>' +
+    '<div class="form-row">' +
+    '<div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="trm-first" required value="' + (t ? escAttr(t.firstName) : '') + '"></div>' +
+    '<div class="form-field"><label class="form-label">Фамилия</label><input class="form-input" id="trm-last" required value="' + (t ? escAttr(t.lastName) : '') + '"></div>' +
+    '</div>' +
+    '<div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="trm-phone" required value="' + (t ? escAttr(t.phone) : '') + '"></div>' +
     '<div class="form-row">' +
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
@@ -233,15 +237,18 @@ function trmSwitchTab(tab) {
 }
 
 async function saveTrainer(id) {
-  const fullName = document.getElementById('trm-name').value.trim();
-  if (!fullName) { showToast('Введите имя', 'error'); return; }
+  const first = document.getElementById('trm-first').value.trim();
+  const last = document.getElementById('trm-last').value.trim();
+  const phone = document.getElementById('trm-phone').value.trim();
+  if (!first || !last) { showToast('Введите имя и фамилию', 'error'); return; }
+  if (!phone) { showToast('Введите телефон', 'error'); return; }
   const types = msValues('trm-types');
   if (!types.length) { showToast('Выберите специализацию', 'error'); return; }
-  const shortName = fullName.split(' ').map((w, i) => i === 0 ? w : w[0] + '.').join(' ');
   const apiData = {
     active: document.getElementById('trm-active').checked ? 1 : 0,
-    full_name: fullName,
-    name: shortName,
+    first_name: first,
+    last_name: last,
+    phone: phone,
     types: types,
     experience: parseInt(document.getElementById('trm-exp').value) || 0,
   };

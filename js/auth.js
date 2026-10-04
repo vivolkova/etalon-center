@@ -16,25 +16,26 @@ function switchAuthTab(mode) {
   document.getElementById('tab-register').classList.toggle('active', mode === 'register');
   document.getElementById('auth-title').textContent = mode === 'login' ? 'Вход в аккаунт' : 'Регистрация';
   const f = document.getElementById('auth-fields');
+  // Логин — номер телефона (маску и проверку номера ставит js/ui.js по классу phone-input)
   if (mode === 'login') {
     f.innerHTML = `
-  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required></div>`;
+  <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone" required autocomplete="username"></div>
+  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required autocomplete="current-password"></div>`;
   } else {
     f.innerHTML = `
   <div class="form-row">
-    <div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="a-name" type="text" required></div>
-    <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone"></div>
+    <div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="a-first" type="text" required autocomplete="given-name"></div>
+    <div class="form-field"><label class="form-label">Фамилия</label><input class="form-input" id="a-last" type="text" required autocomplete="family-name"></div>
   </div>
-  <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="a-email" type="email" required></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required minlength="6"><div class="set-hint">Минимум 6 символов</div></div>`;
+  <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone" required autocomplete="username"></div>
+  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required minlength="8" autocomplete="new-password"><div class="set-hint">Не короче 8 символов</div></div>`;
   }
 }
 
 async function submitAuth() {
-  const email = document.getElementById('a-email')?.value.trim();
+  const phone = document.getElementById('a-phone')?.value.trim();
   const pass = document.getElementById('a-pass')?.value;
-  if (!email || !pass) { showToast('Заполните все поля', 'error'); return; }
+  if (!phone || !pass) { showToast('Заполните все поля', 'error'); return; }
 
   // Показываем индикатор загрузки
   const btn = document.querySelector('.modal-actions .btn-primary');
@@ -43,34 +44,16 @@ async function submitAuth() {
   try {
     let user;
     if (authMode === 'login') {
-      user = await AuthAPI.login(email, pass);
+      user = await AuthAPI.login(phone, pass);
     } else {
-      const name = document.getElementById('a-name')?.value.trim();
-      const phone = document.getElementById('a-phone')?.value.trim() || '';
-      if (!name) { showToast('Введите ваше имя', 'error'); return; }
-      user = await AuthAPI.register(email, pass, name, phone);
+      const first = document.getElementById('a-first')?.value.trim();
+      const last = document.getElementById('a-last')?.value.trim();
+      if (!first || !last) { showToast('Укажите имя и фамилию', 'error'); return; }
+      user = await AuthAPI.register({ first_name: first, last_name: last, phone: phone, password: pass });
     }
     loginUser(user);
   } catch (e) {
-    // Сервер ответил отказом (неверный пароль, занятый email) — сообщение уже показано
-    if (!e.offline) return;
-    // Fallback на localStorage если API недоступен
-    if (authMode === 'login') {
-      const user = USERS.find(u => u.email === email && u.password === pass);
-      if (!user) { showToast('Неверный email или пароль', 'error'); return; }
-      loginUser(user);
-    } else {
-      const name = document.getElementById('a-name')?.value.trim();
-      const phone = document.getElementById('a-phone')?.value.trim() || '';
-      if (!name) { showToast('Введите ваше имя', 'error'); return; }
-      if (USERS.find(u => u.email === email)) { showToast('Этот email уже зарегистрирован', 'error'); return; }
-      const newUser = { email, password: pass, name, phone, role: 'client' };
-      USERS.push(newUser);
-      if (!CLIENTS.find(c => c.email === email)) {
-        CLIENTS.push({ email, name, phone, status: 'new', bike: '', birth: '', notes: '', regDate: new Date().toISOString().slice(0, 10) });
-      }
-      loginUser(newUser);
-    }
+    // Отказ сервера или нет связи — сообщение уже показано (apiRequest)
   } finally {
     if (btn) { btn.textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться'; btn.disabled = false; }
   }
@@ -106,7 +89,6 @@ async function loadMyBookings() {
         id: b.id,
         slotId: b.slot_id,
         name: currentUser.name,
-        email: currentUser.email,
         service: b.slot_name,
         cat: b.category,
         type: b.type || null,
@@ -125,7 +107,7 @@ async function loadMyBookings() {
         price: Number(b.price),
         status: b.status,
         paymentStatus: b.payment_status,
-        clientId: currentUser.email,
+        clientId: currentUser.id,
       };
     });
   } catch (e) {

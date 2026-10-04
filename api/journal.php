@@ -14,7 +14,7 @@ $action = $_GET['action'] ?? '';
 //  categories: [{code, name}] — услуги филиала (вкладки журнала),
 //  specialists: [{id, name, full_name, cats: [код услуги], work: [{from, to}]}] — колонки услуг (кто работает здесь в этот день или уже записан),
 //  slots: [{id, library_id, name, cat, type, from, to, price, specialist_id, specialist, individual,
-//           bookings: [{id, user_id, name, phone, email, station_id, payment_status, notes}], blocked: [station_id]}]}
+//           bookings: [{id, user_id, name, phone, station_id, payment_status, notes}], blocked: [station_id]}]}
 if ($method === 'GET' && $action === 'day') {
     authAdmin();
     $db    = getDB();
@@ -36,7 +36,7 @@ if ($method === 'GET' && $action === 'day') {
                         JOIN dictionaries dc ON dc.id = s.category_id
                         LEFT JOIN library l ON l.id = s.library_id
                         LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
-                        LEFT JOIN specialists sp ON sp.id = s.specialist_id
+                        LEFT JOIN specialists_view sp ON sp.id = s.specialist_id
                         WHERE s.location_id = ? AND s.slot_date = ? AND s.active = 1
                         ORDER BY s.start_time, s.id');
     $st->execute([$locId, $date]);
@@ -55,7 +55,7 @@ if ($method === 'GET' && $action === 'day') {
     }
 
     // Кто записан (без отменённых) и какие станки заблокированы на занятие
-    $st = $db->prepare("SELECT b.id, b.slot_id, b.station_id, b.payment_status, b.notes, u.id AS user_id, u.name, u.phone, u.email
+    $st = $db->prepare("SELECT b.id, b.slot_id, b.station_id, b.payment_status, b.notes, u.id AS user_id, u.name, u.phone
                         FROM bookings b
                         JOIN slots s ON s.id = b.slot_id
                         JOIN users u ON u.id = b.user_id
@@ -64,7 +64,7 @@ if ($method === 'GET' && $action === 'day') {
     $st->execute([$locId, $date]);
     foreach ($st->fetchAll() as $r) {
         $slots[(int)$r['slot_id']]['bookings'][] = [
-            'id' => (int)$r['id'], 'user_id' => (int)$r['user_id'], 'name' => $r['name'], 'phone' => $r['phone'], 'email' => $r['email'],
+            'id' => (int)$r['id'], 'user_id' => (int)$r['user_id'], 'name' => $r['name'], 'phone' => phoneView($r['phone']),
             'station_id' => $r['station_id'] !== null ? (int)$r['station_id'] : null,
             'payment_status' => $r['payment_status'], 'notes' => $r['notes'],
         ];
@@ -91,7 +91,7 @@ if ($method === 'GET' && $action === 'day') {
     // Колонки услуг: специалисты, которые оказывают услуги этого филиала и работают здесь в этот день,
     // плюс те, на кого в этот день уже есть запись на услугу (даже если график с тех пор изменили).
     // cats — категории услуг специалиста: в какой вкладке журнала его показывать
-    $st = $db->prepare("SELECT sp.id, sp.name, sp.full_name, c.code AS cat FROM specialists sp
+    $st = $db->prepare("SELECT sp.id, sp.name, sp.full_name, c.code AS cat FROM specialists_view sp
                         JOIN specialist_types t ON t.specialist_id = sp.id AND t.active = 1
                         JOIN dictionaries c ON c.ref_id = t.type_id AND c.group_code = 'service_category' AND c.active = 1
                         JOIN location_dictionaries ld ON ld.dictionary_id = c.id AND ld.location_id = ? AND ld.active = 1

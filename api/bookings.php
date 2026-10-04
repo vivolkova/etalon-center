@@ -21,7 +21,7 @@ if ($method === 'GET' && $action === 'my') {
         JOIN dictionaries dc ON s.category_id = dc.id
         LEFT JOIN library l ON l.id = s.library_id
         LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id
-        LEFT JOIN specialists t ON s.specialist_id = t.id
+        LEFT JOIN specialists_view t ON s.specialist_id = t.id
         LEFT JOIN stations st ON b.station_id = st.id
         LEFT JOIN station_type stt ON stt.id = st.type_id
         WHERE b.user_id = ?
@@ -43,7 +43,7 @@ if ($method === 'GET' && $action === 'all') {
     $to     = $isDate($_GET['to'] ?? null)   ? $_GET['to']   : date('Y-m-d', strtotime('+30 days'));
     $locId  = (int)($_GET['location_id'] ?? 0);   // 0 — все филиалы
 
-    $sql = 'SELECT b.*, u.name AS user_name, u.email AS user_email, u.phone AS user_phone,
+    $sql = 'SELECT b.*, u.name AS user_name, u.phone AS user_phone,
                    s.name AS slot_name, s.slot_date, s.start_time, s.price AS price, s.location_id,
                    dc.code AS category, dt.code AS type,
                    t.name AS specialist_name, t.full_name AS specialist_full,
@@ -54,7 +54,7 @@ if ($method === 'GET' && $action === 'all') {
             JOIN dictionaries dc       ON s.category_id = dc.id
             LEFT JOIN library l        ON l.id = s.library_id
             LEFT JOIN dictionaries dt  ON dt.id = l.slot_type_id
-            LEFT JOIN specialists t    ON s.specialist_id = t.id
+            LEFT JOIN specialists_view t ON s.specialist_id = t.id
             LEFT JOIN stations st      ON b.station_id = st.id
             LEFT JOIN station_type stt ON st.type_id = stt.id
             WHERE s.slot_date BETWEEN ? AND ?';
@@ -63,15 +63,15 @@ if ($method === 'GET' && $action === 'all') {
 
     if ($status) { $sql .= ' AND b.status=?'; $params[] = $status; }
     if ($search) {
-        $sql .= ' AND (u.name LIKE ? OR u.email LIKE ? OR s.name LIKE ?)';
+        $sql .= ' AND (u.name LIKE ? OR s.name LIKE ?)';
         $like = "%$search%";
-        $params = array_merge($params, [$like, $like, $like]);
+        $params = array_merge($params, [$like, $like]);
     }
     $sql .= ' ORDER BY b.created_at DESC';
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    ok($stmt->fetchAll());
+    ok(phoneViewRows($stmt->fetchAll(), 'user_phone'));
 }
 
 // Станок для записи на занятие: активен, из филиала занятия, не заблокирован на него и не занят другой записью.
@@ -104,7 +104,7 @@ function bookingHallCapacity(PDO $db, int $slotId, int $locId): int {
 }
 
 // POST — создать запись на занятие из расписания (групповая тренировка — на конкретный станок).
-// Клиент записывает себя; администратор — клиента из журнала записи: user_id или new_client: {name, phone}
+// Клиент записывает себя; администратор — клиента из журнала записи: user_id или new_client: {first_name, last_name, phone}
 // (middleware/booking_client.php). Клиент не может быть записан на два занятия в одно время.
 if ($method === 'POST' && $action === 'create') {
     $user = authUser();

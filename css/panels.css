@@ -99,7 +99,8 @@
   letter-spacing: .4px;
 }
 
-.c-badge.active {
+.c-badge.active,
+.c-badge.regular {
   background: var(--success-bg);
   color: var(--success);
 }
@@ -187,7 +188,7 @@
   font-weight: 700;
 }
 
-.cp-user-email {
+.cp-user-phone {
   font-size: 11px;
   color: var(--ink-60);
   margin-top: 2px;

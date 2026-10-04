@@ -13,11 +13,10 @@ function renderClientPanel() {
   const el = document.getElementById('cp-user-avatar');
   el.style.background = av + '20'; el.style.color = av; el.textContent = init;
   document.getElementById('cp-user-name').textContent = currentUser.name;
-  document.getElementById('cp-user-email').textContent = currentUser.email;
-  const cData = CLIENTS.find(c => c.email === currentUser.email);
+  document.getElementById('cp-user-phone').textContent = currentUser.phone || '';
   const badge = document.getElementById('cp-user-badge');
-  badge.className = 'cp-user-badge c-badge ' + (cData?.type || 'new');
-  badge.textContent = { new: 'Новый', vip: 'VIP' }[cData?.type || 'new'] || 'Новый';
+  badge.className = 'cp-user-badge c-badge ' + (currentUser.type || 'new');
+  badge.textContent = { new: 'Новый', regular: 'Постоянный', vip: 'VIP' }[currentUser.type || 'new'] || 'Новый';
 
   renderClientFeed();
 }
@@ -60,7 +59,7 @@ function cpBookingFilter(val, btn) {
 
 function renderCpBookings() {
   const list = document.getElementById('cp-bookings-list');
-  let mine = bookings.filter(b => b.clientId === currentUser?.email);
+  let mine = bookings.filter(b => b.clientId === currentUser?.id);
   if (cpBookingFilter_val !== 'all') mine = mine.filter(b => b.status === cpBookingFilter_val);
   if (!mine.length) {
     list.innerHTML = `<div class="empty-state">

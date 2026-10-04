@@ -331,7 +331,7 @@ function filterBookingsSearch(q) {
   if (filter !== 'all') list = list.filter(b => b.status === filter);
   if (q) {
     const lq = q.toLowerCase();
-    list = list.filter(b => [b.name, b.email, b.phone, b.service, b.specialistFull, b.station]
+    list = list.filter(b => [b.name, b.phone, b.service, b.specialistFull, b.station]
       .some(v => (v || '').toLowerCase().includes(lq)));
   }
   renderAdminBookingsFiltered(list);
@@ -368,7 +368,7 @@ function renderAdminBookingsFiltered(list) {
     const loc = b.location_id ? findLocation(b.location_id) : null;
     // Полоса слева и точка — цвет занятия: категория, у тренировки — её вид (персональная / самостоятельная)
     return '<tr class="' + colorClass(b.cat, b.type) + '">' +
-      '<td class="cat-edge"><strong>' + escAttr(b.name) + '</strong><br><span class="u-muted u-text-caption">' + escAttr(b.email) + '</span></td>' +
+      '<td class="cat-edge"><strong>' + escAttr(b.name) + '</strong></td>' +
       '<td class="u-nowrap">' + muted(b.phone) + '</td>' +
       '<td>' + muted(loc ? loc.name : '') + '</td>' +
       '<td><span class="cat-dot" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +

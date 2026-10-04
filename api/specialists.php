@@ -1,6 +1,7 @@
 <?php
 // api/specialists.php — Специалисты (тренеры, байкфиттеры, мастера)
 // Специалист не привязан к филиалу (филиал — у интервалов графика), типов может быть несколько.
+// Специалист — человек из users: имя, фамилия и телефон хранятся там (читаем через specialists_view).
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/specialist_hours.php';
 require_once __DIR__ . '/../middleware/slot_rules.php';
@@ -29,7 +30,18 @@ function saveSpecTypes(PDO $db, int $specId, array $typeIds): void {
     foreach ($typeIds as $t) $ins->execute([$specId, $t]);
 }
 
-// GET — список специалистов (публичный). types — коды типов; location_ids — филиалы, где специалист работает
+// Имя, фамилия и телефон специалиста из запроса: [first_name, last_name, phone цифрами]
+function specPerson(array $d): array {
+    $first = trim((string)($d['first_name'] ?? ''));
+    $last  = trim((string)($d['last_name'] ?? ''));
+    if ($first === '') err('Укажите имя специалиста');
+    if ($last === '')  err('Укажите фамилию специалиста');
+    $phone = phoneDigits((string)($d['phone'] ?? ''));
+    if ($phone === null) err('Укажите телефон специалиста полностью, например +7 900 123-45-67');
+    return [$first, $last, $phone];
+}
+
+// GET — список специалистов (публичный; телефон — только администратору). types — коды типов; location_ids — филиалы, где специалист работает
 // по графику и особым часам (с сегодняшнего дня); для админки (all=1) ещё актуальные периоды графика и исключения
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
@@ -37,11 +49,11 @@ if ($method === 'GET' && $action === 'list') {
     if ($all) authAdmin();
     $where = $all ? '1' : 'sp.active = 1';
     $stmt = $db->prepare('
-        SELECT sp.*,
+        SELECT sp.id, sp.user_id, sp.name, sp.full_name, sp.first_name, sp.last_name, sp.experience, sp.active,' . ($all ? ' sp.phone,' : '') . '
                (SELECT GROUP_CONCAT(d.code ORDER BY d.id) FROM specialist_types stp
                   JOIN dictionaries d ON d.id = stp.type_id WHERE stp.specialist_id = sp.id AND stp.active = 1) AS types,
                (SELECT COUNT(*) FROM slots s WHERE s.specialist_id = sp.id AND s.active = 1) AS sessions_count
-        FROM specialists sp
+        FROM specialists_view sp
         WHERE ' . $where . '
         ORDER BY sp.id
     ');
@@ -50,6 +62,7 @@ if ($method === 'GET' && $action === 'list') {
     $hours = specialistsHoursMap($db, null, date('Y-m-d'));
     foreach ($rows as &$r) {
         $r['types'] = $r['types'] !== null ? explode(',', $r['types']) : [];
+        if ($all) $r['phone'] = phoneView($r['phone']);
         $h = $hours[$r['id']] ?? [];
         $r['location_ids'] = specLocationIds($h);
         if ($all) {
@@ -61,41 +74,45 @@ if ($method === 'GET' && $action === 'list') {
     ok($rows);
 }
 
-// POST — создать специалиста (admin): {name, full_name, types:[коды] — специализация, experience, active}
+// POST — создать специалиста (admin): {first_name, last_name, phone, types:[коды] — специализация, experience, active}.
+// Человек с таким телефоном уже есть (например, клиент) — специалистом становится он, второй записи в users не будет
 if ($method === 'POST' && $action === 'create') {
     authAdmin();
     $d = input();
-    require_fields($d, ['name', 'full_name']);
+    [$first, $last, $phone] = specPerson($d);
     $db = getDB();
     $typeIds = specTypeIds($db, $d['types'] ?? []);
     $db->beginTransaction();
-    $stmt = $db->prepare('INSERT INTO specialists (name,full_name,experience,active) VALUES (?,?,?,?)');
-    $stmt->execute([
-        $d['name'], $d['full_name'], $d['experience'] ?? 0,
-        isset($d['active']) ? (int)(bool)$d['active'] : 1,
-    ]);
+    $userId = personByPhone($db, $first, $last, $phone);
+    $st = $db->prepare('SELECT id FROM specialists WHERE user_id = ?');
+    $st->execute([$userId]);
+    if ($st->fetchColumn()) err('Специалист с таким телефоном уже есть');
+    $db->prepare('INSERT INTO specialists (user_id, experience, active) VALUES (?,?,?)')
+       ->execute([$userId, (int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1]);
     $id = (int)$db->lastInsertId();
     saveSpecTypes($db, $id, $typeIds);
     $db->commit();
     ok(['id' => $id], 'Специалист добавлен');
 }
 
-// PUT — обновить специалиста (admin)
+// PUT — обновить специалиста (admin): имя, фамилия и телефон меняются в его записи users
 if ($method === 'PUT' && $action === 'update') {
     authAdmin();
     $d = input();
-    require_fields($d, ['id', 'name', 'full_name']);
+    $id = (int)($d['id'] ?? 0);
+    if (!$id) err('Не указан id');
+    [$first, $last, $phone] = specPerson($d);
     $db = getDB();
-    $id = (int)$d['id'];
     $typeIds = specTypeIds($db, $d['types'] ?? []);
     $db->beginTransaction();
     lockSpecialist($db, $id);
-    $db->prepare('UPDATE specialists SET name=?,full_name=?,experience=?,active=? WHERE id=?')
-       ->execute([
-           $d['name'], $d['full_name'], $d['experience'] ?? 0,
-           isset($d['active']) ? (int)(bool)$d['active'] : 1,
-           $id,
-       ]);
+    $st = $db->prepare('SELECT user_id FROM specialists WHERE id = ?');
+    $st->execute([$id]);
+    $userId = (int)$st->fetchColumn();
+    $db->prepare('UPDATE users SET first_name = ?, last_name = ? WHERE id = ?')->execute([$first, $last, $userId]);
+    setUserPhone($db, $userId, $phone);
+    $db->prepare('UPDATE specialists SET experience=?, active=? WHERE id=?')
+       ->execute([(int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1, $id]);
     saveSpecTypes($db, $id, $typeIds);
     // Деактивация или снятие специализации — только если будущие занятия специалиста остаются возможны
     specialistSlotsGuard($db, $id, null, null, 'сохранить специалиста');

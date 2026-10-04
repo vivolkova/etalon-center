@@ -10,8 +10,10 @@ SET NAMES utf8mb4;
 
 -- Справочники (коды латиницей, подписи русские). id не фиксируем — логика по кодам.
 INSERT INTO dictionaries (group_code, code, name) VALUES
-('user_role', 'client', 'Клиент'),
-('user_role', 'admin', 'Администратор'),
+('user_role', 'system_admin', 'Администратор системы'),
+('user_role', 'studio_admin', 'Администратор студии'),
+('user_role', 'trainer', 'Тренер'),
+('user_role', 'mechanic', 'Механик'),
 ('activity_category', 'training', 'Тренировка'),
 ('service_category', 'bikefit', 'Байкфит'),
 ('service_category', 'workshop', 'Мастерская'),
@@ -65,6 +67,18 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 (1, (SELECT id FROM station_type WHERE name='Роллерный станок'), 'Роллер 1', 0, 1, 7);
 
 
+-- Документы. Тексты — заготовки (редакция 1): настоящие тексты публикуются новой редакцией в разделе «Документы».
+INSERT INTO documents (code, name, acceptance) VALUES
+('offer',         'Публичная оферта',                            'required'),
+('rules',         'Правила студии',                              'required'),
+('pd_consent',    'Согласие на обработку персональных данных',   'required'),
+('privacy',       'Политика обработки персональных данных',      'none'),
+('photo_consent', 'Согласие на использование фото и видео',      'optional');
+
+INSERT INTO document_versions (document_id, version, body)
+SELECT id, 1, CONCAT('# ', name, '\n\nТекст документа готовится.\n\nОператор: ИП ____________, ИНН ____________, ОГРНИП ____________.\nАдрес: ____________. Телефон: ____________.')
+FROM documents;
+
 -- ─────────────── РАЗДЕЛ 2. ТЕСТОВЫЕ ДАННЫЕ (только dev) ───────────────
 
 -- Второй филиал (id = 2): зал 3×2, 6 мест; Пн–Сб 08:00–21:00, Вс — выходной
@@ -84,28 +98,35 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 (@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 2',   1, 0, 2),
 (@south, (SELECT id FROM station_type WHERE name='Велостанок 11s'), 'Юг Станок 1', 2, 0, 3);
 
-INSERT INTO specialists (name, full_name, experience) VALUES
-('Анна К.',   'Анна Козлова',   5),
-('Максим Р.', 'Максим Романов', 7),
-('Игорь Б.',  'Игорь Белов',    6);
+-- Локальные учётные записи (вход — по телефону; пароли прежние, в файле только bcrypt-хэши).
+-- Администратор системы: +7 (911) 145-70-89
+INSERT INTO users (first_name, last_name, phone, password, account_created_at) VALUES
+('Алексей', 'Щебелин', '79111457089', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', NOW()),
+-- Клиент: +7 (951) 660-56-66
+('Виктория', 'Волкова', '79516605666', '$2y$12$t4RYOd0pszvOvb0W2X8QQuCZ808dHmohFy5m5t.2vXjlJ5xyGhV7i', NOW());
+
+-- Специалисты — тоже люди из users (телефоны условные, кабинета нет: has_account = 0)
+INSERT INTO users (first_name, last_name, phone, has_account) VALUES
+('Анна',   'Козлова', '79000000001', 0),
+('Максим', 'Романов', '79000000002', 0),
+('Игорь',  'Белов',   '79000000003', 0);
+
+INSERT INTO specialists (user_id, experience)
+SELECT id, ELT(FIELD(phone, '79000000001', '79000000002', '79000000003'), 5, 7, 6)
+FROM users WHERE phone IN ('79000000001', '79000000002', '79000000003') ORDER BY phone;
 
 -- Типы специалистов: Максим — и тренер, и байкфиттер
 INSERT INTO specialist_types (specialist_id, type_id)
-SELECT sp.id, d.id FROM specialists sp
+SELECT sp.id, d.id FROM specialists_view sp
 JOIN dictionaries d ON d.group_code = 'specialist_type'
  AND (sp.full_name, d.code) IN (('Анна Козлова', 'trainer'), ('Максим Романов', 'trainer'),
                                 ('Максим Романов', 'bikefitter'), ('Игорь Белов', 'bikefitter'));
 
--- Локальный админ: admin@local / admin123
-INSERT INTO users (email, password, name, phone, role_id, type) VALUES
-('admin@local', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', 'Админ (dev)', '',
- (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='admin'), 'new'),
--- Клиент (dev): vikisvolkova@gmail.com
-('vikisvolkova@gmail.com', '$2y$12$t4RYOd0pszvOvb0W2X8QQuCZ808dHmohFy5m5t.2vXjlJ5xyGhV7i', 'Виктория', '+79515506666',
- (SELECT id FROM dictionaries WHERE group_code='user_role' AND code='client'), 'new');
-
 -- Графики и исключения ниже заводит локальный админ (created_by обязателен)
-SET @dev_admin = (SELECT id FROM users WHERE email = 'admin@local');
+SET @dev_admin = (SELECT id FROM users WHERE phone = '79111457089');
+
+INSERT INTO user_roles (user_id, role_id)
+VALUES (@dev_admin, (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'system_admin'));
 
 -- Графики специалистов (в пределах режима работы филиалов). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
 -- (в остальные месяцы не работает); Максим и Игорь — бессрочно. Максим по вторникам и четвергам вечером — в «Юге»
@@ -200,7 +221,7 @@ FROM (
   UNION ALL SELECT '2026-10-10' AS slot_date, '10:00:00' AS start_time, 'Утренний сайкл' AS lib, 'Анна Козлова' AS spec
 ) v
 JOIN library l      ON l.name = v.lib AND l.location_id = 1
-JOIN specialists sp ON sp.full_name = v.spec
+JOIN specialists_view sp ON sp.full_name = v.spec
 ORDER BY v.slot_date, v.start_time;
 
 -- Библиотека «Юга»: групповые тренировки
@@ -226,6 +247,6 @@ FROM (
   UNION ALL SELECT '2026-10-08', '19:00:00', 'Силовой сайкл'
 ) v
 JOIN library l      ON l.name = v.lib AND l.location_id = @south
-JOIN specialists sp ON sp.full_name = 'Максим Романов'
+JOIN specialists_view sp ON sp.full_name = 'Максим Романов'
 ORDER BY v.slot_date, v.start_time;
 
