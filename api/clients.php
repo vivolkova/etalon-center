@@ -104,7 +104,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT — обновить клиента. Телефон — логин: должен остаться уникальным; смена номера сбрасывает его подтверждение
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    $admin = authAdmin();
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -116,7 +116,7 @@ if ($method === 'PUT' && $action === 'update') {
     $db->beginTransaction();
     $db->prepare('UPDATE users SET first_name=?, last_name=?, type=?, birth_date=?, notes=? WHERE id=?')
        ->execute([$f[0], $f[1], $f[2], $f[3], $f[4], $id]);
-    setUserPhone($db, $id, $phone);
+    setUserPhone($db, $id, $phone, $admin);
     $db->commit();
     ok(null, 'Клиент обновлён');
 }

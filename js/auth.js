@@ -59,10 +59,9 @@ async function submitAuth() {
   }
 }
 
-async function loginUser(user) {
+// quiet — без приветствия (сессия восстановлена после обновления страницы)
+async function loginUser(user, quiet) {
   currentUser = user;
-  // Сохраняем пользователя для восстановления после обновления страницы
-  localStorage.setItem('ec_user', JSON.stringify(user));
   closeAuth();
   document.getElementById('btn-login').style.display = 'none';
   document.getElementById('btn-signup').style.display = 'none';
@@ -72,7 +71,7 @@ async function loginUser(user) {
   if (user.role === 'admin') document.getElementById('nav-admin').style.display = '';
   // Клиентские разделы (запись на тренировки и услуги) администратору не нужны — он работает в панели (журнал записи)
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
-  showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
+  if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
   // Загружаем записи с сервера; слоты — заново (свежие счётчики мест)
   await Promise.allSettled([loadMyBookings(), loadSlots()]);
   renderSitePages();
@@ -170,29 +169,21 @@ async function loadSlots(fromDate, toDate) {
 }
 
 // ── Восстановление сессии при загрузке страницы ──────────────
+// Сессия живёт в cookie: спрашиваем сервер, кто вошёл. Не вошёл — остаёмся в виде «не вошёл»
 async function restoreSession() {
-  // Сначала пробуем восстановить через токен
-  if (typeof Auth !== 'undefined' && Auth.isLoggedIn()) {
-    try {
-      const user = await AuthAPI.me(); // Проверяем токен на сервере
-      localStorage.setItem('ec_user', JSON.stringify(user));
-      await loginUser(user);
-      return;
-    } catch (e) {
-      // Токен чистим только если сервер его отклонил, а не при обрыве связи
-      if (!e.offline) {
-        Auth.removeToken();
-        localStorage.removeItem('ec_user');
-      }
-    }
-  }
-  // Токена нет — показываем как незалогиненного
-  // (не восстанавливаем из ec_user без токена — иначе 401 на все запросы)
+  let user;
+  try { user = await AuthAPI.me(); } catch (e) { return; }
+  await loginUser(user, true);
 }
 
-function logout() {
-  if (typeof AuthAPI !== 'undefined') AuthAPI.logout();
-  localStorage.removeItem('ec_user');
+// Выход: завершаем сессию на сервере и возвращаем страницу к виду «не вошёл»
+async function logout() {
+  await AuthAPI.logout();
+  logoutLocal();
+}
+
+// Вид «не вошёл» (выход или сессия закончилась)
+function logoutLocal() {
   currentUser = null;
   bookings = [];
   document.getElementById('btn-login').style.display = '';

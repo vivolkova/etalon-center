@@ -114,7 +114,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT — обновить специалиста (admin): имя, фамилия и телефон меняются в его записи users
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    $admin = authAdmin();
     $d = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -127,7 +127,7 @@ if ($method === 'PUT' && $action === 'update') {
     $st->execute([$id]);
     $userId = (int)$st->fetchColumn();
     $db->prepare('UPDATE users SET first_name = ?, last_name = ? WHERE id = ?')->execute([$first, $last, $userId]);
-    setUserPhone($db, $userId, $phone);
+    setUserPhone($db, $userId, $phone, $admin);
     $db->prepare('UPDATE specialists SET experience=?, active=? WHERE id=?')
        ->execute([(int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1, $id]);
     saveSpecTypes($db, $id, $typeIds);

@@ -1,37 +1,32 @@
-// API-клиент: токен, apiRequest, объекты *API для всех эндпоинтов
+// API-клиент: ключ сессии, apiRequest, объекты *API для всех эндпоинтов
 
 // ═══════════════════════════════════════════════════════════
 
 const API_BASE = '/api'; // Замените на полный URL если нужно: 'https://ваш-домен.ru/api'
 
-// ── Хранение токена ────────────────────────────────────────
+// ── Сессия ─────────────────────────────────────────────────
+// Сама сессия — в cookie ec_session (HttpOnly: скриптам страницы недоступна, браузер передаёт её сам).
+// Здесь — только ключ сессии: сервер выдаёт его при входе и в ответе «кто вошёл» (auth.php?action=me),
+// страница держит его в памяти и передаёт в заголовке X-Session-Key с каждым изменяющим запросом.
 const Auth = {
-  getToken() {
-    return localStorage.getItem('ec_token');
-  },
-  setToken(t) {
-    localStorage.setItem('ec_token', t);
-    // Дублируем в cookie для REG.RU (shared hosting не всегда передаёт Authorization header)
-    const expires = new Date(Date.now() + 7 * 86400 * 1000).toUTCString();
-    document.cookie = 'ec_token=' + encodeURIComponent(t) + '; expires=' + expires + '; path=/; SameSite=Lax';
-  },
-  removeToken() {
-    localStorage.removeItem('ec_token');
-    document.cookie = 'ec_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
-  },
-  isLoggedIn() {
-    return !!localStorage.getItem('ec_token');
-  },
+  key: null,
+  set(key) { this.key = key || null; },
+  clear() { this.key = null; },
+  isLoggedIn() { return !!this.key; },
 };
+// Остатки прежнего входа по токену — убираем из браузера
+try {
+  localStorage.removeItem('ec_token'); localStorage.removeItem('ec_user');
+  document.cookie = 'ec_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/';
+} catch (e) { /* хранилище недоступно */ }
 
 // ── Базовый запрос ─────────────────────────────────────────
 // silent — не показывать сообщение об ошибке (вызывающий покажет итог сам, например по нескольким запросам)
 async function apiRequest(endpoint, method = 'GET', body = null, silent = false) {
   const headers = { 'Content-Type': 'application/json' };
-  const token = Auth.getToken();
-  if (token) headers['Authorization'] = 'Bearer ' + token;
+  if (method !== 'GET' && Auth.key) headers['X-Session-Key'] = Auth.key;
 
-  const opts = { method, headers };
+  const opts = { method, headers, credentials: 'same-origin' };
   if (body) opts.body = JSON.stringify(body);
 
   // offline = сервер недоступен (можно откатиться на локальные данные);
@@ -57,6 +52,12 @@ async function apiRequest(endpoint, method = 'GET', body = null, silent = false)
     fail('Сервер вернул некорректный ответ', true);
   }
 
+  // Сессия закончилась (истёк срок, завершена на другом устройстве или администратором) — возвращаем страницу к виду «не вошёл»
+  if (res.status === 401 && Auth.isLoggedIn()) {
+    Auth.clear();
+    if (typeof logoutLocal === 'function') logoutLocal();
+    fail('Сессия завершена — войдите снова', false);
+  }
   if (!data.success) fail(data.message || 'Ошибка сервера', false);
   return data.data;
 }
@@ -65,19 +66,28 @@ async function apiRequest(endpoint, method = 'GET', body = null, silent = false)
 const AuthAPI = {
   async register(data) {   // { first_name, last_name, phone, password }
     const res = await apiRequest('/auth.php?action=register', 'POST', data);
-    Auth.setToken(res.token);
+    Auth.set(res.session_key);
     return res.user;
   },
   async login(phone, password) {
     const res = await apiRequest('/auth.php?action=login', 'POST', { phone, password });
-    Auth.setToken(res.token);
+    Auth.set(res.session_key);
     return res.user;
   },
-  logout() {
-    Auth.removeToken();
+  // Завершить сессию на сервере; ключ забываем в любом случае
+  async logout() {
+    try { await apiRequest('/auth.php?action=logout', 'POST', null, true); } catch (e) { /* сессии уже нет или нет связи */ }
+    Auth.clear();
   },
+  async logoutAll() {
+    await apiRequest('/auth.php?action=logout_all', 'POST');
+    Auth.clear();
+  },
+  // Кто вошёл — по cookie сессии; не вошёл — ошибка без сообщения на экране
   async me() {
-    return apiRequest('/auth.php?action=me');
+    const res = await apiRequest('/auth.php?action=me', 'GET', null, true);
+    Auth.set(res.session_key);
+    return res.user;
   },
   async update(data) {
     return apiRequest('/auth.php?action=update', 'PUT', data);

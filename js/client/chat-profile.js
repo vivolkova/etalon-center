@@ -38,7 +38,6 @@ async function saveProfile() {
 
   // Профиль — в том виде, в каком его сохранил сервер
   currentUser = user;
-  localStorage.setItem('ec_user', JSON.stringify(user));
   document.getElementById('btn-logout').textContent = user.name.split(' ')[0] + ' · Выйти';
   renderClientPanel();
   renderProfileForm();

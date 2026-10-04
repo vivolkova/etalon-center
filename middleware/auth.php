@@ -67,8 +67,13 @@ function userRole(PDO $db, int $userId): string {
     return 'client';
 }
 
-// Сменить телефон человека: номер должен остаться уникальным; подтверждение прежнего номера сбрасывается
-function setUserPhone(PDO $db, int $userId, string $digits): void {
+// Сменить телефон человека: номер должен остаться уникальным; подтверждение прежнего номера сбрасывается.
+// $actor — кто меняет (для журнала действий). Номер тот же — ничего не происходит
+function setUserPhone(PDO $db, int $userId, string $digits, ?array $actor = null): void {
+    $st = $db->prepare('SELECT phone FROM users WHERE id = ?');
+    $st->execute([$userId]);
+    $old = (string)$st->fetchColumn();
+    if ($old === $digits) return;
     $st = $db->prepare('SELECT name FROM users WHERE phone = ? AND id <> ?');
     $st->execute([$digits, $userId]);
     if ($other = $st->fetchColumn()) err('Этот телефон уже записан за другим человеком: ' . $other);
@@ -83,6 +88,7 @@ function setUserPhone(PDO $db, int $userId, string $digits): void {
         if (isDuplicatePhone($e)) err('Этот телефон уже записан за другим человеком');
         throw $e;
     }
+    logAction($db, $actor, 'client.phone_changed', 'users', $userId, ['old' => $old, 'new' => $digits]);
 }
 
 // Человек с этим телефоном: есть — его id (имя и фамилия обновляются, отключённый включается снова),
