@@ -54,6 +54,61 @@ textarea:required:invalid:focus {
   cursor: pointer;
 }
 
+/* Обязательная галочка (согласие): пока не отмечена — красная рамка, как у обязательного поля */
+input[type="checkbox"]:required:invalid {
+  outline: 2px solid var(--danger);
+  outline-offset: 1px;
+}
+
+/* Галочка с длинным текстом и ссылками (согласия): текст переносится, флажок — у первой строки */
+.check-label--text {
+  align-items: flex-start;
+  line-height: 1.4;
+}
+.check-label--text input { margin-top: 2px; flex-shrink: 0; }
+.check-label--text a { color: var(--green-dark); text-decoration: underline; }
+
+/* Поле пароля с кнопкой «показать»: <div class="pass-field"><input class="form-input" type="password">
+   <button type="button" class="pass-toggle"></button></div> (passFieldHtml в js/ui.js) */
+.pass-field { position: relative; }
+.pass-field .form-input { padding-right: 42px; }
+.pass-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--ink-60);
+  cursor: pointer;
+}
+.pass-toggle:hover,
+.pass-toggle.is-on { color: var(--green-dark); }
+
+/* Полоса-уведомление внизу страницы (cookie): показывается, пока посетитель не нажмёт «Понятно» */
+.cookie-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 13px;
+}
+.cookie-bar[hidden] { display: none; }
+.cookie-bar a { color: #fff; text-decoration: underline; }
+
 /* Значок внутри строки текста */
 .ico-inline {
   display: inline-block;

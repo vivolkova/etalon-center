@@ -355,6 +355,7 @@ if ($method === 'POST' && $action === 'create') {
     $db   = getDB();
     [$lib, $specId, $dur] = indArgs($db, $d);
     adminAt($user, (int)$lib['location_id']);   // администратор записывает клиента только в своём филиале
+    consentsGuard($db, $user);                  // клиент записывается сам — только приняв действующие документы
     $date = (string)$d['date'];
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
     if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)$d['start'])) err('Некорректное время начала');

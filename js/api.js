@@ -92,6 +92,9 @@ const AuthAPI = {
   async update(data) {
     return apiRequest('/auth.php?action=update', 'PUT', data);
   },
+  async password(current, password) {
+    return apiRequest('/auth.php?action=password', 'PUT', { current, password });
+  },
 };
 
 // ── SLOTS ──────────────────────────────────────────────────
@@ -231,6 +234,10 @@ const DocumentsAPI = {
   async get(code) { return apiRequest('/documents.php?action=get&code=' + encodeURIComponent(code), 'GET', null, true); },
   async versions(code) { return apiRequest('/documents.php?action=versions&code=' + encodeURIComponent(code)); },
   async publish(code, body) { return apiRequest('/documents.php?action=publish', 'POST', { code, body }); },
+  // Согласия вошедшего: список, принять действующие редакции, отозвать добровольное
+  async my() { return apiRequest('/documents.php?action=my'); },
+  async accept(codes) { return apiRequest('/documents.php?action=accept', 'POST', { codes }); },
+  async revoke(code) { return apiRequest('/documents.php?action=revoke', 'POST', { code }); },
 };
 
 // Параметры студии (таблица settings)

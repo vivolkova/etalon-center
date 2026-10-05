@@ -184,3 +184,50 @@ document.addEventListener('change', e => {
 document.addEventListener('mousedown', e => {
   document.querySelectorAll('.ms.open').forEach(ms => { if (!ms.contains(e.target)) ms.classList.remove('open'); });
 });
+
+// ═══ ОКНО-СООБЩЕНИЕ ══════════════════════════════════════════════
+// Как uiConfirm, но с одной кнопкой «Закрыть»: сообщение, которое нужно успеть прочитать (не всплывающая подсказка)
+function uiInfo(title, note) {
+  const el = document.createElement('div');
+  el.className = 'admin-modal-overlay confirm-overlay show';
+  el.innerHTML = '<div class="admin-modal u-max-w-380">'
+    + '<div class="admin-modal-title' + (note ? ' u-mb-8' : '') + '">' + escAttr(title) + '</div>'
+    + (note ? '<div class="u-text-body u-muted u-mb-20">' + escAttr(note) + '</div>' : '')
+    + '<div class="admin-modal-actions"><button class="btn-primary" data-act="ok">Закрыть</button></div></div>';
+  el.querySelector('[data-act="ok"]').onclick = function () { el.remove(); };
+  document.body.appendChild(el);
+  el.querySelector('[data-act="ok"]').focus();
+}
+
+// ═══ ПОЛЕ ПАРОЛЯ ═════════════════════════════════════════════════
+// Одно поле с кнопкой «показать пароль» — без «повторите пароль». autocomplete: current-password | new-password
+function passFieldHtml(id, autocomplete, minlength) {
+  return '<div class="pass-field"><input class="form-input" id="' + id + '" type="password" required autocomplete="' + autocomplete + '"'
+    + (minlength ? ' minlength="' + minlength + '"' : '') + '>'
+    + '<button type="button" class="pass-toggle" onclick="togglePass(this)" title="Показать пароль">'
+    + '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+    + '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>';
+}
+function togglePass(btn) {
+  const inp = btn.parentNode.querySelector('input');
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.classList.toggle('is-on', show);
+  btn.title = show ? 'Скрыть пароль' : 'Показать пароль';
+}
+
+// ═══ ПОЛОСА ПРО COOKIE ═══════════════════════════════════════════
+// На сайте только техническая cookie входа — согласие не требуется, достаточно сообщить. Показываем до «Понятно»
+const COOKIE_OK_KEY = 'etalon.cookieOk';
+function cookieBarInit() {
+  const bar = document.getElementById('cookie-bar');
+  if (!bar) return;
+  let seen = false;
+  try { seen = localStorage.getItem(COOKIE_OK_KEY) === '1'; } catch (e) { /* хранилище недоступно — покажем */ }
+  bar.hidden = seen;
+}
+function cookieBarOk() {
+  try { localStorage.setItem(COOKIE_OK_KEY, '1'); } catch (e) { /* скроем до перезагрузки */ }
+  document.getElementById('cookie-bar').hidden = true;
+}
+cookieBarInit();

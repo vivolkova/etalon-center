@@ -20,7 +20,8 @@ function switchAuthTab(mode) {
   if (mode === 'login') {
     f.innerHTML = `
   <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone" required autocomplete="username"></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required autocomplete="current-password"></div>`;
+  <div class="form-field"><label class="form-label">Пароль</label>${passFieldHtml('a-pass', 'current-password')}</div>
+  <a class="u-text-small u-brand" href="#" onclick="forgotPassword();return false">Забыли пароль?</a>`;
   } else {
     f.innerHTML = `
   <div class="form-row">
@@ -28,7 +29,8 @@ function switchAuthTab(mode) {
     <div class="form-field"><label class="form-label">Фамилия</label><input class="form-input" id="a-last" type="text" required autocomplete="family-name"></div>
   </div>
   <div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="a-phone" required autocomplete="username"></div>
-  <div class="form-field"><label class="form-label">Пароль</label><input class="form-input" id="a-pass" type="password" required minlength="8" autocomplete="new-password"><div class="set-hint">Не короче 8 символов</div></div>`;
+  <div class="form-field"><label class="form-label">Пароль</label>${passFieldHtml('a-pass', 'new-password', 8)}<div class="set-hint">Не короче 8 символов</div></div>
+  ${consentChecksHtml('a')}`;
   }
 }
 
@@ -49,7 +51,9 @@ async function submitAuth() {
       const first = document.getElementById('a-first')?.value.trim();
       const last = document.getElementById('a-last')?.value.trim();
       if (!first || !last) { showToast('Укажите имя и фамилию', 'error'); return; }
-      user = await AuthAPI.register({ first_name: first, last_name: last, phone: phone, password: pass });
+      const agree = consentChecksRead('a');
+      if (!agree.agree_offer || !agree.agree_pd) { showToast('Отметьте согласие с офертой, правилами студии и обработкой персональных данных', 'error'); return; }
+      user = await AuthAPI.register(Object.assign({ first_name: first, last_name: last, phone: phone, password: pass }, agree));
     }
     loginUser(user);
   } catch (e) {
@@ -57,6 +61,59 @@ async function submitAuth() {
   } finally {
     if (btn) { btn.textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться'; btn.disabled = false; }
   }
+}
+
+// Три галочки согласий (регистрация, создание кабинета по ссылке). Первые две обязательны, третья — добровольная.
+// Ссылки открывают документ в новой вкладке — форма не теряется. prefix — приставка id полей
+function consentChecksHtml(prefix) {
+  const doc = function (code, text) { return '<a href="#doc/' + code + '" target="_blank" rel="noopener">' + text + '</a>'; };
+  const row = function (id, required, html) {
+    return '<label class="check-label check-label--text u-mt-10"><input type="checkbox" id="' + prefix + '-' + id + '"' + (required ? ' required' : '') + '><span>' + html + '</span></label>';
+  };
+  return row('agree-offer', true, 'Я ознакомлен(а) и согласен(а) с условиями ' + doc('offer', 'Публичной оферты') + ' и ' + doc('rules', 'Правилами студии'))
+    + row('agree-pd', true, 'Я даю ' + doc('pd_consent', 'согласие на обработку персональных данных') + ' в соответствии с ' + doc('privacy', 'Политикой обработки персональных данных'))
+    + row('agree-photo', false, 'Я ' + doc('photo_consent', 'согласен(а) на использование фото- и видеоматериалов') + ' с моим изображением в социальных сетях и рекламных материалах ETALON CENTER');
+}
+function consentChecksRead(prefix) {
+  const on = function (id) { const el = document.getElementById(prefix + '-' + id); return !!(el && el.checked); };
+  return { agree_offer: on('agree-offer'), agree_pd: on('agree-pd'), agree_photo: on('agree-photo') };
+}
+
+// «Забыли пароль?» — пока восстановление только через администратора: он присылает ссылку для смены пароля
+function forgotPassword() {
+  const loc = (typeof LOCATIONS !== 'undefined' && LOCATIONS[0]) || null;
+  uiInfo('Забыли пароль?', 'Чтобы сменить пароль, обратитесь к администратору студии' + (loc && loc.phone ? ': ' + loc.phone : '') + '. Он пришлёт ссылку для смены пароля.');
+}
+
+// Вышла новая редакция обязательного документа (или клиент ещё не принимал документы): окно со списком и галочкой.
+// Пока не принято, клиент может смотреть сайт и свои записи, но новые записи сервер не создаёт. Закрыть окно нельзя —
+// только «Принять» или «Выйти»
+function showPendingDocs() {
+  const docs = (currentUser && currentUser.pending_docs) || [];
+  const old = document.getElementById('docs-modal'); if (old) old.remove();
+  if (!docs.length) return;
+  const el = document.createElement('div');
+  el.className = 'admin-modal-overlay show';
+  el.id = 'docs-modal';
+  el.innerHTML = '<div class="admin-modal u-max-w-460">'
+    + '<div class="admin-modal-title u-mb-8">Мы обновили документы</div>'
+    + '<div class="u-text-body u-muted u-mb-12">Чтобы записываться на занятия, ознакомьтесь с документами и примите их.</div>'
+    + docs.map(function (d) {
+      return '<div class="u-text-body u-mb-6">• <a class="u-brand" href="#doc/' + d.code + '" target="_blank" rel="noopener">' + escAttr(d.name) + '</a> — редакция ' + d.version + '</div>';
+    }).join('')
+    + '<label class="check-label check-label--text u-mt-12"><input type="checkbox" id="docs-agree" required><span>Я ознакомлен(а) и согласен(а)</span></label>'
+    + '<div class="admin-modal-actions"><button class="btn-ghost" id="docs-exit">Выйти</button>'
+    + '<button class="btn-primary" id="docs-accept">Принять</button></div></div>';
+  document.body.appendChild(el);
+  document.getElementById('docs-exit').onclick = function () { el.remove(); logout(); };
+  document.getElementById('docs-accept').onclick = async function () {
+    if (!document.getElementById('docs-agree').checked) { showToast('Отметьте согласие', 'error'); return; }
+    let res;
+    try { res = await DocumentsAPI.accept(docs.map(function (d) { return d.code; })); } catch (e) { return; }
+    currentUser.pending_docs = res.pending_docs || [];
+    el.remove();
+    showToast('Документы приняты', 'success');
+  };
 }
 
 // Кнопка с именем вошедшего: «Имя · Выйти». Филиал администратора — рядом, в переключателе #adm-branch
@@ -76,6 +133,7 @@ async function loginUser(user, quiet) {
   if (user.role !== 'admin') document.getElementById('nav-client').style.display = '';
   if (user.role === 'admin') { document.getElementById('nav-admin').style.display = ''; admMenuApply(); }
   admBranchInit();
+  showPendingDocs();
   // Клиентские разделы (запись на тренировки и услуги) администратору не нужны — он работает в панели (журнал записи)
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
   if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
@@ -193,6 +251,7 @@ async function logout() {
 function logoutLocal() {
   currentUser = null;
   admBranchInit();
+  showPendingDocs();   // окно «Мы обновили документы» закрывается вместе с сессией
   bookings = [];
   document.getElementById('btn-login').style.display = '';
   document.getElementById('btn-signup').style.display = '';

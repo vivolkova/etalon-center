@@ -1,5 +1,5 @@
 <?php
-// api/auth.php — Регистрация, вход, выход, профиль. Логин — номер телефона.
+// api/auth.php — Регистрация, вход, выход, профиль, смена пароля. Логин — номер телефона.
 // Вход создаёт сессию (middleware/session.php): cookie ec_session + ключ сессии в ответе (session_key).
 require_once __DIR__ . '/../middleware/helpers.php';
 setCORS();
@@ -19,10 +19,13 @@ function authUserData(PDO $db, int $id): ?array {
     $u['role']  = userRole($db, $u['id']);
     // rights — что доступно в панели, branches — в каких филиалах (null — во всех); сервер проверяет это сам на каждом вызове
     $u += userAccess(['roles' => userRoles($db, $u['id'])]);
+    // Обязательные документы, новую редакцию которых клиент ещё не принял (администратора это не касается)
+    $u['pending_docs'] = $u['role'] === 'admin' ? [] : pendingDocs($db, $u['id']);
     return $u;
 }
 
-// POST /api/auth.php?action=register — имя, фамилия, телефон, пароль
+// POST /api/auth.php?action=register — имя, фамилия, телефон, пароль и три галочки:
+// agree_offer (оферта и правила студии) и agree_pd (обработка персональных данных) обязательны, agree_photo — нет
 if ($method === 'POST' && $action === 'register') {
     originGuard();
     $d = input();
@@ -33,7 +36,9 @@ if ($method === 'POST' && $action === 'register') {
     if ($last === '')  err('Укажите фамилию');
     $phone = phoneDigits((string)($d['phone'] ?? ''));
     if ($phone === null) err('Укажите номер телефона полностью');
-    if ($problem = passwordProblem($pass)) err($problem);
+    if ($problem = passwordProblem($pass, ['phone' => $phone, 'names' => [$first, $last]])) err($problem);
+    if (empty($d['agree_offer'])) err('Чтобы зарегистрироваться, нужно согласиться с офертой и правилами студии');
+    if (empty($d['agree_pd']))    err('Чтобы зарегистрироваться, нужно дать согласие на обработку персональных данных');
 
     $db = getDB();
     if ($blocked = registerBlocked($db)) err($blocked, 429);
@@ -57,6 +62,7 @@ if ($method === 'POST' && $action === 'register') {
         throw $e;
     }
     $userId  = (int)$db->lastInsertId();
+    consentAccept($db, $userId, array_merge(CONSENT_OFFER, CONSENT_PD, !empty($d['agree_photo']) ? CONSENT_PHOTO : []));
     $session = sessionStart($db, $userId);
     attemptLog($db, 'register', $phone, true, $session['id']);
     logAction($db, ['id' => $userId, 'session_id' => $session['id']], 'auth.register', 'users', $userId);
@@ -85,6 +91,10 @@ if ($method === 'POST' && $action === 'login') {
         err($fail);
     }
     if ((int)$row['active'] === 0) { attemptLog($db, 'login', $phone, false); err('Учётная запись отключена'); }
+    // хэш прежней стойкости обновляем при удачном входе
+    if (password_needs_rehash($row['password'], PASSWORD_BCRYPT, ['cost' => 12])) {
+        $db->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]), (int)$row['id']]);
+    }
 
     $session = sessionStart($db, (int)$row['id']);
     attemptLog($db, 'login', $phone, true, $session['id']);
@@ -113,6 +123,28 @@ if ($method === 'GET' && $action === 'me') {
     $u = authUserData(getDB(), $user['id']);
     if (!$u) err('Пользователь не найден', 404);
     ok(['user' => $u, 'session_key' => $user['key']]);
+}
+
+// PUT /api/auth.php?action=password — смена пароля: {current, password}. Остальные сессии человека завершаются
+if ($method === 'PUT' && $action === 'password') {
+    $user = authUser();
+    $d    = input();
+    $db   = getDB();
+    $st   = $db->prepare('SELECT first_name, last_name, phone, password FROM users WHERE id = ?');
+    $st->execute([$user['id']]);
+    $row  = $st->fetch();
+    if ($blocked = loginBlocked($db, $row['phone'])) err($blocked, 429);
+    if (!password_verify((string)($d['current'] ?? ''), (string)$row['password'])) {
+        attemptLog($db, 'login', $row['phone'], false);   // перебор текущего пароля считается так же, как перебор при входе
+        err('Текущий пароль указан неверно');
+    }
+    $new = (string)($d['password'] ?? '');
+    if ($problem = passwordProblem($new, ['phone' => $row['phone'], 'names' => [$row['first_name'], $row['last_name']]])) err($problem);
+    if (password_verify($new, (string)$row['password'])) err('Новый пароль совпадает с текущим');
+    $db->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([password_hash($new, PASSWORD_BCRYPT, ['cost' => 12]), $user['id']]);
+    sessionEndAll($db, $user['id'], 'password', $user['session_id']);
+    logAction($db, $user, 'auth.password_changed', 'users', $user['id']);
+    ok(null, 'Пароль изменён');
 }
 
 // PUT /api/auth.php?action=update — профиль. Телефон здесь не меняется: он логин, меняет его администратор

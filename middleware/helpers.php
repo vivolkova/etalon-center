@@ -8,6 +8,7 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/roles.php';
 require_once __DIR__ . '/amnd.php';
+require_once __DIR__ . '/consents.php';
 
 // ── CORS ──────────────────────────────────────────────────
 function setCORS(): void {

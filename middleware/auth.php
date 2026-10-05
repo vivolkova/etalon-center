@@ -40,12 +40,47 @@ function isDuplicatePhone(PDOException $e): bool {
     return ($e->errorInfo[1] ?? 0) === 1062 && strpos($e->getMessage(), 'uq_users_phone') !== false;
 }
 
-// Текст ошибки пароля или null
-function passwordProblem(string $password): ?string {
-    $len = strlen($password);
+// Текст ошибки пароля или null. Правила: длина; не из списка частых паролей (middleware/weak_passwords.txt);
+// не простая последовательность (один символ, 12345678, qwertyui…); не совпадает с телефоном и именем человека.
+// Требований «цифра, заглавная буква, спецсимвол» нет намеренно. $person — ['phone' => цифры, 'names' => [имя, фамилия]]
+function passwordProblem(string $password, array $person = []): ?string {
     if (mb_strlen($password) < PASSWORD_MIN_LENGTH) return 'Пароль не короче ' . PASSWORD_MIN_LENGTH . ' символов';
-    if ($len > PASSWORD_MAX_LENGTH) return 'Пароль слишком длинный';
+    if (strlen($password) > PASSWORD_MAX_LENGTH) return 'Пароль слишком длинный';
+    $p = mb_strtolower($password);
+
+    $simple = 'Пароль слишком простой — такой часто подбирают';
+    if (count(array_unique(mb_str_split($p))) < 4) return $simple;                       // «aaaaaaaa», «abababab»
+    // подряд идущие символы: цифры, алфавит, ряды клавиатуры — в обе стороны
+    foreach (['01234567890123456789', 'abcdefghijklmnopqrstuvwxyz', 'qwertyuiopasdfghjklzxcvbnm', 'йцукенгшщзхъфывапролджэячсмитьбю', 'абвгдежзийклмнопрстуфхцчшщъыьэюя'] as $row) {
+        if (mb_strpos($row, $p) !== false || mb_strpos(strrevUtf8($row), $p) !== false) return $simple;
+    }
+    if (isset(weakPasswords()[$p])) return $simple;
+
+    $own = 'Пароль не должен совпадать с телефоном или именем';
+    $digits = preg_replace('/\D+/', '', $password);
+    $phone  = (string)($person['phone'] ?? '');
+    if ($phone !== '' && strlen($digits) >= 7 && (strpos($phone, $digits) !== false || strpos($digits, substr($phone, -10)) !== false)) return $own;
+    $letters = preg_replace('/[^\p{L}]+/u', '', $p);
+    foreach ($person['names'] ?? [] as $name) {
+        $n = mb_strtolower(trim((string)$name));
+        if (mb_strlen($n) >= 3 && $letters === $n) return $own;                           // «Виктория2026», «волкова!»
+    }
     return null;
+}
+function strrevUtf8(string $s): string {
+    return implode('', array_reverse(mb_str_split($s)));
+}
+// Список частых паролей: [пароль => true]
+function weakPasswords(): array {
+    static $set = null;
+    if ($set === null) {
+        $set = [];
+        foreach (@file(__DIR__ . '/weak_passwords.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            $line = mb_strtolower(trim($line));
+            if ($line !== '' && $line[0] !== '#') $set[$line] = true;
+        }
+    }
+    return $set;
 }
 
 // Действующие роли сотрудника: [['code' => 'studio_admin', 'location_id' => 2], …]

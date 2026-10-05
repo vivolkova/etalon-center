@@ -18,6 +18,52 @@ function renderProfileForm() {
   document.getElementById('pf-birth').value = currentUser.birth_date || '';
   document.getElementById('pf-notes').value = currentUser.notes || '';
   document.getElementById('profile-saved-msg').style.display = 'none';
+  // поля пароля — пустые при каждом открытии профиля
+  document.getElementById('pf-pass-cur-box').innerHTML = passFieldHtml('pf-pass-cur', 'current-password');
+  document.getElementById('pf-pass-new-box').innerHTML = passFieldHtml('pf-pass-new', 'new-password', 8);
+  renderProfileConsents();
+}
+
+// ── СОГЛАСИЯ ──────────────────────────────────────────────────────
+// Обязательные документы — что принято и когда; добровольное согласие (фото и видео) — галочка: дать или отозвать
+async function renderProfileConsents(list) {
+  const box = document.getElementById('pf-consents');
+  if (!box) return;
+  if (!list) { try { list = await DocumentsAPI.my(); } catch (e) { return; } }
+  box.innerHTML = list.map(function (c) {
+    const link = '<a class="u-brand" href="#doc/' + c.code + '" target="_blank" rel="noopener">' + escAttr(c.name) + '</a>';
+    const when = c.accepted_at ? 'редакция ' + c.accepted_version + ', ' + docDate(c.accepted_at) + (c.source === 'admin' ? ' (на бумаге)' : '') : 'нет';
+    if (c.acceptance === 'optional') {
+      return '<label class="check-label check-label--text u-mt-12"><input type="checkbox" data-consent="' + c.code + '"' + (c.accepted_at ? ' checked' : '') +
+        ' onchange="toggleConsent(this)"><span>' + link + (c.accepted_at ? ' — дано: ' + when : ' — не дано') + '</span></label>';
+    }
+    return '<div class="u-text-body u-mb-6">' + link + ' — <span class="u-muted">' + (c.accepted_at ? 'принято: ' + when : 'не принято') + '</span></div>';
+  }).join('');
+}
+
+async function toggleConsent(input) {
+  const code = input.getAttribute('data-consent');
+  let res;
+  try { res = input.checked ? await DocumentsAPI.accept([code]) : await DocumentsAPI.revoke(code); }
+  catch (e) { input.checked = !input.checked; return; }   // отказ сервера — сообщение уже показано, возвращаем галочку
+  showToast(input.checked ? 'Согласие дано' : 'Согласие отозвано', 'success');
+  renderProfileConsents(res.consents);
+}
+
+// ── ПАРОЛЬ И СЕССИИ ───────────────────────────────────────────────
+async function changePassword() {
+  const cur = document.getElementById('pf-pass-cur').value;
+  const next = document.getElementById('pf-pass-new').value;
+  if (!cur || !next) { showToast('Введите текущий и новый пароль', 'error'); return; }
+  try { await AuthAPI.password(cur, next); } catch (e) { return; }
+  showToast('Пароль изменён', 'success');
+  renderProfileForm();
+}
+
+async function logoutEverywhere() {
+  if (!await uiConfirm('Выйти на всех устройствах?', 'Вход понадобится заново на каждом устройстве, включая это.')) return;
+  try { await AuthAPI.logoutAll(); } catch (e) { return; }
+  logoutLocal();
 }
 
 async function saveProfile() {

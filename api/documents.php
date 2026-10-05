@@ -73,4 +73,30 @@ if ($method === 'POST' && $action === 'publish') {
     ok(['version' => $version], 'Опубликована редакция ' . $version);
 }
 
+// GET ?action=my — мои согласия по документам (вошедший)
+if ($method === 'GET' && $action === 'my') {
+    $user = authUser();
+    ok(userConsents(getDB(), $user['id']));
+}
+
+// POST ?action=accept — принять действующие редакции: {codes: ['offer', 'rules', …]} (вошедший, за себя)
+if ($method === 'POST' && $action === 'accept') {
+    $user  = authUser();
+    $codes = array_values(array_unique(array_map('strval', (array)(input()['codes'] ?? []))));
+    if (!$codes) err('Не указаны документы');
+    $db = getDB();
+    $db->beginTransaction();
+    consentAccept($db, $user['id'], $codes);
+    $db->commit();
+    ok(['pending_docs' => pendingDocs($db, $user['id']), 'consents' => userConsents($db, $user['id'])], 'Согласие принято');
+}
+
+// POST ?action=revoke — отозвать добровольное согласие: {code} (вошедший, за себя)
+if ($method === 'POST' && $action === 'revoke') {
+    $user = authUser();
+    $db   = getDB();
+    consentRevoke($db, $user['id'], (string)(input()['code'] ?? ''));
+    ok(['consents' => userConsents($db, $user['id'])], 'Согласие отозвано');
+}
+
 err('Неизвестный endpoint', 404);
