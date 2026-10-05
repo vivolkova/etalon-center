@@ -9,7 +9,7 @@ async function loadSpecialists() {
         id: t.id, name: t.name, full: t.full_name,
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
         types: t.types || [],          // коды типов: trainer, bikefitter, mechanic (может быть несколько)
-        location_ids: (t.location_ids || []).map(Number),   // филиалы, где работает по графику
+        location_ids: (t.location_ids || []).map(Number),   // филиалы специалиста (справочник «специалист — филиал»)
         active: parseInt(t.active) ? 1 : 0
       };
     });
@@ -28,7 +28,7 @@ async function loadSpecialistsAll() {
         firstName: t.first_name || '', lastName: t.last_name || '', phone: t.phone || '',
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
         types: t.types || [],
-        location_ids: (t.location_ids || []).map(Number),   // филиалы из графика (специалист к филиалу не привязан)
+        location_ids: (t.location_ids || []).map(Number),   // филиалы специалиста (справочник «специалист — филиал»)
         // актуальные (с сегодняшнего дня) периоды графика и исключения — для карточек
         schedules: t.schedules || [],
         exceptions: t.exceptions || [],

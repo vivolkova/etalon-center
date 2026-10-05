@@ -39,7 +39,7 @@ let admSpecFilter = (function () {
 function admRenderSpecFilter() {
   const sel = document.getElementById('adm-spec-filter');
   if (!sel) return;
-  const list = SPECIALISTS_DATA.slice().sort(function (a, b) { return a.full.localeCompare(b.full, 'ru'); });
+  const list = admSpecialists().slice().sort(function (a, b) { return a.full.localeCompare(b.full, 'ru'); });
   sel.innerHTML = '<option value="">Все специалисты</option>' +
     list.map(function (t) { return '<option value="' + t.id + '">' + escAttr(t.full) + '</option>'; }).join('');
   // Сохранённый специалист больше не в списке (деактивирован) — показываем всех

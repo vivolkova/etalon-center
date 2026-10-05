@@ -92,8 +92,11 @@ function indSpecialists(PDO $db, array $lib): array {
     $st->execute([(int)$lib['ref_id']]);
     $specs = $st->fetchAll();
     if (!$specs) return [];
+    // работает в этом филиале (справочник specialist_locations) и в его графике есть часы здесь
     $hours = specialistsHoursMap($db, array_column($specs, 'id'), date('Y-m-d'));
-    return array_values(array_filter($specs, fn($s) => in_array($locId, specLocationIds($hours[$s['id']] ?? []), true)));
+    $locs  = specialistsLocations($db, array_column($specs, 'id'));
+    return array_values(array_filter($specs, fn($s) => in_array($locId, $locs[(int)$s['id']] ?? [], true)
+        && in_array($locId, specLocationIds($hours[$s['id']] ?? []), true)));
 }
 
 // Занятие, специалист и длительность из параметров запроса (общие для times / stations / create / move)

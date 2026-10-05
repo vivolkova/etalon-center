@@ -144,8 +144,17 @@ function trmTypesHtml(t) {
   return msHtml('trm-types', list.map(function (x) { return { value: x.code, label: x.name }; }), cur, '— Выберите специализацию —', false, true);
 }
 
+// Филиалы открытого в окне специалиста (справочник «специалист — филиал»): часы работы можно задать только в них
+let trmSpecLocs = [];
+// Из них — доступные этому администратору: только в этих филиалах он добавляет и меняет часы
+function trmLocs() {
+  return admLocs().filter(function (l) { return trmSpecLocs.indexOf(Number(l.id)) >= 0; });
+}
+const TRM_NO_LOCS = 'У специалиста нет филиалов, в которых вы можете задать часы. Филиалы специалисту назначает администратор системы';
+
 function openTrainerModal(id, tab) {
   var t = id ? SPECIALISTS_ALL.find(function (x) { return x.id === id; }) : null;
+  trmSpecLocs = t ? t.location_ids.slice() : [];
   var old = document.getElementById('trainer-tmp-modal'); if (old) old.remove();
   var el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
@@ -174,6 +183,9 @@ function openTrainerModal(id, tab) {
     '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
     '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
     '</div>' +
+    // Филиалы специалиста: в графике можно будет указать только их; у нового — текущий филиал панели
+    '<div class="form-field"><label class="form-label">Филиалы</label>' +
+    msHtml('trm-locs', locMsOptions(), t ? t.location_ids : (admBranchId ? [admBranchId] : []), '— Выберите филиалы —', true, true) + '</div>' +
     '<div class="form-field"><label class="check-label">' +
     '<input type="checkbox" id="trm-active"' + (!t || t.active ? ' checked' : '') + '> Активен</label></div>' +
     '<div class="admin-modal-actions">' +
@@ -281,12 +293,15 @@ async function saveTrainer(id) {
   if (!phone) { showToast('Введите телефон', 'error'); return; }
   const types = msValues('trm-types');
   if (!types.length) { showToast('Выберите специализацию', 'error'); return; }
+  const locIds = msValues('trm-locs').map(Number);
+  if (!locIds.length) { showToast('Выберите филиалы, в которых работает специалист', 'error'); return; }
   const apiData = {
     active: document.getElementById('trm-active').checked ? 1 : 0,
     first_name: first,
     last_name: last,
     phone: phone,
     types: types,
+    location_ids: locIds,
     experience: parseInt(document.getElementById('trm-exp').value) || 0,
   };
   let newId = null;
@@ -428,7 +443,7 @@ function ivCtxHours(ctx, locId) {
 // Филиалы, работающие в этом контексте
 // all — среди всех филиалов (для показа чужого интервала), иначе — среди доступных этому администратору
 function ivOpenLocations(ctx, all) {
-  return (all ? LOCATIONS : admLocs()).filter(function (l) { const h = ivCtxHours(ctx, l.id); return !h.closed && !h.empty; });
+  return (all ? LOCATIONS : trmLocs()).filter(function (l) { const h = ivCtxHours(ctx, l.id); return !h.closed && !h.empty; });
 }
 // Интервал в филиале, которого у этого администратора нет: показываем, но менять нельзя
 function ivForeign(iv) {
@@ -464,7 +479,7 @@ function ivRowHtml(iv, ctx) {
   const foreign = ivForeign(iv);
   const lock = foreign ? ' disabled title="Часы работы в другом филиале — их меняет администратор этого филиала или системы"' : '';
   const open = ivOpenLocations(ctx, foreign);
-  let locId = iv.location_id ? Number(iv.location_id) : (open[0] ? open[0].id : (admLocs()[0] ? admLocs()[0].id : 0));
+  let locId = iv.location_id ? Number(iv.location_id) : (open[0] ? open[0].id : (trmLocs()[0] ? trmLocs()[0].id : 0));
   let locOpts = locOptionsHtml({ list: open }).replace('value="' + locId + '"', 'value="' + locId + '" selected');
   // Сохранённый филиал в этот день не работает (или стал недействующим) — показываем, чтобы не потерять
   if (!open.some(function (l) { return l.id === locId; })) {
@@ -542,6 +557,7 @@ function bindIntervalEditor(root) {
   root.addEventListener('click', function (e) {
     const add = e.target.closest('[data-iv-add]');
     if (add) {
+      if (!trmLocs().length) { showToast(TRM_NO_LOCS, 'error'); return; }
       const list = add.previousElementSibling;
       list.insertAdjacentHTML('beforeend', ivRowHtml(null, ivCtx(list)));
       return;
@@ -583,7 +599,7 @@ function openScheduleModal(specId, s) {
   // «Заполнить по филиалу»: филиал (если их несколько) и дни недели — отмечены дни, когда филиал работает.
   // Заполняются только отмеченные дни, остальные не меняются
   const fillLoc = '<select class="form-input" id="sch-fill-loc" style="width:auto;max-width:170px;padding:4px 8px;font-size:12px' + (multiLocations() ? '' : ';display:none') + '">' +
-    locOptionsHtml() + '</select>';
+    locOptionsHtml({ list: trmLocs() }) + '</select>';
   const fillDays = '<span class="u-flex u-gap-4 u-wrap" id="sch-fill-days">' +
     LOC_DAYS.map(function (d, i) {
       return '<label class="sch-fill-day u-flex u-items-center u-text-small u-pointer u-gap-4">' +
@@ -602,6 +618,8 @@ function openScheduleModal(specId, s) {
     '<button type="button" class="btn-ghost" style="' + small + '" data-sch-fill="loc">Заполнить по филиалу</button>' +
     '</div>' +
     '<div class="u-mb-6"><button type="button" class="btn-ghost" style="' + small + '" data-sch-fill="weekdays">Пн → на все будни</button></div>' +
+    // Нет ни одного филиала специалиста, доступного этому администратору, — часы задать негде
+    (trmLocs().length ? '' : '<div class="set-warn u-mb-10">' + TRM_NO_LOCS + '</div>') +
     '<div id="sch-week">' + weekEditorHtml(s ? s.work_hours : null) + '</div>';
   const el = openFormModal('sched-modal', s ? 'Период графика' : 'Новый период графика', body, async function () {
     const name = document.getElementById('sch-name').value.trim();

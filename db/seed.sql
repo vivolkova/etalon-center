@@ -122,6 +122,12 @@ JOIN dictionaries d ON d.group_code = 'specialist_type'
  AND (sp.full_name, d.code) IN (('Анна Козлова', 'trainer'), ('Максим Романов', 'trainer'),
                                 ('Максим Романов', 'bikefitter'), ('Игорь Белов', 'bikefitter'));
 
+-- Филиалы специалистов: все трое — в основном филиале (id 1), Максим ещё и в «Юге»
+INSERT INTO specialist_locations (specialist_id, location_id)
+SELECT sp.id, 1 FROM specialists_view sp;
+INSERT INTO specialist_locations (specialist_id, location_id)
+SELECT sp.id, @south FROM specialists_view sp WHERE sp.full_name = 'Максим Романов';
+
 -- Графики и исключения ниже заводит локальный админ (created_by обязателен)
 SET @dev_admin = (SELECT id FROM users WHERE phone = '79111457089');
 

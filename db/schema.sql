@@ -172,6 +172,27 @@ SELECT sp.id, sp.user_id, sp.experience, sp.active, sp.created_at, sp.updated_at
 FROM specialists sp
 JOIN users u ON u.id = sp.user_id;
 
+-- ── Филиалы специалиста: в каких филиалах он работает ───────
+-- Справочник — главный: в графике специалиста (specialist_schedules, specialist_exceptions) можно указать только
+-- филиалы отсюда. Убрать филиал нельзя, пока у специалиста там есть будущие часы работы или занятия (проверка в API).
+-- История изменений (amnd_*) — как в user_roles: убранный филиал — amnd_state = 'C', вернули — новая строка 'A'.
+CREATE TABLE specialist_locations (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    specialist_id INT NOT NULL,
+    location_id   INT NOT NULL,
+    amnd_state    CHAR(1)  NOT NULL DEFAULT 'A',
+    amnd_date     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    amnd_prev     INT NULL,
+    updated_by    INT NULL,                      -- users.id; NULL — начальные данные
+    UNIQUE KEY uq_spec_location (specialist_id, location_id, (IF(amnd_state = 'A', 1, NULL))),
+    KEY fk_spec_loc_location (location_id),
+    CONSTRAINT fk_spec_loc_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
+    CONSTRAINT fk_spec_loc_location   FOREIGN KEY (location_id)   REFERENCES locations(id),
+    CONSTRAINT fk_spec_loc_prev       FOREIGN KEY (amnd_prev)     REFERENCES specialist_locations(id),
+    CONSTRAINT fk_spec_loc_by         FOREIGN KEY (updated_by)    REFERENCES users(id),
+    CONSTRAINT chk_spec_loc_state     CHECK (amnd_state IN ('A','I','C'))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Типы специалиста (тренер / байкфиттер / мастер), может быть несколько ──
 -- Тип сняли со специалиста — active = 0 (физически не удаляем).
 CREATE TABLE specialist_types (

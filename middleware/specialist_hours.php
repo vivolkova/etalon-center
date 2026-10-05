@@ -205,3 +205,91 @@ function specialistAvailability(PDO $db, int $specId, string $from, string $to):
     }
     return $out;
 }
+
+// ── Филиалы специалиста (specialist_locations) ─────────────
+// Справочник — главный: часы работы в графике можно указать только в филиалах из него.
+
+// Филиалы специалистов из справочника: [specialist_id => [location_id, …]]; $ids — только эти специалисты
+function specialistsLocations(PDO $db, ?array $ids = null): array {
+    if ($ids !== null && !$ids) return [];
+    $sql = "SELECT specialist_id, location_id FROM specialist_locations WHERE amnd_state = 'A'";
+    $args = [];
+    if ($ids !== null) {
+        $sql .= ' AND specialist_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        $args = array_map('intval', array_values($ids));
+    }
+    $st = $db->prepare($sql . ' ORDER BY location_id');
+    $st->execute($args);
+    $map = [];
+    foreach ($st->fetchAll() as $r) $map[(int)$r['specialist_id']][] = (int)$r['location_id'];
+    return $map;
+}
+function specialistLocations(PDO $db, int $specId): array {
+    return specialistsLocations($db, [$specId])[$specId] ?? [];
+}
+
+// Часы работы — только в филиалах специалиста: иначе ошибка с названием филиала
+function specAssertBranches(PDO $db, int $specId, array $locIds): void {
+    $own = specialistLocations($db, $specId);
+    foreach (array_unique(array_map('intval', $locIds)) as $locId) {
+        if (in_array($locId, $own, true)) continue;
+        $loc = specLocationOrNull($db, $locId);
+        err('Специалист не работает в филиале «' . ($loc ? $loc['name'] : $locId) . '» — сначала добавьте этот филиал в его карточке');
+    }
+}
+
+// Почему филиал нельзя убрать у специалиста: текст причины или null. Мешают будущие часы работы и занятия в этом филиале
+function specLocationBusy(PDO $db, int $specId, int $locId): ?string {
+    $today = date('Y-m-d');
+    $data = specialistsHoursMap($db, [$specId], $today)[$specId] ?? [];
+    foreach ($data['schedules'] ?? [] as $s) {
+        foreach ($s['work_hours'] as $w) {
+            foreach ($w['intervals'] as $iv) {
+                if ((int)$iv['location_id'] === $locId) return 'в графике «' . $s['name'] . '» есть часы работы в этом филиале';
+            }
+        }
+    }
+    foreach ($data['exceptions'] ?? [] as $e) {
+        foreach ($e['work_hours'] ?? [] as $iv) {
+            if ((int)$iv['location_id'] === $locId) return 'есть особые часы работы в этом филиале с ' . specFmtDate($e['date_from']);
+        }
+    }
+    $st = $db->prepare('SELECT COUNT(*), MIN(slot_date) FROM slots WHERE specialist_id = ? AND location_id = ? AND active = 1 AND slot_date >= ?');
+    $st->execute([$specId, $locId, $today]);
+    [$n, $first] = $st->fetch(PDO::FETCH_NUM);
+    if ((int)$n) return 'в расписании есть его занятия в этом филиале (' . (int)$n . ', ближайшее ' . specFmtDate($first) . ')';
+    return null;
+}
+
+// Задать филиалы специалиста (внутри транзакции): новые добавляются, убранные закрываются (amnd_state = 'C').
+// Убрать филиал с будущими часами работы или занятиями нельзя — ошибка с причиной
+function saveSpecialistLocations(PDO $db, int $specId, $locIds, ?int $userId): void {
+    $ids = array_values(array_unique(array_filter(array_map('intval', is_array($locIds) ? $locIds : []))));
+    if (!$ids) err('Укажите хотя бы один филиал, в котором работает специалист');
+    foreach ($ids as $locId) specLocation($db, $locId);   // филиал существует и действующий
+
+    $st = $db->prepare("SELECT id, location_id FROM specialist_locations WHERE specialist_id = ? AND amnd_state = 'A' FOR UPDATE");
+    $st->execute([$specId]);
+    $have = [];
+    foreach ($st->fetchAll() as $r) $have[(int)$r['location_id']] = (int)$r['id'];
+
+    foreach ($have as $locId => $rowId) {
+        if (in_array($locId, $ids, true)) continue;
+        if ($why = specLocationBusy($db, $specId, $locId)) {
+            $loc = specLocationOrNull($db, $locId);
+            err('Нельзя убрать филиал «' . ($loc ? $loc['name'] : $locId) . '»: ' . $why);
+        }
+        amndClose($db, 'specialist_locations', $rowId, $userId);
+    }
+    foreach ($ids as $locId) {
+        if (!isset($have[$locId])) amndInsert($db, 'specialist_locations', ['specialist_id' => $specId, 'location_id' => $locId], $userId);
+    }
+}
+
+// Специалист доступен этому администратору: работает хотя бы в одном из его филиалов (справочник specialist_locations).
+// Администратору системы доступны все. Иначе — ошибка 403
+function specialistGuard(PDO $db, array $user, int $specId): void {
+    $branches = adminBranches($user);
+    if ($branches === null) return;
+    if (!array_intersect($branches, specialistLocations($db, $specId))) err('Это специалист другого филиала', 403);
+}

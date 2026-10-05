@@ -62,6 +62,12 @@ function fillLocSelect(sel, opts) {
 function locMsOptions(withInactive) {
   return admLocs(withInactive).map(function (l) { return { value: l.id, label: l.name }; });
 }
+// Специалисты панели (активные): у администратора студии — только те, кто работает в его филиалах
+function admSpecialists() {
+  const b = currentUser ? currentUser.branches : null;
+  return b ? SPECIALISTS_DATA.filter(function (t) { return t.location_ids.some(function (id) { return b.indexOf(id) >= 0; }); }) : SPECIALISTS_DATA;
+}
+
 // ═══ ТЕКУЩИЙ ФИЛИАЛ ══════════════════════════════════════════════════
 // Один переключатель в шапке (#adm-branch) на всю панель: журнал записи, записи, расписание, библиотека и зал
 // показывают выбранный филиал; отдельных списков филиалов на этих экранах нет.

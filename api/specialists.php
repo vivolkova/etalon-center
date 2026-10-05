@@ -41,12 +41,13 @@ function specPerson(array $d): array {
     return [$first, $last, $phone];
 }
 
-// GET — список специалистов (публичный; телефон — только администратору). types — коды типов; location_ids — филиалы, где специалист работает
-// по графику и особым часам (с сегодняшнего дня); для админки (all=1) ещё актуальные периоды графика и исключения
+// GET — список специалистов (публичный; телефон — только администратору). types — коды типов; location_ids — филиалы
+// специалиста из справочника specialist_locations; для админки (all=1) ещё актуальные периоды графика и исключения
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
     $all = !empty($_GET['all']);
-    if ($all) authCan('spec_hours');   // полный список видит и администратор студии: он ведёт графики
+    // all=1 — для панели: вместе с неактивными; администратор студии видит только специалистов своих филиалов
+    $branches = $all ? adminBranches(authCan('spec_hours')) : null;
     $where = $all ? '1' : 'sp.active = 1';
     $stmt = $db->prepare('
         SELECT sp.id, sp.user_id, sp.name, sp.full_name, sp.first_name, sp.last_name, sp.experience, sp.active,' . ($all ? ' sp.phone,' : '') . '
@@ -59,18 +60,22 @@ if ($method === 'GET' && $action === 'list') {
     ');
     $stmt->execute();
     $rows = $stmt->fetchAll();
-    $hours = specialistsHoursMap($db, null, date('Y-m-d'));
+    $hours = $all ? specialistsHoursMap($db, null, date('Y-m-d')) : [];
+    $locs  = specialistsLocations($db);
     foreach ($rows as &$r) {
         $r['types'] = $r['types'] !== null ? explode(',', $r['types']) : [];
         if ($all) $r['phone'] = phoneView($r['phone']);
         $h = $hours[$r['id']] ?? [];
-        $r['location_ids'] = specLocationIds($h);
+        $r['location_ids'] = $locs[(int)$r['id']] ?? [];
         if ($all) {
             $r['schedules']  = $h['schedules'] ?? [];
             $r['exceptions'] = $h['exceptions'] ?? [];
         }
     }
     unset($r);
+    if ($branches !== null) {
+        $rows = array_values(array_filter($rows, fn($r) => (bool)array_intersect($branches, $r['location_ids'])));
+    }
     ok($rows);
 }
 
@@ -100,6 +105,7 @@ if ($method === 'POST' && $action === 'create') {
     $db = getDB();
     $typeIds = specTypeIds($db, $d['types'] ?? []);
     $db->beginTransaction();
+    $admin = sessionCurrent($db);
     $userId = personByPhone($db, $first, $last, $phone);
     $st = $db->prepare('SELECT id FROM specialists WHERE user_id = ?');
     $st->execute([$userId]);
@@ -108,6 +114,7 @@ if ($method === 'POST' && $action === 'create') {
        ->execute([$userId, (int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1]);
     $id = (int)$db->lastInsertId();
     saveSpecTypes($db, $id, $typeIds);
+    saveSpecialistLocations($db, $id, $d['location_ids'] ?? [], $admin['id'] ?? null);
     $db->commit();
     ok(['id' => $id], 'Специалист добавлен');
 }
@@ -131,6 +138,7 @@ if ($method === 'PUT' && $action === 'update') {
     $db->prepare('UPDATE specialists SET experience=?, active=? WHERE id=?')
        ->execute([(int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1, $id]);
     saveSpecTypes($db, $id, $typeIds);
+    saveSpecialistLocations($db, $id, $d['location_ids'] ?? [], $admin['id']);
     // Деактивация или снятие специализации — только если будущие занятия специалиста остаются возможны
     specialistSlotsGuard($db, $id, null, null, 'сохранить специалиста');
     $db->commit();

@@ -83,10 +83,11 @@ function specDate($v, string $label): string {
 
 // GET — периоды и исключения специалиста
 if ($method === 'GET' && $action === 'list') {
-    authSpecHours();
+    $user = authSpecHours();
     $specId = (int)($_GET['specialist_id'] ?? 0);
     $db = getDB();
     specExists($db, $specId);
+    specialistGuard($db, $user, $specId);
     $data = specialistsHoursMap($db, [$specId])[$specId] ?? [];
     ok(['schedules' => $data['schedules'] ?? [], 'exceptions' => $data['exceptions'] ?? []]);
 }
@@ -101,6 +102,7 @@ if ($method === 'GET' && $action === 'availability') {
     if ((strtotime($to) - strtotime($from)) / 86400 > 366) err('Период не больше года');
     $db = getDB();
     specExists($db, $specId);
+    specialistGuard($db, sessionCurrent($db), $specId);
     ok(specialistAvailability($db, $specId, $from, $to));
 }
 
@@ -112,6 +114,7 @@ if ($method === 'POST' && $action === 'schedule_save') {
     $id = (int)($d['id'] ?? 0);
     $specId = (int)($d['specialist_id'] ?? 0);
     specExists($db, $specId);
+    specialistGuard($db, $user, $specId);
     if ($id) specRowExists($db, 'specialist_schedules', $id, $specId, 'Период графика не найден');
     $name = mb_substr(trim((string)($d['name'] ?? '')), 0, 128);
     if ($name === '') err('Укажите название периода');
@@ -121,7 +124,10 @@ if ($method === 'POST' && $action === 'schedule_save') {
     $week = specNormWeek($d['work_hours'] ?? []);
     if (!array_filter($week, fn($w) => $w['intervals'])) err('Укажите часы работы хотя бы в один день');
 
-    // Каждый интервал — в режиме работы своего филиала в этот день недели
+    // Часы — только в филиалах специалиста; каждый интервал — в режиме работы своего филиала в этот день недели
+    $weekLocs = [];
+    foreach ($week as $w) foreach ($w['intervals'] as $iv) $weekLocs[] = (int)$iv['location_id'];
+    specAssertBranches($db, $specId, $weekLocs);
     foreach ($week as $w) {
         foreach ($w['intervals'] as $iv) specCheckInBranch($db, $iv, $w['day'], $w['day']);
     }
@@ -163,6 +169,7 @@ if ($method === 'DELETE' && $action === 'schedule_delete') {
     $user = authSpecHours();
     $db = getDB();
     $row = specActiveRow($db, 'specialist_schedules', (int)($_GET['id'] ?? 0), 'Период графика не найден');
+    specialistGuard($db, $user, (int)$row['specialist_id']);
     if (specForeign($user, specWeekByDay(specStored($row)))) err('В этом периоде есть часы работы в других филиалах — удаляет администратор системы', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
@@ -180,6 +187,7 @@ if ($method === 'POST' && $action === 'exception_save') {
     $id = (int)($d['id'] ?? 0);
     $specId = (int)($d['specialist_id'] ?? 0);
     specExists($db, $specId);
+    specialistGuard($db, $user, $specId);
     if ($id) specRowExists($db, 'specialist_exceptions', $id, $specId, 'Исключение не найдено');
     $from = specDate($d['date_from'] ?? '', 'дату начала');
     $to = specDate($d['date_to'] ?? '', 'дату окончания');   // обязательна, даже для одного дня
@@ -195,6 +203,7 @@ if ($method === 'POST' && $action === 'exception_save') {
         // Каждый интервал — в режиме работы своего филиала в каждый рабочий день этого филиала в диапазоне;
         // дни, когда филиал интервала не работает, пропускаем (в них интервал не действует)
         foreach ($intervals as $iv) specLocation($db, (int)$iv['location_id']);   // филиал существует и действующий
+        specAssertBranches($db, $specId, array_column($intervals, 'location_id'));  // и специалист в нём работает
         $openDays = 0;
         for ($ts = strtotime($from); $ts <= strtotime($to); $ts = strtotime('+1 day', $ts)) {
             $date = date('Y-m-d', $ts);
@@ -248,6 +257,7 @@ if ($method === 'DELETE' && $action === 'exception_delete') {
     $user = authSpecHours();
     $db = getDB();
     $row = specActiveRow($db, 'specialist_exceptions', (int)($_GET['id'] ?? 0), 'Исключение не найдено');
+    specialistGuard($db, $user, (int)$row['specialist_id']);
     if (specForeign($user, ['' => specStored($row)])) err('Здесь есть часы работы в других филиалах — удаляет администратор системы', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
