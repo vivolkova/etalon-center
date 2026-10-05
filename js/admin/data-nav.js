@@ -182,6 +182,7 @@ async function admNav(name, el) {
     bookings: renderAdminBookings,
     clients: renderAdminClients,
     settings: renderSettings,
+    profile: renderAdmProfile,
   };
   if (renders[name]) renders[name]();
 }

@@ -19,8 +19,7 @@ function renderProfileForm() {
   document.getElementById('pf-notes').value = currentUser.notes || '';
   document.getElementById('profile-saved-msg').style.display = 'none';
   // поля пароля — пустые при каждом открытии профиля
-  document.getElementById('pf-pass-cur-box').innerHTML = passFieldHtml('pf-pass-cur', 'current-password');
-  document.getElementById('pf-pass-new-box').innerHTML = passFieldHtml('pf-pass-new', 'new-password', 8);
+  passCardFill('pf-pass-card', 'pf');
   renderProfileConsents();
 }
 
@@ -51,13 +50,31 @@ async function toggleConsent(input) {
 }
 
 // ── ПАРОЛЬ И СЕССИИ ───────────────────────────────────────────────
-async function changePassword() {
-  const cur = document.getElementById('pf-pass-cur').value;
-  const next = document.getElementById('pf-pass-new').value;
+// Блок «Пароль» — один для кабинета клиента и панели администратора; prefix различает поля на странице
+function passCardFill(boxId, prefix) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = '<div class="cp-section-title">Пароль</div>'
+    + '<div class="form-field"><label class="form-label">Текущий пароль</label>' + passFieldHtml(prefix + '-pass-cur', 'current-password') + '</div>'
+    + '<div class="form-field"><label class="form-label">Новый пароль</label>' + passFieldHtml(prefix + '-pass-new', 'new-password', 8)
+    + '<div class="set-hint">Не короче 8 символов. После смены пароля на других устройствах нужно будет войти заново</div></div>'
+    + '<div class="u-mt-16 u-flex u-gap-10 u-wrap">'
+    + '<button class="btn-primary" onclick="changePassword(\'' + boxId + '\',\'' + prefix + '\')">Сменить пароль</button>'
+    + '<button class="btn-ghost" onclick="logoutEverywhere()">Выйти на всех устройствах</button></div>';
+}
+
+// Профиль администратора (раздел «Профиль» панели): поля пароля — пустые при каждом открытии
+function renderAdmProfile() {
+  passCardFill('adm-pass-card', 'ap');
+}
+
+async function changePassword(boxId, prefix) {
+  const cur = document.getElementById(prefix + '-pass-cur').value;
+  const next = document.getElementById(prefix + '-pass-new').value;
   if (!cur || !next) { showToast('Введите текущий и новый пароль', 'error'); return; }
   try { await AuthAPI.password(cur, next); } catch (e) { return; }
   showToast('Пароль изменён', 'success');
-  renderProfileForm();
+  passCardFill(boxId, prefix);
 }
 
 async function logoutEverywhere() {
