@@ -2,7 +2,7 @@
 
 // ═══ SETTINGS ════════════════════════════════════════════════════════
 
-// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники / Параметры
+// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники / Параметры / Документы
 let settingsTab = 'locations';
 
 function renderSettings() {
@@ -18,6 +18,7 @@ function switchSettingsTab(tab) {
   if (tab === 'types') renderStationTypesTab();
   if (tab === 'dicts') renderDictsTab();
   if (tab === 'params') renderParamsTab();
+  if (tab === 'docs') renderDocsTab();
 }
 
 // ── Параметры студии (таблица settings): одна кнопка «Сохранить», сервер сохраняет блок целиком ──

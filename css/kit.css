@@ -223,6 +223,8 @@ textarea:required:invalid:focus {
 .u-max-w-460 { max-width: 460px !important; }
 .u-max-w-520 { max-width: 520px !important; }
 .u-max-w-560 { max-width: 560px !important; }
+.u-max-w-760 { max-width: 760px !important; }
+.u-contents { display: contents; }   /* обёртка, не влияющая на раскладку: дети встают в ряд родителя */
 
 /* ── Только на телефоне (ширина, при которой шапка сайта сворачивается в меню) ── */
 @media (max-width: 768px) {

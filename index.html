@@ -13,15 +13,15 @@
   <title>ETALON CENTER — Запись на тренировки</title>
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/fonts.css?v=20261005-007">
-  <link rel="stylesheet" href="css/base.css?v=20261005-007">
-  <link rel="stylesheet" href="css/site.css?v=20261005-007">
-  <link rel="stylesheet" href="css/panels.css?v=20261005-007">
-  <link rel="stylesheet" href="css/library.css?v=20261005-007">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261005-007">
-  <link rel="stylesheet" href="css/admin.css?v=20261005-007">
+  <link rel="stylesheet" href="css/fonts.css?v=20261006-002">
+  <link rel="stylesheet" href="css/base.css?v=20261006-002">
+  <link rel="stylesheet" href="css/site.css?v=20261006-002">
+  <link rel="stylesheet" href="css/panels.css?v=20261006-002">
+  <link rel="stylesheet" href="css/library.css?v=20261006-002">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261006-002">
+  <link rel="stylesheet" href="css/admin.css?v=20261006-002">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261005-007">
+  <link rel="stylesheet" href="css/kit.css?v=20261006-002">
 </head>
 
 <body>
@@ -51,7 +51,7 @@
       <button class="btn-primary" id="btn-signup" onclick="openAuth('register')">Регистрация</button>
       <!-- Текущий филиал администратора — один на всю панель (js/admin/data-nav.js admBranchInit) -->
       <select class="form-input input-sm u-text-ui u-max-w-280" id="adm-branch" onchange="admBranchSet(this.value)" style="display:none"></select>
-      <button class="btn-ghost" id="btn-logout" onclick="logout()" style="display:none">Выйти</button>
+      <button class="btn-ghost u-nowrap" id="btn-logout" onclick="logout()" style="display:none">Выйти</button>
     </div>
     </div>
     <!-- Меню на телефоне: кнопка раскрывает .nav-menu под шапкой (css/site.css, js/ui.js) -->
@@ -146,6 +146,18 @@
       </div>
       <!-- Разделы — категории услуг из справочника, карточки — записи библиотеки (renderServices) -->
       <div id="services-grid"></div>
+    </div>
+  </div>
+
+  <!-- ════════════ PAGE: DOCUMENT ════════════ -->
+  <!-- Документ студии (оферта, правила, политика…): адрес #doc/<код>, текст действующей редакции (js/docs.js) -->
+  <div class="page" id="page-doc">
+    <div class="section">
+      <div class="section-head">
+        <h2 class="section-title" id="doc-title"></h2>
+        <div class="u-text-ui u-muted u-mt-4" id="doc-meta"></div>
+      </div>
+      <div class="u-max-w-760" id="doc-text"></div>
     </div>
   </div>
 
@@ -541,6 +553,7 @@
               <button class="chip" data-set-tab="types" onclick="switchSettingsTab('types')">Типы станков</button>
               <button class="chip" data-set-tab="dicts" onclick="switchSettingsTab('dicts')">Справочники</button>
               <button class="chip" data-set-tab="params" onclick="switchSettingsTab('params')">Параметры</button>
+              <button class="chip" data-set-tab="docs" onclick="switchSettingsTab('docs')">Документы</button>
             </div>
           </div>
 
@@ -579,6 +592,14 @@
               <div id="settings-params"></div>
               <div class="u-flex u-justify-end"><button class="btn-primary u-text-ui" data-need="system" onclick="saveParamsBlock()">Сохранить</button></div>
             </div>
+          </div>
+
+          <!-- Документы: оферта, правила, политика, тексты согласий — с редакциями (js/docs.js) -->
+          <div class="adm-card set-tab" id="set-tab-docs" style="display:none">
+            <div class="set-bar">
+              <span class="set-hint">Опубликованная редакция не меняется: правка текста публикуется новой редакцией, прежние остаются в истории.</span>
+            </div>
+            <div id="settings-docs"></div>
           </div>
 
           <!-- Справочники (общие; у прикладных значений — в каких филиалах доступно) -->
@@ -700,38 +721,40 @@
          >CENTER</span></span></div>
     <div class="footer-links">
       <a class="footer-link" href="#">Контакты</a>
-      <a class="footer-link" href="#">Политика конфиденциальности</a>
+      <!-- Документы студии: оферта, правила, политика (js/docs.js renderFooterDocs) -->
+      <span class="u-contents" id="footer-docs"></span>
       <a class="footer-link" href="#">г. Москва, ул. Велосипедная, 1</a>
     </div>
     <div class="u-text-small">© 2026 ETALONCENTER</div>
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261005-007"></script>
-  <script src="js/core.js?v=20261005-007"></script>
-  <script src="js/week-grid.js?v=20261005-007"></script>
-  <script src="js/auth.js?v=20261005-007"></script>
-  <script src="js/site/schedule.js?v=20261005-007"></script>
-  <script src="js/site/booking.js?v=20261005-007"></script>
-  <script src="js/site/individual.js?v=20261005-007"></script>
-  <script src="js/site/trainings.js?v=20261005-007"></script>
-  <script src="js/site/services-bookings.js?v=20261005-007"></script>
-  <script src="js/admin/admin.js?v=20261005-007"></script>
-  <script src="js/admin/schedule.js?v=20261005-007"></script>
-  <script src="js/admin/journal.js?v=20261005-007"></script>
-  <script src="js/admin/journal-book.js?v=20261005-007"></script>
-  <script src="js/client/panel.js?v=20261005-007"></script>
-  <script src="js/client/chat-profile.js?v=20261005-007"></script>
-  <script src="js/site/detail-modals.js?v=20261005-007"></script>
-  <script src="js/admin/library.js?v=20261005-007"></script>
-  <script src="js/admin/data-nav.js?v=20261005-007"></script>
-  <script src="js/admin/specialists.js?v=20261005-007"></script>
-  <script src="js/admin/settings.js?v=20261005-007"></script>
-  <script src="js/admin/stations.js?v=20261005-007"></script>
-  <script src="js/admin/dictionaries.js?v=20261005-007"></script>
-  <script src="js/ui.js?v=20261005-007"></script>
-  <script src="js/loaders.js?v=20261005-007"></script>
-  <script src="js/init.js?v=20261005-007"></script>
+  <script src="js/api.js?v=20261006-002"></script>
+  <script src="js/core.js?v=20261006-002"></script>
+  <script src="js/week-grid.js?v=20261006-002"></script>
+  <script src="js/auth.js?v=20261006-002"></script>
+  <script src="js/site/schedule.js?v=20261006-002"></script>
+  <script src="js/site/booking.js?v=20261006-002"></script>
+  <script src="js/site/individual.js?v=20261006-002"></script>
+  <script src="js/site/trainings.js?v=20261006-002"></script>
+  <script src="js/site/services-bookings.js?v=20261006-002"></script>
+  <script src="js/admin/admin.js?v=20261006-002"></script>
+  <script src="js/admin/schedule.js?v=20261006-002"></script>
+  <script src="js/admin/journal.js?v=20261006-002"></script>
+  <script src="js/admin/journal-book.js?v=20261006-002"></script>
+  <script src="js/client/panel.js?v=20261006-002"></script>
+  <script src="js/client/chat-profile.js?v=20261006-002"></script>
+  <script src="js/site/detail-modals.js?v=20261006-002"></script>
+  <script src="js/admin/library.js?v=20261006-002"></script>
+  <script src="js/admin/data-nav.js?v=20261006-002"></script>
+  <script src="js/admin/specialists.js?v=20261006-002"></script>
+  <script src="js/admin/settings.js?v=20261006-002"></script>
+  <script src="js/admin/stations.js?v=20261006-002"></script>
+  <script src="js/admin/dictionaries.js?v=20261006-002"></script>
+  <script src="js/docs.js?v=20261006-002"></script>
+  <script src="js/ui.js?v=20261006-002"></script>
+  <script src="js/loaders.js?v=20261006-002"></script>
+  <script src="js/init.js?v=20261006-002"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">

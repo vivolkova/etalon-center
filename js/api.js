@@ -225,6 +225,14 @@ const DictionariesAPI = {
 };
 
 // ── LOCATIONS ──────────────────────────────────────────────
+// Документы студии и их редакции
+const DocumentsAPI = {
+  async list() { return apiRequest('/documents.php?action=list', 'GET', null, true); },
+  async get(code) { return apiRequest('/documents.php?action=get&code=' + encodeURIComponent(code), 'GET', null, true); },
+  async versions(code) { return apiRequest('/documents.php?action=versions&code=' + encodeURIComponent(code)); },
+  async publish(code, body) { return apiRequest('/documents.php?action=publish', 'POST', { code, body }); },
+};
+
 // Параметры студии (таблица settings)
 const SettingsAPI = {
   async list() { return apiRequest('/settings.php?action=list'); },

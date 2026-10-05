@@ -202,6 +202,8 @@ let CLIENTS = [];
 // ═══ PAGES ══════════════════════════════════════════════════════
 
 function showPage(name) {
+  // уходим со страницы документа — её адрес (#doc/…) больше не нужен
+  if (name !== 'doc' && location.hash.indexOf('#doc/') === 0) history.replaceState(null, '', location.pathname + location.search);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   currentPage = name;

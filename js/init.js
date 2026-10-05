@@ -3,6 +3,7 @@
 // ═══ INIT ═════════════════════════════════════════════════════════
 
 renderServices();
+renderFooterDocs();   // ссылки на документы студии в подвале
 
 // Загружаем все данные с сервера при старте
 (async function () {
@@ -32,4 +33,8 @@ renderServices();
   // 4. Перерисовываем с актуальными данными
   renderSitePages();
   renderServices();
+
+  // 5. Страницу открыли по ссылке на документ (#doc/offer) — показываем его
+  const docCode = docFromHash();
+  if (docCode) openDoc(docCode);
 })();
