@@ -32,7 +32,7 @@ function checkStationLimit(PDO $db, int $locId, int $exceptId = 0): void {
 if ($method === 'GET' && $action === 'list') {
     $locationId = (int)($_GET['location_id'] ?? 1);
     $all = !empty($_GET['all']);
-    if ($all) authAdmin();
+    if ($all) branchGuard(authAdmin(), $locationId);   // зал своего филиала администратор видит; менять — право hall
     $db = getDB();
     $stmt = $db->prepare('
         SELECT s.id, s.location_id, s.label, s.pos_x, s.pos_y, s.sort_order, s.active,
@@ -57,7 +57,7 @@ if ($method === 'GET' && $action === 'types') {
 
 // POST ?action=type_create — новый тип станка (admin)
 if ($method === 'POST' && $action === 'type_create') {
-    authAdmin();
+    authCan('system');
     $d = input();
     require_fields($d, ['name']);
     $db = getDB();
@@ -72,7 +72,7 @@ if ($method === 'POST' && $action === 'type_create') {
 
 // PUT ?action=type_update — изменить тип станка (admin)
 if ($method === 'PUT' && $action === 'type_update') {
-    authAdmin();
+    authCan('system');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -89,7 +89,7 @@ if ($method === 'PUT' && $action === 'type_update') {
 
 // DELETE ?action=type_delete&id=X — удалить тип (admin); если есть станки этого типа — только выключить
 if ($method === 'DELETE' && $action === 'type_delete') {
-    authAdmin();
+    authCan('system');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
@@ -146,9 +146,10 @@ if ($method === 'GET' && $action === 'availability') {
 
 // POST ?action=create — создать станок (admin)
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    $user = authCan('hall');
     $d = input();
     require_fields($d, ['type_id', 'label', 'location_id']);
+    branchGuard($user, (int)$d['location_id']);
     $typeId = (int)$d['type_id'];
 
     $db = getDB();
@@ -177,10 +178,11 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT ?action=update — обновить станок (admin)
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    $user = authCan('hall');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
+    branchGuard($user, stationBranch(getDB(), $id));
 
     $fields = [];
     $params = [];
@@ -211,10 +213,11 @@ if ($method === 'PUT' && $action === 'update') {
 // PUT ?action=move — переставить станок на схеме зала (admin): {id, pos_x, pos_y}.
 // Если клетка занята другим станком филиала — меняются местами (в одной транзакции).
 if ($method === 'PUT' && $action === 'move') {
-    authAdmin();
+    $user = authCan('hall');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id || !isset($d['pos_x'], $d['pos_y'])) err('Нужны id, pos_x, pos_y');
+    branchGuard($user, stationBranch(getDB(), $id));
     $x = (int)$d['pos_x']; $y = (int)$d['pos_y'];
     $db = getDB();
     $st = $db->prepare('SELECT s.id, s.location_id, s.pos_x, s.pos_y, l.hall_cols, l.hall_rows
@@ -239,10 +242,11 @@ if ($method === 'PUT' && $action === 'move') {
 
 // DELETE ?action=delete&id=X — удалить станок (admin)
 if ($method === 'DELETE' && $action === 'delete') {
-    authAdmin();
+    $user = authCan('hall');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
+    branchGuard($user, stationBranch($db, $id));
     $stmt = $db->prepare('SELECT COUNT(*) AS c FROM bookings WHERE station_id = ?');
     $stmt->execute([$id]);
     if ((int)$stmt->fetch()['c'] > 0) {
@@ -255,10 +259,11 @@ if ($method === 'DELETE' && $action === 'delete') {
 
 // POST ?action=block — заблокировать станок на слот (admin)
 if ($method === 'POST' && $action === 'block') {
-    authAdmin();
+    $user = authCan('schedule');
     $d = input();
     require_fields($d, ['slot_id', 'station_id']);
     $db = getDB();
+    branchGuard($user, slotBranch($db, (int)$d['slot_id']));
     // Станок и слот должны быть из одного филиала (филиал блокировки — через них, отдельно не хранится)
     $chk = $db->prepare('SELECT 1 FROM slots sl JOIN stations st ON st.location_id = sl.location_id
                          WHERE sl.id = ? AND st.id = ?');
@@ -275,11 +280,12 @@ if ($method === 'POST' && $action === 'block') {
 
 // DELETE ?action=unblock&slot_id=X&station_id=Y — снять блокировку (admin)
 if ($method === 'DELETE' && $action === 'unblock') {
-    authAdmin();
+    $user = authCan('schedule');
     $slotId    = (int)($_GET['slot_id'] ?? 0);
     $stationId = (int)($_GET['station_id'] ?? 0);
     if (!$slotId || !$stationId) err('Нужны slot_id и station_id');
     $db = getDB();
+    branchGuard($user, slotBranch($db, $slotId));
     $db->prepare('DELETE FROM slot_station_blocks WHERE slot_id = ? AND station_id = ?')
        ->execute([$slotId, $stationId]);
     ok(null, 'Блокировка снята');

@@ -12,10 +12,8 @@
 
 const JR_ROW_H = 56;        // px на час
 const JR_PAY = { paid: 'оплачено', unpaid: 'не оплачено', refunded: 'возврат' };
-const JR_LOC_KEY = 'etalon.admJournal.location';
 
 let jrDate = new Date(today);
-let jrLocId = (function () { try { return parseInt(localStorage.getItem(JR_LOC_KEY)) || null; } catch (e) { return null; } })();
 let jrData = null;          // ответ api/journal.php за выбранный день
 let jrReq = 0;              // номер последнего запроса (ответ на устаревший выбор отбрасываем)
 let jrView = { h0: 0, n: 0 }; // первый час доски и число станков — чтобы по месту нажатия понять время и станок
@@ -27,8 +25,9 @@ function jrTabSlots() {
   return jrData.slots.filter(function (s) { return jrTab === 'training' ? s.cat === 'training' : s.cat === jrTab; });
 }
 
+// Филиал журнала — текущий филиал панели (переключатель в шапке); «все филиалы» — null: журнал ведётся по одному
 function jrLoc() {
-  return LOCATIONS.find(function (l) { return Number(l.id) === jrLocId; }) || LOCATIONS[0] || null;
+  return admCurLoc();
 }
 
 // Данные дня с сервера; вызывается при входе в раздел, смене дня/филиала и после действий
@@ -45,11 +44,6 @@ async function jrReload() { await jrLoad(); renderJournal(); }
 function jrChangeDay(dir) { jrDate = new Date(jrDate); jrDate.setDate(jrDate.getDate() + dir); jrReload(); }
 function jrToday() { jrDate = new Date(today); jrReload(); }
 function jrPickDate(val) { if (val) { jrDate = parseLocalDate(val); jrReload(); } }
-function jrSelectLoc(id) {
-  jrLocId = Number(id);
-  try { localStorage.setItem(JR_LOC_KEY, String(jrLocId)); } catch (e) { /* выбор действует до перезагрузки */ }
-  jrReload();
-}
 
 function jrStationLabel(id) {
   const st = jrData && jrData.stations.find(function (x) { return x.id === id; });
@@ -75,16 +69,12 @@ function renderJournal() {
   const d = jrDate;
   document.getElementById('jr-date-label').textContent = DAYS_FULL[(d.getDay() + 6) % 7] + ', ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ' ' + d.getFullYear();
   document.getElementById('jr-date-input').value = fmtLocalDate(d);
-  const locBox = document.getElementById('jr-locs');
-  locBox.innerHTML = LOCATIONS.length > 1 ? LOCATIONS.map(function (l) {
-    return '<button class="chip' + (loc && l.id === loc.id ? ' active' : '') + '" onclick="jrSelectLoc(' + l.id + ')">' + escAttr(l.name) + '</button>';
-  }).join('') : '';
 
   const board = document.getElementById('jr-board');
   const list = document.getElementById('jr-list');
   const tabs = document.getElementById('jr-tabs');
   const legend = document.getElementById('jr-legend');
-  if (!jrData) { tabs.innerHTML = ''; legend.innerHTML = ''; board.innerHTML = ''; list.innerHTML = '<div class="jr-empty">Нет данных</div>'; return; }
+  if (!jrData) { tabs.innerHTML = ''; legend.innerHTML = ''; board.innerHTML = ''; list.innerHTML = '<div class="jr-empty">' + (loc ? 'Нет данных' : ADM_PICK_BRANCH) + '</div>'; return; }
 
   // Вкладки: тренировки и услуги филиала; рядом с названием — сколько записей в этот день
   const cats = jrData.categories || [];

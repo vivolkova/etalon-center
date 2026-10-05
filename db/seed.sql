@@ -128,6 +128,13 @@ SET @dev_admin = (SELECT id FROM users WHERE phone = '79111457089');
 INSERT INTO user_roles (user_id, role_id)
 VALUES (@dev_admin, (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'system_admin'));
 
+-- Администратор студии филиала «Юг» (условный, для проверки прав по филиалам): +7 (900) 000-00-10,
+-- пароль тот же, что у администратора системы
+INSERT INTO users (first_name, last_name, phone, password, account_created_at) VALUES
+('Мария', 'Южная', '79000000010', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', NOW());
+INSERT INTO user_roles (user_id, role_id, location_id)
+VALUES (LAST_INSERT_ID(), (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'studio_admin'), @south);
+
 -- Графики специалистов (в пределах режима работы филиалов). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
 -- (в остальные месяцы не работает); Максим и Игорь — бессрочно. Максим по вторникам и четвергам вечером — в «Юге»
 -- (location_id 2), остальное — в основном филиале (location_id 1).

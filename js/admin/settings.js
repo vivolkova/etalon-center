@@ -29,9 +29,9 @@ async function renderParamsTab() {
   if (!list.length) { box.innerHTML = '<div class="set-hint">Параметров нет</div>'; return; }
   box.innerHTML = list.map(function (p) {
     const input = p.type === 'int'
-      ? '<input class="form-input u-w-120" type="number" required data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
+      ? '<input class="form-input u-w-120" type="number" required' + needAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
         (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + '>'
-      : '<input class="form-input u-w-260" required data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
+      : '<input class="form-input u-w-260" required' + needAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
     return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
       '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.name) + '</label>' + input + '</div>';
   }).join('');
@@ -46,28 +46,21 @@ async function saveParamsBlock() {
   renderParamsTab();
 }
 
-// Выпадающий список филиалов для вкладок «по филиалу»; выбранный филиал общий для вкладок
+// Филиал вкладок «по филиалу» — текущий филиал панели (переключатель в шапке); null — выбраны «Все филиалы»
 let settingsLocId = null;
-function fillSettingsLocSelect(selectId) {
-  const sel = document.getElementById(selectId);
-  if (!sel) return null;
-  const list = LOCATIONS_ALL.length ? LOCATIONS_ALL : LOCATIONS;
-  if (!settingsLocId || !list.some(function (l) { return Number(l.id) === Number(settingsLocId); }))
-    settingsLocId = list.length ? Number(list[0].id) : null;
-  sel.innerHTML = list.map(function (l) {
-    return '<option value="' + l.id + '">' + escAttr(l.name) + (Number(l.active) ? '' : ' (недействующий)') + '</option>';
-  }).join('');
-  sel.value = settingsLocId || '';
+function fillSettingsLocSelect() {
+  settingsLocId = admBranchId;
   return settingsLocId;
 }
 
-// Простая модалка-форма: body — HTML полей, onSave — async () => true, если можно закрыть
-function openFormModal(id, title, body, onSave, extraButtons) {
+// Простая модалка-форма: body — HTML полей, onSave — async () => true, если можно закрыть;
+// widthClass — класс ширины окна из css/kit.css (по умолчанию u-max-w-460)
+function openFormModal(id, title, body, onSave, extraButtons, widthClass) {
   const old = document.getElementById(id); if (old) old.remove();
   const el = document.createElement('div');
   el.className = 'admin-modal-overlay show';
   el.id = id;
-  el.innerHTML = '<div class="admin-modal u-max-w-460">' +
+  el.innerHTML = '<div class="admin-modal ' + (widthClass || 'u-max-w-460') + '">' +
     '<div class="admin-modal-title">' + title + '</div>' + body +
     '<div class="admin-modal-actions">' + (extraButtons || '') +
     '<button class="btn-ghost" data-act="cancel">Отмена</button>' +
@@ -190,7 +183,7 @@ function renderLocations() {
     return;
   }
   const infoLine = 'font-size:13px;color:var(--ink-60);line-height:1.6';
-  el.innerHTML = LOCATIONS_ALL.map(function (l) {
+  el.innerHTML = admLocs(true).map(function (l) {
     const inactive = !Number(l.active);
     const cardBg = inactive ? ';background:#f3f4f6' : '';
     const statusBadge = inactive
@@ -204,7 +197,7 @@ function renderLocations() {
       (l.phone ? '<div style="' + infoLine + '">Тел.: ' + l.phone + '</div>' : '') +
       (l.email ? '<div style="' + infoLine + '">Email: ' + l.email + '</div>' : '') +
       '</div>' +
-      '<button class="action-btn confirm btn-sm u-nowrap" onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
+      '<button class="action-btn confirm btn-sm u-nowrap"' + needAttr('system') + ' onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
       '</div>' +
       '<div class="u-flex u-gap-6 u-wrap u-mt-8">' +
       statusBadge +
@@ -306,16 +299,10 @@ function bookingsPanelFilters() {
   // По умолчанию — как на сервере: −7 … +30 дней от сегодня
   if (fromEl && !fromEl.value) { const d = new Date(today); d.setDate(d.getDate() - 7); fromEl.value = fmtLocalDate(d); }
   if (toEl && !toEl.value) { const d = new Date(today); d.setDate(d.getDate() + 30); toEl.value = fmtLocalDate(d); }
-  const locSel = document.getElementById('bookings-loc');
-  if (locSel && !locSel.options.length) {
-    const list = LOCATIONS_ALL.length ? LOCATIONS_ALL : LOCATIONS;
-    locSel.innerHTML = '<option value="">Все филиалы</option>' +
-      list.map(function (l) { return '<option value="' + l.id + '">' + escAttr(l.name) + '</option>'; }).join('');
-  }
   return {
     from: fromEl ? fromEl.value : '',
     to: toEl ? toEl.value : '',
-    location_id: locSel ? locSel.value : '',
+    location_id: admBranchId || '',   // текущий филиал панели; пусто — все доступные
   };
 }
 

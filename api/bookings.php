@@ -33,7 +33,7 @@ if ($method === 'GET' && $action === 'my') {
 
 // GET — все записи (admin)
 if ($method === 'GET' && $action === 'all') {
-    authAdmin();
+    $user = authCan('bookings');
     $db     = getDB();
     $status = $_GET['status'] ?? null;
     $search = $_GET['search'] ?? null;
@@ -59,7 +59,8 @@ if ($method === 'GET' && $action === 'all') {
             LEFT JOIN station_type stt ON st.type_id = stt.id
             WHERE s.slot_date BETWEEN ? AND ?';
     $params = [$from, $to];
-    if ($locId) { $sql .= ' AND s.location_id = ?'; $params[] = $locId; }
+    if ($locId) { branchGuard($user, $locId); $sql .= ' AND s.location_id = ?'; $params[] = $locId; }
+    else { $bf = branchFilter($user, 's.location_id'); $sql .= $bf['sql']; $params = array_merge($params, $bf['params']); }   // «все филиалы» = все свои
 
     if ($status) { $sql .= ' AND b.status=?'; $params[] = $status; }
     if ($search) {
@@ -123,6 +124,7 @@ if ($method === 'POST' && $action === 'create') {
     $stmt->execute([$slotId]);
     $slot = $stmt->fetch();
     if (!$slot) err('Слот не найден');
+    adminAt($user, (int)$slot['location_id']);   // администратор записывает клиента только в своём филиале
     // Индивидуальное занятие создаётся вместе с записью клиента (api/individual.php) — вторую запись не принимаем
     if ((int)$slot['auto_created']) err('Это индивидуальное занятие — на него записан другой клиент');
 
@@ -209,6 +211,7 @@ if ($method === 'PUT' && $action === 'move') {
     }
     $fromId = (int)$cur['slot_id'];
     $locId  = (int)$cur['location_id'];
+    adminAt($user, $locId);
 
     $st = $db->prepare('SELECT s.id, s.location_id, s.slot_date, s.start_time, s.duration, s.price, s.auto_created, dc.code AS category
                         FROM slots s JOIN dictionaries dc ON dc.id = s.category_id
@@ -287,6 +290,7 @@ if ($method === 'PUT' && $action === 'status') {
         err('Индивидуальное занятие отменено — запишитесь заново');
     }
 
+    adminAt($auth, slotBranch($db, (int)$booking['slot_id']));
     // Клиент может только отменять свои записи
     if ($auth['role'] !== 'admin') {
         if ($booking['user_id'] != $auth['id']) err('Нет доступа', 403);
@@ -323,11 +327,12 @@ if ($method === 'PUT' && $action === 'status') {
 
 // PUT — обновить статус оплаты (только admin)
 if ($method === 'PUT' && $action === 'payment') {
-    authAdmin();
+    $user = authCan('bookings');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
 
     $db   = getDB();
+    branchGuard($user, bookingBranch($db, $id));
     $stmt = $db->prepare('SELECT id FROM bookings WHERE id=?');
     $stmt->execute([$id]);
     if (!$stmt->fetch()) err('Запись не найдена', 404);

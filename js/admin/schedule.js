@@ -28,38 +28,7 @@ async function admWeekToday() {
   renderAdminSchedule();
 }
 
-// ── Фильтр по филиалам: какие залы показывать в сетке ──
-// null — все филиалы; иначе список id. Выбор запоминается в браузере (только для этого пользователя)
-const ADM_LOCS_KEY = 'etalon.admSchedule.locations';
-let admLocFilter = (function () {
-  try { const v = JSON.parse(localStorage.getItem(ADM_LOCS_KEY)); return Array.isArray(v) ? v.map(Number) : null; }
-  catch (e) { return null; }
-})();
-
-function admRenderLocFilter() {
-  const box = document.getElementById('adm-loc-filter');
-  if (!box) return;
-  if (LOCATIONS.length < 2) { box.innerHTML = ''; box.style.display = 'none'; return; }
-  box.style.display = '';
-  // Сохранённый выбор — только из действующих филиалов
-  const ids = LOCATIONS.map(function (l) { return l.id; });
-  const selected = admLocFilter ? admLocFilter.filter(function (id) { return ids.indexOf(id) >= 0; }) : ids;
-  // Список уже нарисован — не пересобираем (иначе закроется открытый выпадающий список)
-  if (box.querySelector('#adm-locs') && box.dataset.locs === ids.join(',')) return;
-  box.dataset.locs = ids.join(',');
-  box.innerHTML = msHtml('adm-locs', LOCATIONS.map(function (l) { return { value: l.id, label: l.name }; }), selected, '— Филиалы не выбраны —', true);
-  // Читаем выбор после общего обработчика списка (он отмечает пункты по «Выбрать все») — поэтому setTimeout
-  box.onchange = function () { setTimeout(admApplyLocFilter, 0); };
-  function admApplyLocFilter() {
-    const vals = msValues('adm-locs').map(Number);
-    admLocFilter = vals.length === ids.length ? null : vals;
-    try {
-      if (admLocFilter) localStorage.setItem(ADM_LOCS_KEY, JSON.stringify(admLocFilter));
-      else localStorage.removeItem(ADM_LOCS_KEY);
-    } catch (e) { /* хранилище недоступно — выбор действует до перезагрузки */ }
-    renderAdminSchedule();
-  }
-}
+// ── Какие залы показывать в сетке: текущий филиал панели или все доступные (переключатель в шапке) ──
 
 // ── Фильтр по специалисту: null — все; иначе id. Выбор запоминается в браузере ──
 const ADM_SPEC_KEY = 'etalon.admSchedule.specialist';
@@ -94,26 +63,24 @@ function admSpecVisible(s) {
 
 // Слот показывается при текущем фильтре филиалов
 function admLocVisible(s) {
-  if (!admLocFilter || LOCATIONS.length < 2) return true;
-  return admLocFilter.indexOf(Number(s.location_id)) >= 0;
+  return admCurLocs().some(function (l) { return Number(l.id) === Number(s.location_id); });
 }
 
 // Название филиала слота (для подсказки; на карточке — только когда в сетке несколько филиалов)
 function admSlotLocName(s) {
-  if (LOCATIONS.length < 2) return '';
+  if (admLocs().length < 2) return '';
   const l = findLocation(s.location_id);
   return l ? l.name : '';
 }
 
 // В сетке больше одного филиала — тогда на карточке слота пишем его филиал
 function admManyLocsShown() {
-  return LOCATIONS.length > 1 && (!admLocFilter || admLocFilter.length > 1);
+  return admCurLocs().length > 1;
 }
 
 function renderAdminSchedule() {
   const grid = document.getElementById('adm-week-grid');
   if (!grid) return;
-  admRenderLocFilter();
   admRenderSpecFilter();
 
   const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -152,7 +119,7 @@ function renderAdminSchedule() {
 
   // Временная шкала + ячейки
   ADM_ROW_H = wgRowHeight(grid);
-  const hrRange = weekHourRange(weekSlots, LOCATIONS.length > 1 ? admLocFilter : null);
+  const hrRange = weekHourRange(weekSlots, admCurLocs().map(function (l) { return Number(l.id); }));
   // Раскладка по колонкам для пересекающихся занятий — по каждому дню целиком
   const dayLayouts = days.map(function (d) {
     return wgLayoutDay(weekSlots.filter(function (s) { return s.date.getDate() === d.getDate() && s.date.getMonth() === d.getMonth(); }));
@@ -397,11 +364,7 @@ function smLocationChanged() {
 function smFillLocations(selectedId) {
   const sel = document.getElementById('sm-location');
   if (!sel) return;
-  sel.innerHTML = (LOCATIONS.length === 1 ? '' : '<option value="">— Выберите филиал —</option>')
-    + LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
-  if (selectedId) sel.value = selectedId;
-  else if (LOCATIONS.length === 1) sel.value = LOCATIONS[0].id;
-  else sel.value = '';
+  fillLocSelect(sel, { empty: '— Выберите филиал —', single: true, value: selectedId || '' });
 }
 
 // Режим формы слота: при редактировании нередактируемые поля показываем как значения
@@ -437,7 +400,7 @@ function openSlotModal(slotId) {
     document.getElementById('sm-price').value = s.price;
     smSelectedLibId = s.library_id || null;   // ссылка на библиотеку сохраняется как есть
     // Значения для нередактируемых полей (режим редактирования)
-    const locObj = (LOCATIONS.find(function (x) { return x.id === s.location_id; })
+    const locObj = (admLocs().find(function (x) { return x.id === s.location_id; })
                  || LOCATIONS_ALL.find(function (x) { return x.id === s.location_id; }) || {});
     document.getElementById('sm-location-view').textContent = locObj.name || '—';
     document.getElementById('sm-name-view').textContent = s.name || '—';
@@ -447,7 +410,7 @@ function openSlotModal(slotId) {
     document.getElementById('slot-modal-title').textContent = 'Добавить слот';
     document.getElementById('sm-id').value = '';
     // В фильтре расписания выбран один филиал — он и подставляется
-    smFillLocations(admLocFilter && admLocFilter.length === 1 ? admLocFilter[0] : null);
+    smFillLocations(admBranchId);
     smFillLibSelect();
     smApplyLibItem('');
     document.getElementById('sm-day').value = '0';

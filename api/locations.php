@@ -40,7 +40,7 @@ if ($method === 'GET' && $action === 'get') {
 
 // POST ?action=create — создать филиал (admin)
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    authCan('system');
     $d = input();
     require_fields($d, ['name', 'address', 'email', 'phone', 'hall_cols', 'hall_rows', 'max_people']);
     checkCapacity($d);
@@ -67,7 +67,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT ?action=update — обновить филиал (admin)
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    authCan('system');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');

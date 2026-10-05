@@ -8,10 +8,39 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// Кто может вести график специалиста. Пока только админ;
-// сюда же добавятся сам специалист (свой график) и ресепшен.
+// Кто может вести график специалиста: администратор системы и администратор студии.
+// Сюда же добавится сам специалист (свой график).
 function authSpecHours(): array {
-    return authAdmin();
+    return authCan('spec_hours');
+}
+
+// Администратор студии меняет в графике только часы работы в своих филиалах. Часы в остальных филиалах должны
+// остаться как были, а период или исключение с такими часами нельзя сдвинуть по датам или удалить.
+// «Чужие» интервалы из набора [день => [интервалы]] — в виде строк для сравнения; у администратора системы чужих нет
+function specForeign(array $user, array $byDay): array {
+    $branches = adminBranches($user);
+    if ($branches === null) return [];
+    $keys = [];
+    foreach ($byDay as $day => $ivs) {
+        foreach ($ivs as $iv) {
+            if (!in_array((int)$iv['location_id'], $branches, true)) $keys[] = $day . '|' . $iv['from'] . '|' . $iv['to'] . '|' . (int)$iv['location_id'];
+        }
+    }
+    sort($keys);
+    return $keys;
+}
+function specWeekByDay($week): array {
+    $r = [];
+    foreach (is_array($week) ? $week : [] as $w) $r[(string)($w['day'] ?? '')] = $w['intervals'] ?? [];
+    return $r;
+}
+function specStored(?array $row): array {
+    $v = $row ? json_decode((string)($row['work_hours'] ?? ''), true) : null;
+    return is_array($v) ? $v : [];
+}
+function specForeignGuard(array $old, array $new, bool $datesChanged): void {
+    if ($old !== $new) err('Часы работы в других филиалах менять нельзя — только в своём', 403);
+    if ($old && $datesChanged) err('Здесь есть часы работы в других филиалах — даты меняет администратор системы', 403);
 }
 
 function specExists(PDO $db, int $specId): void {
@@ -110,6 +139,8 @@ if ($method === 'POST' && $action === 'schedule_save') {
     $weekJson = json_encode($week, JSON_UNESCAPED_UNICODE);
     // Записываем в транзакции и проверяем, что уже поставленные занятия в затронутых датах по-прежнему возможны
     $old = $id ? specActiveRow($db, 'specialist_schedules', $id, 'Период графика не найден') : null;
+    specForeignGuard(specForeign($user, specWeekByDay(specStored($old))), specForeign($user, specWeekByDay($week)),
+        $old && ($old['date_from'] !== $from || $old['date_to'] !== $to));
     [$affFrom, $affTo] = specAffectedRange($old, $from, $to);
     $db->beginTransaction();
     lockSpecialist($db, $specId);
@@ -129,9 +160,10 @@ if ($method === 'POST' && $action === 'schedule_save') {
 // DELETE — удалить период графика (мягко: active = 0, физически не удаляем).
 // Нельзя, если в его датах уже стоят занятия специалиста, которые без него станут невозможны
 if ($method === 'DELETE' && $action === 'schedule_delete') {
-    authSpecHours();
+    $user = authSpecHours();
     $db = getDB();
     $row = specActiveRow($db, 'specialist_schedules', (int)($_GET['id'] ?? 0), 'Период графика не найден');
+    if (specForeign($user, specWeekByDay(specStored($row)))) err('В этом периоде есть часы работы в других филиалах — удаляет администратор системы', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
     $db->prepare('UPDATE specialist_schedules SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);
@@ -192,6 +224,8 @@ if ($method === 'POST' && $action === 'exception_save') {
     $ivJson = $intervals !== null ? json_encode($intervals, JSON_UNESCAPED_UNICODE) : null;
     // Записываем в транзакции и проверяем, что уже поставленные занятия в затронутых датах по-прежнему возможны
     $old = $id ? specActiveRow($db, 'specialist_exceptions', $id, 'Исключение не найдено') : null;
+    specForeignGuard(specForeign($user, ['' => specStored($old)]), specForeign($user, ['' => $intervals ?? []]),
+        $old && ($old['date_from'] !== $from || $old['date_to'] !== $to));
     [$affFrom, $affTo] = specAffectedRange($old, $from, $to);
     $db->beginTransaction();
     lockSpecialist($db, $specId);
@@ -211,9 +245,10 @@ if ($method === 'POST' && $action === 'exception_save') {
 // DELETE — удалить исключение (мягко: active = 0, физически не удаляем).
 // Удаление особых часов возвращает в эти даты обычный график — занятия должны в него помещаться
 if ($method === 'DELETE' && $action === 'exception_delete') {
-    authSpecHours();
+    $user = authSpecHours();
     $db = getDB();
     $row = specActiveRow($db, 'specialist_exceptions', (int)($_GET['id'] ?? 0), 'Исключение не найдено');
+    if (specForeign($user, ['' => specStored($row)])) err('Здесь есть часы работы в других филиалах — удаляет администратор системы', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
     $db->prepare('UPDATE specialist_exceptions SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);

@@ -17,6 +17,8 @@ function authUserData(PDO $db, int $id): ?array {
     $u['id']    = (int)$u['id'];
     $u['phone'] = phoneView($u['phone']);
     $u['role']  = userRole($db, $u['id']);
+    // rights — что доступно в панели, branches — в каких филиалах (null — во всех); сервер проверяет это сам на каждом вызове
+    $u += userAccess(['roles' => userRoles($db, $u['id'])]);
     return $u;
 }
 

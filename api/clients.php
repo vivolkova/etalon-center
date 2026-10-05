@@ -28,21 +28,22 @@ function clientFields(array $d): array {
 
 // GET — список клиентов
 if ($method === 'GET' && $action === 'list') {
-    authAdmin();
+    $user   = authCan('clients');
+    $bf     = branchFilter($user, 's.location_id');   // клиенты общие, а их записи считаем только по своим филиалам
     $db     = getDB();
     $type = $_GET['type'] ?? null;
     $search = $_GET['search'] ?? null;
 
     $sql = 'SELECT u.id, u.first_name, u.last_name, u.name, u.phone, u.has_account, u.phone_verified_at, u.type,
                    u.birth_date, u.notes, u.created_at,
-                   COUNT(b.id) AS total_bookings,
+                   COUNT(s.id) AS total_bookings,
                    COALESCE(SUM(CASE WHEN b.payment_status="paid" THEN s.price ELSE 0 END), 0) AS total_spent,
                    MAX(s.slot_date) AS last_visit
             FROM users u
             LEFT JOIN bookings b ON u.id = b.user_id AND b.status <> "cancelled"
-            LEFT JOIN slots s ON b.slot_id = s.id
+            LEFT JOIN slots s ON b.slot_id = s.id' . $bf['sql'] . '
             WHERE u.active = 1 AND ' . NOT_ADMIN_SQL;
-    $params = [];
+    $params = $bf['params'];
 
     if ($type) { $sql .= ' AND u.type=?'; $params[] = $type; }
     if ($search) {
@@ -61,7 +62,8 @@ if ($method === 'GET' && $action === 'list') {
 
 // GET — один клиент с историей
 if ($method === 'GET' && $action === 'get') {
-    authAdmin();
+    $user = authCan('clients');
+    $bf   = branchFilter($user, 's.location_id');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
 
@@ -79,10 +81,10 @@ if ($method === 'GET' && $action === 'get') {
         JOIN slots s ON b.slot_id=s.id
         JOIN dictionaries dc ON s.category_id=dc.id
         LEFT JOIN specialists_view t ON s.specialist_id=t.id
-        WHERE b.user_id=?
+        WHERE b.user_id=?' . $bf['sql'] . '
         ORDER BY s.slot_date DESC
     ');
-    $stmt->execute([$id]);
+    $stmt->execute(array_merge([$id], $bf['params']));
     $user['bookings'] = $stmt->fetchAll();
 
     ok($user);
@@ -90,7 +92,7 @@ if ($method === 'GET' && $action === 'get') {
 
 // POST — создать клиента: имя и телефон. Кабинета у него нет (has_account = 0), как у записанного по телефону из журнала
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    authCan('clients');
     $d  = input();
     $f  = clientFields($d);
     $db = getDB();
@@ -104,7 +106,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT — обновить клиента. Телефон — логин: должен остаться уникальным; смена номера сбрасывает его подтверждение
 if ($method === 'PUT' && $action === 'update') {
-    $admin = authAdmin();
+    $admin = authCan('clients');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -122,8 +124,9 @@ if ($method === 'PUT' && $action === 'update') {
 }
 
 // DELETE — удалить клиента
+// Удалять клиента может только администратор системы
 if ($method === 'DELETE' && $action === 'delete') {
-    authAdmin();
+    authCan('system');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();

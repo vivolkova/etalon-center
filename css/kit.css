@@ -228,3 +228,16 @@ textarea:required:invalid:focus {
 @media (max-width: 768px) {
   .u-phone-only { display: block; }
 }
+
+/* ── Недоступное действие: кнопка серая и не нажимается — один вид для всей системы (любая кнопка с disabled).
+   Плитка станка (.station) — не действие, а место в зале: её вид «только показан» задан в css/admin.css ── */
+button:disabled:not(.station),
+button:disabled:not(.station):hover {
+  background: var(--muted-strong) !important;
+  color: var(--ink-40) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  opacity: 1 !important;
+  cursor: not-allowed;
+}

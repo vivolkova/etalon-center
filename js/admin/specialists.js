@@ -10,10 +10,7 @@ function renderSpecialists() {
   const locSel = document.getElementById('spec-loc-filter');
   let locFilter = null;
   if (locSel) {
-    const cur = locSel.value;
-    locSel.innerHTML = '<option value="">Все филиалы</option>' +
-      LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
-    locSel.value = cur;
+    fillLocSelect(locSel, { empty: 'Все филиалы' });
     locFilter = locSel.value ? parseInt(locSel.value) : null;
   }
   const actSel = document.getElementById('spec-active-filter');
@@ -29,7 +26,7 @@ function renderSpecialists() {
   const grid = document.getElementById('adm-specialists-grid');
   if (!grid) return;
   if (!items.length) {
-    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary" onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
+    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary"' + needAttr('specialists') + ' onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
     return;
   }
   grid.innerHTML = items.map(function (t) {
@@ -154,7 +151,7 @@ function openTrainerModal(id, tab) {
   el.className = 'admin-modal-overlay show';
   el.id = 'trainer-tmp-modal';
   // График и отсутствия — только у сохранённого специалиста
-  var tabOff = t ? '' : ' disabled title="Сначала сохраните специалиста" style="opacity:.5;cursor:not-allowed"';
+  var tabOff = t ? '' : ' disabled title="Сначала сохраните специалиста"';
   el.innerHTML =
     '<div class="admin-modal u-max-w-560">' +
     '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
@@ -199,6 +196,12 @@ function openTrainerModal(id, tab) {
   document.getElementById('trm-cancel').onclick = function () { el.remove(); };
   document.getElementById('trm-close').onclick = function () { el.remove(); };
   document.getElementById('trm-save').onclick = function () { saveTrainer(t ? t.id : null); };
+  // Данные специалиста меняет тот, у кого есть право specialists; остальные видят их и ведут только график
+  if (!canDo('specialists')) {
+    el.querySelectorAll('[data-trm-pane="main"] input, [data-trm-pane="main"] select, [data-trm-pane="main"] .ms-btn, #trm-save').forEach(function (x) {
+      x.disabled = true; x.title = NEED_TITLE;
+    });
+  }
   // Новый специалист: как только номер набран полностью — ищем человека в базе
   if (!t) document.getElementById('trm-phone').addEventListener('input', trmFindPerson);
 
@@ -423,8 +426,13 @@ function ivCtxHours(ctx, locId) {
 }
 
 // Филиалы, работающие в этом контексте
-function ivOpenLocations(ctx) {
-  return LOCATIONS.filter(function (l) { const h = ivCtxHours(ctx, l.id); return !h.closed && !h.empty; });
+// all — среди всех филиалов (для показа чужого интервала), иначе — среди доступных этому администратору
+function ivOpenLocations(ctx, all) {
+  return (all ? LOCATIONS : admLocs()).filter(function (l) { const h = ivCtxHours(ctx, l.id); return !h.closed && !h.empty; });
+}
+// Интервал в филиале, которого у этого администратора нет: показываем, но менять нельзя
+function ivForeign(iv) {
+  return !!(iv && iv.location_id) && !admLocs().some(function (l) { return Number(l.id) === Number(iv.location_id); });
 }
 
 // Время — только в часах работы филиала: range = {from, to} в минутах; null — весь день.
@@ -453,11 +461,11 @@ function ivCtx(list) {
 // Строка интервала: филиал (выбор скрыт, если филиал один) + время с–по в часах этого филиала
 function ivRowHtml(iv, ctx) {
   iv = iv || {};
-  const open = ivOpenLocations(ctx);
-  let locId = iv.location_id ? Number(iv.location_id) : (open[0] ? open[0].id : (LOCATIONS[0] ? LOCATIONS[0].id : 0));
-  let locOpts = open.map(function (l) {
-    return '<option value="' + l.id + '"' + (l.id === locId ? ' selected' : '') + '>' + escAttr(l.name) + '</option>';
-  }).join('');
+  const foreign = ivForeign(iv);
+  const lock = foreign ? ' disabled title="Часы работы в другом филиале — их меняет администратор этого филиала или системы"' : '';
+  const open = ivOpenLocations(ctx, foreign);
+  let locId = iv.location_id ? Number(iv.location_id) : (open[0] ? open[0].id : (admLocs()[0] ? admLocs()[0].id : 0));
+  let locOpts = locOptionsHtml({ list: open }).replace('value="' + locId + '"', 'value="' + locId + '" selected');
   // Сохранённый филиал в этот день не работает (или стал недействующим) — показываем, чтобы не потерять
   if (!open.some(function (l) { return l.id === locId; })) {
     const l = findLocation(locId);
@@ -465,13 +473,13 @@ function ivRowHtml(iv, ctx) {
   }
   const h = ivCtxHours(ctx, locId);
   const range = h.range || null;
-  const locSelect = '<select class="form-input iv-loc" style="width:auto;max-width:170px;padding:4px 8px' + (multiLocations() ? '' : ';display:none') + '">' + locOpts + '</select>';
+  const locSelect = '<select class="form-input iv-loc"' + lock + ' style="width:auto;max-width:170px;padding:4px 8px' + (multiLocations() ? '' : ';display:none') + '">' + locOpts + '</select>';
   return '<div class="iv-row u-flex u-items-center u-gap-4 u-mb-4">' +
     locSelect +
-    '<select class="form-input iv-from u-w-auto u-p-4-8">' + ivTimeOptions(range, iv.from || '', false) + '</select>' +
+    '<select class="form-input iv-from u-w-auto u-p-4-8"' + lock + '>' + ivTimeOptions(range, iv.from || '', false) + '</select>' +
     '<span>–</span>' +
-    '<select class="form-input iv-to u-w-auto u-p-4-8">' + ivTimeOptions(range, iv.to || '', true) + '</select>' +
-    '<button type="button" class="action-btn cancel btn-sm" data-iv-del title="Удалить интервал">✕</button>' +
+    '<select class="form-input iv-to u-w-auto u-p-4-8"' + lock + '>' + ivTimeOptions(range, iv.to || '', true) + '</select>' +
+    (foreign ? '' : '<button type="button" class="action-btn cancel btn-sm" data-iv-del title="Удалить интервал">✕</button>') +
     '</div>';
 }
 
@@ -575,7 +583,7 @@ function openScheduleModal(specId, s) {
   // «Заполнить по филиалу»: филиал (если их несколько) и дни недели — отмечены дни, когда филиал работает.
   // Заполняются только отмеченные дни, остальные не меняются
   const fillLoc = '<select class="form-input" id="sch-fill-loc" style="width:auto;max-width:170px;padding:4px 8px;font-size:12px' + (multiLocations() ? '' : ';display:none') + '">' +
-    LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + escAttr(l.name) + '</option>'; }).join('') + '</select>';
+    locOptionsHtml() + '</select>';
   const fillDays = '<span class="u-flex u-gap-4 u-wrap" id="sch-fill-days">' +
     LOC_DAYS.map(function (d, i) {
       return '<label class="sch-fill-day u-flex u-items-center u-text-small u-pointer u-gap-4">' +
@@ -611,7 +619,7 @@ function openScheduleModal(specId, s) {
     showToast('Период графика сохранён', 'success');
     await trmHoursChanged(specId);
     return true;
-  });
+  }, null, 'u-max-w-560');
   el.querySelector('.admin-modal').style.maxWidth = '600px';
   bindIntervalEditor(el);
   // Дни для заполнения: по умолчанию отмечены дни, когда выбранный филиал работает; в выходные филиала — недоступны
@@ -678,7 +686,7 @@ function openExceptionModal(specId, e, type) {
     showToast(custom ? 'Особые часы сохранены' : 'Отсутствие сохранено', 'success');
     await trmHoursChanged(specId);
     return true;
-  });
+  }, null, 'u-max-w-560');
   if (!custom) return;
   el.querySelector('.admin-modal').style.maxWidth = '560px';
   bindIntervalEditor(el);

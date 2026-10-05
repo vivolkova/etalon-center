@@ -16,15 +16,7 @@ function switchLibTab(type, btn) {
 
 function renderLibrary() {
   const q = (document.getElementById('lib-search') ? document.getElementById('lib-search').value : '').toLowerCase();
-  const locSel = document.getElementById('lib-loc-filter');
-  let locFilter = null;
-  if (locSel) {
-    const cur = locSel.value;
-    locSel.innerHTML = '<option value="">Все филиалы</option>' +
-      LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
-    locSel.value = cur;
-    locFilter = locSel.value ? parseInt(locSel.value) : null;
-  }
+  const locFilter = admBranchId;   // текущий филиал панели; null — все доступные
   const actSel = document.getElementById('lib-active-filter');
   const activeOnly = actSel && actSel.value === 'active';
   // Категории услуг (всё, кроме training) — из справочника activity_category
@@ -53,7 +45,7 @@ function renderLibrary() {
     return;
   }
   const cardHtml = function (item) {
-    const locObj = LOCATIONS_ALL.concat(LOCATIONS).find(function (x) { return x.id === item.location_id; });
+    const locObj = LOCATIONS_ALL.concat(admLocs()).find(function (x) { return x.id === item.location_id; });
     const locName = locObj ? locObj.name : '';
     const features = (item.features || []).slice(0, 3);
     let difficultyHtml = (isTraining && item.difficulty) ? '<div class="lib-difficulty">' + (DIFFICULTY_LABEL[item.difficulty] || item.difficulty) + '</div>' : '';
@@ -68,10 +60,10 @@ function renderLibrary() {
     const inactive = !Number(item.active);
     const delBadge = inactive ? '<span class="lib-meta-tag tag-muted">Удалена</span>' : '';
     const actionsHtml = inactive
-      ? '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
+      ? '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
       : (libCanSchedule(item) ? '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
-        '<button class="action-btn confirm btn-sm" onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
-        '<button class="action-btn cancel btn-sm" onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
+        '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
+        '<button class="action-btn cancel btn-sm"' + needAttr('library') + ' onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
     // Цвет плашки и точек — по категории и виду тренировки
     return '<div class="lib-card ' + colorClass(item.cat, item.type) + (inactive ? ' is-inactive' : '') + '">' +
       difficultyHtml +
@@ -345,10 +337,7 @@ function openLibItemModal(id, kind) {
 
   // Список филиалов; если один — сразу выбран, иначе плейсхолдер
   const locSel = document.getElementById('lm-location');
-  if (locSel) {
-    locSel.innerHTML = (LOCATIONS.length === 1 ? '' : '<option value="">— Выберите филиал —</option>')
-      + LOCATIONS.map(function (l) { return '<option value="' + l.id + '">' + l.name + '</option>'; }).join('');
-  }
+  fillLocSelect(locSel, { empty: '— Выберите филиал —', single: true, value: '' });
 
   if (item) {
     document.getElementById('lib-modal-title').textContent = isTraining ? 'Редактировать тренировку' : 'Редактировать услугу';
@@ -365,7 +354,7 @@ function openLibItemModal(id, kind) {
   } else {
     document.getElementById('lib-modal-title').textContent = isTraining ? 'Новая тренировка' : 'Новая услуга';
     document.getElementById('lm-id').value = '';
-    if (locSel) locSel.value = LOCATIONS.length === 1 ? LOCATIONS[0].id : '';
+    if (locSel) locSel.value = admBranchId || (admLocs().length === 1 ? admLocs()[0].id : '');   // новая запись — в текущем филиале
     document.getElementById('lm-name').value = '';
     document.getElementById('lm-dur').value = 60;
     document.getElementById('lm-price').value = isTraining ? 1200 : 3000;

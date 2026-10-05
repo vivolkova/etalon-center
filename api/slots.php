@@ -133,9 +133,10 @@ if ($method === 'GET' && $action === 'get') {
 
 // POST — создать слот (только admin)
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    $user = authCan('schedule');
     $d = input();
     require_fields($d, ['slot_date', 'start_time', 'price', 'location_id']);
+    branchGuard($user, (int)$d['location_id']);
 
     $db = getDB();
     $locId = (int)$d['location_id'];   // филиал выбирается на форме
@@ -169,7 +170,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT — обновить слот (только admin)
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    $user = authCan('schedule');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -177,6 +178,8 @@ if ($method === 'PUT' && $action === 'update') {
     require_fields($d, ['location_id', 'slot_date', 'start_time']);
     $db = getDB();
     $locId = (int)$d['location_id'];
+    branchGuard($user, slotBranch($db, $id));   // занятие — из своего филиала
+    branchGuard($user, $locId);                 // и остаётся в своём
     $lib = slotLibrary($db, $d['library_id'] ?? null, $locId);
     // Время занятия — в пределах режима работы филиала
     checkWorkHours($db, $locId, $d['slot_date'], $d['start_time'], $d['duration'] ?? 60);
@@ -201,10 +204,11 @@ if ($method === 'PUT' && $action === 'update') {
 
 // DELETE — удалить слот (только admin)
 if ($method === 'DELETE' && $action === 'delete') {
-    authAdmin();
+    $user = authCan('schedule');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
+    branchGuard($user, slotBranch($db, $id));
     // Занятие с действующими записями не удаляем: иначе у клиентов останутся записи на занятие, которого нет.
     // Сначала записи отменяют (Журнал записи); индивидуальное занятие снимается само при отмене записи
     $st = $db->prepare("SELECT COUNT(*) FROM bookings WHERE slot_id = ? AND status <> 'cancelled'");

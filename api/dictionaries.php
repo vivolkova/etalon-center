@@ -85,7 +85,7 @@ if ($method === 'GET' && $action === 'availability') {
 
 // POST ?action=create — новое значение прикладной группы (admin)
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    authCan('system');
     $d = input();
     require_fields($d, ['group_code', 'code', 'name']);
     if (!in_array($d['group_code'], DICT_EDITABLE, true)) err('Эту группу справочника менять нельзя');
@@ -119,7 +119,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT ?action=update — изменить название / связь / филиалы / активность (admin). Код и группа не меняются.
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    authCan('system');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');

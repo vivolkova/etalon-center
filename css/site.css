@@ -146,20 +146,6 @@
   transform: scale(.97);
 }
 
-.btn-primary:disabled,
-.btn-primary[disabled] {
-  background: var(--muted-strong);
-  color: var(--ink-40);
-  cursor: not-allowed;
-  box-shadow: none;
-  transform: none;
-}
-
-.btn-primary:disabled:hover,
-.btn-primary[disabled]:hover {
-  background: var(--muted-strong);
-}
-
 .btn-primary.is-booked-ok,
 .btn-primary.is-booked-ok:hover {
   background: var(--mine);

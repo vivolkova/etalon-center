@@ -44,14 +44,14 @@ async function renderDictsTab() {
         (editable
           ? '<td>' + (d.active ? 'да' : '<span class="set-hint">нет</span>') + '</td>' +
             '<td>' + dictLocationsText(d) + '</td>' +
-            '<td><button class="action-btn confirm btn-sm" onclick="openDictModal(' + d.id + ')">Ред.</button></td>'
+            '<td><button class="action-btn confirm btn-sm"' + needAttr('system') + ' onclick="openDictModal(' + d.id + ')">Ред.</button></td>'
           : '') +
         '</tr>';
     }).join('');
     return '<div class="dict-group">' +
       '<div class="dict-group-head"><div class="adm-card-title u-m-0">' + escAttr(DICT_GROUP_LABEL[g] || g) + '</div>' +
       // Категория тренировок одна (training) — новые значения добавляются только в услуги и типы специалистов
-      (editable && g !== 'activity_category' ? '<button class="btn-ghost u-text-small" onclick="openDictModal(null,\'' + g + '\')">+ Значение</button>' : '') +
+      (editable && g !== 'activity_category' ? '<button class="btn-ghost u-text-small"' + needAttr('system') + ' onclick="openDictModal(null,\'' + g + '\')">+ Значение</button>' : '') +
       '</div>' +
       '<table class="dict-table">' + head + body + '</table></div>';
   }).join('');
@@ -66,7 +66,7 @@ function openDictModal(id, group) {
   const d = id ? DICTS.find(function (v) { return v.id === id; }) : null;
   const g = d ? d.group_code : group;
   const specTypes = DICTS.filter(function (v) { return v.group_code === 'specialist_type'; });
-  const locOptions = (LOCATIONS_ALL.length ? LOCATIONS_ALL : LOCATIONS).map(function (l) { return { value: l.id, label: l.name }; });
+  const locOptions = locMsOptions(true);
   const body =
     '<div class="set-hint u-mb-10">' + escAttr(DICT_GROUP_LABEL[g] || g) + '</div>' +
     '<div class="form-field"><label class="form-label">Название</label>' +

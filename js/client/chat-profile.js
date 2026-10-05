@@ -38,7 +38,7 @@ async function saveProfile() {
 
   // Профиль — в том виде, в каком его сохранил сервер
   currentUser = user;
-  document.getElementById('btn-logout').textContent = user.name.split(' ')[0] + ' · Выйти';
+  renderUserButton();
   renderClientPanel();
   renderProfileForm();
   const msg = document.getElementById('profile-saved-msg');

@@ -23,7 +23,7 @@ function settingValue(string $code, string $name, $raw): string {
     return $value;
 }
 
-// GET ?action=list — все параметры (admin)
+// GET ?action=list — все параметры: видит любой администратор, меняет — администратор системы
 if ($method === 'GET' && $action === 'list') {
     authAdmin();
     $rows = getDB()->query('SELECT code, name, value, updated_at FROM settings ORDER BY id')->fetchAll();
@@ -35,7 +35,7 @@ if ($method === 'GET' && $action === 'list') {
 
 // PUT ?action=update — сохранить параметры блоком (admin): {values: {code: value, …}}
 if ($method === 'PUT' && $action === 'update') {
-    $user = authAdmin();
+    $user = authCan('system');
     $values = (array)(input()['values'] ?? []);
     if (!$values) err('Нет значений для сохранения');
     $db = getDB();

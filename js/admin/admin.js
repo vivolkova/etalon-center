@@ -69,7 +69,7 @@ function renderAdminClients(list) {
     <div class="u-flex u-gap-4 u-wrap">
       <button class="action-btn confirm btn-sm" onclick="openClientProfile(${c.id})">Просмотр</button>
       <button class="action-btn confirm btn-sm" onclick="openClientModal(${c.id})">Ред.</button>
-      <button class="action-btn cancel btn-sm" onclick="deleteClient(${c.id})">Уд.</button>
+      <button class="action-btn cancel btn-sm"${needAttr('system')} onclick="deleteClient(${c.id})">Уд.</button>
     </div>
   </td>
 </tr>`;

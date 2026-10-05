@@ -59,6 +59,12 @@ async function submitAuth() {
   }
 }
 
+// Кнопка с именем вошедшего: «Имя · Выйти». Филиал администратора — рядом, в переключателе #adm-branch
+function renderUserButton() {
+  if (!currentUser) return;
+  document.getElementById('btn-logout').textContent = currentUser.name.split(' ')[0] + ' · Выйти';
+}
+
 // quiet — без приветствия (сессия восстановлена после обновления страницы)
 async function loginUser(user, quiet) {
   currentUser = user;
@@ -66,9 +72,10 @@ async function loginUser(user, quiet) {
   document.getElementById('btn-login').style.display = 'none';
   document.getElementById('btn-signup').style.display = 'none';
   document.getElementById('btn-logout').style.display = '';
-  document.getElementById('btn-logout').textContent = user.name.split(' ')[0] + ' · Выйти';
+  renderUserButton();
   if (user.role !== 'admin') document.getElementById('nav-client').style.display = '';
-  if (user.role === 'admin') document.getElementById('nav-admin').style.display = '';
+  if (user.role === 'admin') { document.getElementById('nav-admin').style.display = ''; admMenuApply(); }
+  admBranchInit();
   // Клиентские разделы (запись на тренировки и услуги) администратору не нужны — он работает в панели (журнал записи)
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
   if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
@@ -185,6 +192,7 @@ async function logout() {
 // Вид «не вошёл» (выход или сессия закончилась)
 function logoutLocal() {
   currentUser = null;
+  admBranchInit();
   bookings = [];
   document.getElementById('btn-login').style.display = '';
   document.getElementById('btn-signup').style.display = '';

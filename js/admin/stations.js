@@ -9,12 +9,12 @@ async function loadStationTypes() {
 
 // ── Станки и схема зала ───────────────────────────────────────────
 async function renderStationsTab() {
-  const locId = fillSettingsLocSelect('st-loc');
+  const locId = fillSettingsLocSelect();
   const hall = document.getElementById('st-hall');
   const hint = document.getElementById('st-hint');
   const outside = document.getElementById('st-outside');
   if (!hall) return;
-  if (!locId) { hall.innerHTML = ''; hint.textContent = 'Сначала добавьте филиал'; return; }
+  if (!locId) { hall.innerHTML = ''; outside.innerHTML = ''; hint.textContent = admLocs().length ? ADM_PICK_BRANCH : 'Сначала добавьте филиал'; return; }
 
   await Promise.allSettled([
     loadStationTypes(),
@@ -35,29 +35,37 @@ async function renderStationsTab() {
   hint.innerHTML = 'Зал ' + cols + '×' + rows + ' · активных станков: <b' + (active >= cap ? ' style="color:#c0392b"' : '') + '>' + active + ' из ' + cap + '</b>' +
     ' (вместимость филиала)' + (SETTINGS_STATIONS.length > active ? ' · выключенных: ' + (SETTINGS_STATIONS.length - active) : '');
 
+  // Менять зал (добавлять, переставлять, открывать станок) может только тот, у кого есть право hall;
+  // остальные администраторы видят расстановку без изменения
+  const canEdit = canDo('hall');
+  hall.classList.toggle('hall-edit', canEdit);
+  const editHint = document.getElementById('st-edit-hint');
+  if (editHint) editHint.style.display = canEdit ? '' : 'none';
   hall.style.gridTemplateColumns = 'repeat(' + cols + ', 1fr)';
   let html = '';
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const s = byPos[x + ',' + y];
       if (!s) {
-        html += '<div class="cell-empty" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(null,' + x + ',' + y + ')" title="Добавить станок"></div>';
+        html += canEdit
+          ? '<div class="cell-empty" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(null,' + x + ',' + y + ')" title="Добавить станок"></div>'
+          : '<div class="cell-empty"></div>';
         continue;
       }
-      html += stationHtml(s, 'free' + (Number(s.active) ? '' : ' inactive'), 'draggable="true"' +
-        ' data-station-id="' + s.id + '" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(' + s.id + ')"' +
+      html += stationHtml(s, 'free' + (Number(s.active) ? '' : ' inactive'),
+        (canEdit ? 'draggable="true" data-station-id="' + s.id + '" data-x="' + x + '" data-y="' + y + '" onclick="openStationModal(' + s.id + ')"' : 'disabled') +
         ' title="' + escAttr(s.label + ' · ' + s.type_name + (Number(s.active) ? '' : ' · выключен')) + '"');
     }
   }
   hall.innerHTML = html;
-  stBindDrag(hall);
+  if (canEdit) stBindDrag(hall);
 
   // Станки за пределами схемы (зал уменьшили) — показать, чтобы их можно было вернуть
   const out = SETTINGS_STATIONS.filter(function (s) { return s.pos_x >= cols || s.pos_y >= rows; });
   outside.innerHTML = out.length
     ? '<div class="set-warn">Вне схемы зала (' + out.length + '): ' + out.map(function (s) {
-      return '<a href="#" onclick="event.preventDefault();openStationModal(' + s.id + ')">' + escAttr(s.label) + '</a>';
-    }).join(', ') + '. Откройте станок, чтобы поставить его на свободную клетку.</div>'
+      return canEdit ? '<a href="#" onclick="event.preventDefault();openStationModal(' + s.id + ')">' + escAttr(s.label) + '</a>' : escAttr(s.label);
+    }).join(', ') + (canEdit ? '. Откройте станок, чтобы поставить его на свободную клетку.' : '') + '</div>'
     : '';
 }
 
@@ -180,8 +188,8 @@ async function renderStationTypesTab() {
       '<div class="lib-card-meta">' + (inactive ? '<span class="lib-meta-tag tag-muted">Выключен</span>' : '') +
       '<span class="lib-meta-tag">Станков: ' + (parseInt(t.stations_count) || 0) + '</span></div>' +
       '<div class="lib-card-footer"><div></div><div class="lib-card-actions">' +
-      '<button class="action-btn confirm btn-sm" onclick="openStationTypeModal(' + t.id + ')">Ред.</button>' +
-      '<button class="action-btn cancel btn-sm" onclick="deleteStationType(' + t.id + ')">Уд.</button>' +
+      '<button class="action-btn confirm btn-sm"' + needAttr('system') + ' onclick="openStationTypeModal(' + t.id + ')">Ред.</button>' +
+      '<button class="action-btn cancel btn-sm"' + needAttr('system') + ' onclick="deleteStationType(' + t.id + ')">Уд.</button>' +
       '</div></div></div>';
   }).join('');
 }

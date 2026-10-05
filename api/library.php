@@ -69,14 +69,15 @@ $LIST_SQL = 'SELECT l.id, l.name, l.location_id, l.duration, l.price, loc.max_pe
 if ($method === 'GET' && $action === 'list') {
     $db  = getDB();
     $all = !empty($_GET['all']);
-    if ($all) authAdmin();
-    $sql = $LIST_SQL . ($all ? ' WHERE 1' : ' WHERE l.active = 1');
+    // all=1 — для экрана «Библиотека»: вместе с удалёнными; любой администратор видит библиотеку своих филиалов
+    $bf  = $all ? branchFilter(authAdmin(), 'l.location_id') : ['sql' => '', 'params' => []];
+    $sql = $LIST_SQL . ($all ? ' WHERE 1' : ' WHERE l.active = 1') . $bf['sql'];
     $kind = $_GET['kind'] ?? '';
     if ($kind === 'training') $sql .= " AND dc.code = 'training'";
     if ($kind === 'service')  $sql .= " AND dc.code <> 'training'";
     $sql .= ' ORDER BY l.id';
     $stmt = $db->prepare($sql);
-    $stmt->execute();
+    $stmt->execute($bf['params']);
     ok(array_map('libRow', $stmt->fetchAll()));
 }
 
@@ -106,9 +107,10 @@ if ($method === 'GET' && $action === 'get') {
 
 // POST — создать (только admin)
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    $user = authCan('library');
     $d = input();
     require_fields($d, ['name', 'price', 'location_id']);
+    branchGuard($user, (int)$d['location_id']);
 
     $db     = getDB();
     $catId  = libCatId($db, $d['cat'] ?? 'training');
@@ -140,12 +142,13 @@ if ($method === 'POST' && $action === 'create') {
 // снимок занятия (филиал, название, цену…), и их смена разошлась бы с уже поставленными занятиями.
 // Нужна такая же тренировка в другом филиале — отдельная запись.
 if ($method === 'PUT' && $action === 'update') {
-    authAdmin();
+    $user = authCan('library');
     $d  = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
 
     $db  = getDB();
+    branchGuard($user, libraryBranch($db, $id));
     $st  = $db->prepare('SELECT l.location_id, l.activity_category_id, l.slot_type_id, dc.code AS cat, dt.code AS type FROM library l
                          JOIN dictionaries dc ON dc.id = l.activity_category_id
                          LEFT JOIN dictionaries dt ON dt.id = l.slot_type_id WHERE l.id = ?');
@@ -186,10 +189,11 @@ if ($method === 'PUT' && $action === 'update') {
 // Слоты могут ссылаться на запись (FK ON DELETE RESTRICT — физическое удаление
 // запрещено на уровне БД). Слоты остаются, описание берётся из записи по-прежнему.
 if ($method === 'DELETE' && $action === 'delete') {
-    authAdmin();
+    $user = authCan('library');
     $id = (int)($_GET['id'] ?? 0);
     if (!$id) err('Не указан id');
     $db = getDB();
+    branchGuard($user, libraryBranch($db, $id));
     $db->prepare('UPDATE library SET active = 0 WHERE id = ?')->execute([$id]);
     ok(null, 'Удалено из библиотеки');
 }

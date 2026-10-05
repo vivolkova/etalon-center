@@ -292,6 +292,7 @@ if ($method === 'GET' && $action === 'times') {
     $date  = (string)($_GET['date'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
     $locId = (int)$lib['location_id'];
+    adminAt($user, $locId);
 
     // Администратор подбирает время для клиента (журнал записи): без окна записи; пересечения — с записями
     // выбранного клиента (user_id), если он уже выбран
@@ -320,6 +321,7 @@ if ($method === 'GET' && $action === 'stations') {
     $db = getDB();
     $skip = indSkipSlot($db, $user, (int)($_GET['skip_slot_id'] ?? 0));   // перенос записи: её станок свободен
     $lib = indLibrary($db, (int)($_GET['library_id'] ?? 0));
+    adminAt($user, (int)$lib['location_id']);
     $dur = (int)($_GET['duration'] ?? 0) ?: (int)$lib['duration'];
     if (!in_array($dur, indDurations($db, $lib), true)) err('Недопустимая длительность');
     $date = (string)($_GET['date'] ?? '');
@@ -349,6 +351,7 @@ if ($method === 'POST' && $action === 'create') {
     require_fields($d, ['library_id', 'date', 'start']);
     $db   = getDB();
     [$lib, $specId, $dur] = indArgs($db, $d);
+    adminAt($user, (int)$lib['location_id']);   // администратор записывает клиента только в своём филиале
     $date = (string)$d['date'];
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
     if (!preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string)$d['start'])) err('Некорректное время начала');
@@ -414,6 +417,7 @@ if ($method === 'PUT' && $action === 'move') {
     $cur = $st->fetch();
     if (!$cur || (!$admin && (int)$cur['user_id'] !== (int)$user['id'])) err('Запись не найдена или это не индивидуальная запись', 404);
     $slotId = (int)$cur['slot_id'];
+    adminAt($user, slotBranch($db, $slotId));   // администратор переносит записи только своего филиала
 
     [$lib, $specId, $dur] = indArgs($db, [
         'library_id'    => (int)$cur['library_id'],

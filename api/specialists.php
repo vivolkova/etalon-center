@@ -46,7 +46,7 @@ function specPerson(array $d): array {
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
     $all = !empty($_GET['all']);
-    if ($all) authAdmin();
+    if ($all) authCan('spec_hours');   // полный список видит и администратор студии: он ведёт графики
     $where = $all ? '1' : 'sp.active = 1';
     $stmt = $db->prepare('
         SELECT sp.id, sp.user_id, sp.name, sp.full_name, sp.first_name, sp.last_name, sp.experience, sp.active,' . ($all ? ' sp.phone,' : '') . '
@@ -77,7 +77,7 @@ if ($method === 'GET' && $action === 'list') {
 // POST — человек по телефону (admin), для формы нового специалиста: его имя подставляется в форму.
 // {id, first_name, last_name, name, specialist_id — если он уже специалист} или null. Телефон — в теле запроса, не в адресе
 if ($method === 'POST' && $action === 'person') {
-    authAdmin();
+    authCan('specialists');
     $phone = phoneDigits((string)(input()['phone'] ?? ''));
     if ($phone === null) ok(null);
     $st = getDB()->prepare('SELECT u.id, u.first_name, u.last_name, u.name,
@@ -94,7 +94,7 @@ if ($method === 'POST' && $action === 'person') {
 // POST — создать специалиста (admin): {first_name, last_name, phone, types:[коды] — специализация, experience, active}.
 // Человек с таким телефоном уже есть (например, клиент) — специалистом становится он, второй записи в users не будет
 if ($method === 'POST' && $action === 'create') {
-    authAdmin();
+    authCan('specialists');
     $d = input();
     [$first, $last, $phone] = specPerson($d);
     $db = getDB();
@@ -114,7 +114,7 @@ if ($method === 'POST' && $action === 'create') {
 
 // PUT — обновить специалиста (admin): имя, фамилия и телефон меняются в его записи users
 if ($method === 'PUT' && $action === 'update') {
-    $admin = authAdmin();
+    $admin = authCan('specialists');
     $d = input();
     $id = (int)($d['id'] ?? 0);
     if (!$id) err('Не указан id');
@@ -139,7 +139,7 @@ if ($method === 'PUT' && $action === 'update') {
 
 // DELETE — мягкое удаление (admin)
 if ($method === 'DELETE' && $action === 'delete') {
-    authAdmin();
+    authCan('specialists');
     $id = (int)($_GET['id'] ?? 0);
     $db = getDB();
     $db->beginTransaction();

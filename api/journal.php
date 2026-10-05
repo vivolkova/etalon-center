@@ -16,9 +16,9 @@ $action = $_GET['action'] ?? '';
 //  slots: [{id, library_id, name, cat, type, from, to, price, specialist_id, specialist, individual,
 //           bookings: [{id, user_id, name, phone, station_id, payment_status, notes}], blocked: [station_id]}]}
 if ($method === 'GET' && $action === 'day') {
-    authAdmin();
     $db    = getDB();
     $locId = (int)($_GET['location_id'] ?? 0);
+    authCan('journal', $locId);
     $date  = (string)($_GET['date'] ?? '');
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) err('Некорректная дата');
     if (!specLocationOrNull($db, $locId)) err('Филиал не найден или недействующий', 404);
