@@ -39,6 +39,7 @@ function openSlotDetail(slotId) {
   const full = left <= 0;
   const isBooked = bookings.some(b => b.slotId === s.id && b.status !== 'cancelled');
   if (isBooked) { btn.textContent = 'Вы записаны ✓'; btn.disabled = false; btn.classList.add('is-booked-ok'); btn.onclick = null; btn.style.opacity = ''; btn.title = 'Вы уже записаны на это занятие'; }
+  else if (slotStarted(s)) { btn.textContent = SLOT_CLOSED; btn.classList.remove('is-booked-ok'); btn.disabled = true; btn.onclick = null; btn.style.opacity = ''; btn.title = 'Занятие уже началось или прошло'; }
   else if (full) { btn.textContent = usesHall ? 'Мест нет' : 'Занято'; btn.classList.remove('is-booked-ok'); btn.disabled = true; btn.onclick = null; btn.style.opacity = ''; btn.title = usesHall ? 'Свободных мест нет' : 'Время уже занято'; }
   else { btn.textContent = 'Записаться →'; btn.classList.remove('is-booked-ok'); btn.disabled = false; btn.style.opacity = ''; btn.title = ''; btn.onclick = () => { document.getElementById('slot-detail-modal').classList.remove('show'); openBookingModal(slotId); }; }
 

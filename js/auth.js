@@ -196,7 +196,9 @@ function fmtLocalDate(d) {
 async function loadSlots(fromDate, toDate) {
   try {
     const fmt = fmtLocalDate;
-    const from = fromDate || new Date();
+    // от начала сегодняшнего дня: иначе сегодняшние занятия (их дата — полночь) не попадают в заменяемый диапазон
+    // и при повторной загрузке появляются в расписании дважды
+    const from = fromDate || (function () { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })();
     const to = toDate || (function () { const d = new Date(); d.setDate(d.getDate() + 60); return d; })();
     const data = await SlotsAPI.list(fmt(from), fmt(to));
     // Удаляем из локального массива слоты этого диапазона (они перезагрузятся актуальными)

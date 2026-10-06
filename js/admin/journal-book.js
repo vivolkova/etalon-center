@@ -459,6 +459,15 @@ async function jbSubmit() {
     if (!data.new_client.first_name || !data.new_client.last_name) { showToast('Укажите имя и фамилию клиента', 'error'); return; }
     if (data.new_client.phone.replace(/\D+/g, '').length < 10) { showToast('Укажите телефон клиента (не меньше 10 цифр)', 'error'); return; }
   }
+  // Администратор может записать клиента и на начавшееся или прошедшее занятие (клиент пришёл без записи) —
+  // но переспрашиваем: так не запишут по ошибке не в тот день
+  if (!jb.self) {
+    const begins = group ? group.from : jb.start, day = parseLocalDate(jb.date);
+    if (new Date(jb.date + 'T' + minToTime(begins)) <= new Date()
+      && !await uiConfirm('Занятие уже началось или прошло. Записать клиента?',
+        it.name + ' — ' + day.getDate() + ' ' + MONTHS_FULL[day.getMonth()] + ' в ' + minToTime(begins))) return;
+    if (!jb) return;   // пока отвечали на вопрос, форму закрыли
+  }
   const btn = document.getElementById('jb-submit');
   btn.disabled = true; btn.textContent = 'Записываем...';
   const isNew = !jb.client, name = jb.client ? jb.client.name : (data.new_client.first_name + ' ' + data.new_client.last_name).trim(), start = group ? group.from : jb.start;

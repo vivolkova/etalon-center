@@ -61,12 +61,22 @@ function siteLocName(locId) {
 
 // Слот групповой тренировки в ячейке часа сетки: время, название, тренер, места, кнопка записи.
 // ROW_H — px на час, pos — колонка при пересечении занятий (wgLayoutDay), booked — клиент уже записан
+// Занятие уже началось или прошло: записаться на него нельзя (сервер проверяет то же по времени филиала)
+function slotStarted(s) {
+  const t = s.time.split(':');
+  const start = new Date(s.date);
+  start.setHours(parseInt(t[0]) || 0, parseInt(t[1]) || 0, 0, 0);
+  return start <= new Date();
+}
+const SLOT_CLOSED = 'Запись закрыта';
+
 function schSlotHtml(s, ROW_H, pos, booked) {
   const mins = parseInt(s.time.split(':')[1]) || 0;
   const topPx = Math.round(mins * ROW_H / 60);
   const heightPx = Math.max(Math.round(s.dur * ROW_H / 60), 36);
-  const full = slotFree(s) <= 0;
-  const spotsText = full && !booked ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
+  const closed = slotStarted(s);
+  const full = closed || slotFree(s) <= 0;   // начавшееся занятие выглядит как занятое: серое, без записи
+  const spotsText = closed ? SLOT_CLOSED : full && !booked ? 'Мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест';
 
   // Размер слота: xs<28, sm<44, md<70, lg>=70
   const sizeClass = heightPx < 28 ? 'slot-xs' : heightPx < 44 ? 'slot-sm' : heightPx < 70 ? 'slot-md' : 'slot-lg';
@@ -74,7 +84,7 @@ function schSlotHtml(s, ROW_H, pos, booked) {
   if (booked) cls += ' booked';
   else if (full) cls += ' full';
 
-  const bookLabel = booked ? '✓ Вы записаны' : full ? 'Мест нет' : 'Записаться';
+  const bookLabel = booked ? '✓ Вы записаны' : closed ? SLOT_CLOSED : full ? 'Мест нет' : 'Записаться';
   const bookOnclick = (!full && !booked)
     ? 'event.stopPropagation();openBookingModal(' + s.id + ')'
     : 'event.stopPropagation()';
@@ -100,11 +110,12 @@ function schSlotHtml(s, ROW_H, pos, booked) {
 // Строка списка занятий дня (телефон): время и длительность, название, тренер · места · цена, кнопка записи.
 // Нажатие на строку — карточка занятия с описанием; на кнопку — запись
 function schListRowHtml(s, booked) {
-  const full = slotFree(s) <= 0;
-  const meta = [s.specialist, full ? 'мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест', s.price.toLocaleString('ru') + ' ₽']
+  const closed = slotStarted(s);
+  const full = closed || slotFree(s) <= 0;
+  const meta = [s.specialist, closed ? '' : full ? 'мест нет' : slotFree(s) + '/' + slotCap(s) + ' мест', s.price.toLocaleString('ru') + ' ₽']
     .filter(Boolean).map(escAttr).join(' · ');
   const action = booked ? '<span class="sch-row-state booked">✓ Вы записаны</span>'
-    : full ? '<span class="sch-row-state">Мест нет</span>'
+    : full ? '<span class="sch-row-state">' + (closed ? SLOT_CLOSED : 'Мест нет') + '</span>'
       : '<button class="btn-primary sch-row-btn" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>';
   return '<div class="sch-row ' + colorClass(s.cat, s.type) + (booked ? ' booked' : full ? ' full' : '') + '" onclick="openSlotDetail(' + s.id + ')">'
     + '<div class="sch-row-time">' + s.time + '<span>' + fmtDurShort(s.dur) + '</span></div>'
