@@ -342,6 +342,9 @@ function renderAdminBookings() {
 function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
+  // Филиал выбран в шапке — столбец «Филиал» не нужен; он остаётся только в режиме «Все филиалы»
+  const showLoc = !admCurLoc();
+  document.getElementById('bookings-loc-th').style.display = showLoc ? '' : 'none';
   if (!list.length) { tbody.innerHTML = '<tr><td class="empty-state" colspan="10">Записей нет</td></tr>'; return; }
   const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
   const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
@@ -353,12 +356,12 @@ function renderAdminBookingsFiltered(list) {
       ? escAttr(b.station) + (b.stationType ? '<br><span class="u-muted u-text-caption">' + escAttr(b.stationType) + '</span>' : '')
       : muted('');
     // Филиал, в котором проходит занятие
-    const loc = b.location_id ? findLocation(b.location_id) : null;
+    const loc = showLoc && b.location_id ? findLocation(b.location_id) : null;
     // Полоса слева и точка — цвет занятия: категория, у тренировки — её вид (персональная / самостоятельная)
     return '<tr class="' + colorClass(b.cat, b.type) + '">' +
       '<td class="cat-edge"><strong>' + escAttr(b.name) + '</strong></td>' +
       '<td class="u-nowrap">' + muted(b.phone) + '</td>' +
-      '<td>' + muted(loc ? loc.name : '') + '</td>' +
+      (showLoc ? '<td>' + muted(loc ? loc.name : '') + '</td>' : '') +
       '<td><span class="cat-dot" title="' + escAttr(catName(b.cat)) + '"></span>' + escAttr(b.service) + '</td>' +
       '<td>' + muted(b.specialistFull) + '</td>' +
       '<td>' + station + '</td>' +
