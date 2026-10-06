@@ -17,6 +17,10 @@ define('JWT_EXPIRE', 86400 * 7);  // срок сессии без обращен
 // URL сайта (для CORS)
 define('SITE_URL', 'https://etalon.center');
 
+// Часовой пояс сервера: по нему считаются «сегодня» в PHP и NOW() в MySQL (не зависит от настроек хостинга)
+define('APP_TIMEZONE', 'Europe/Moscow');
+date_default_timezone_set(APP_TIMEZONE);
+
 // ── Подключение ────────────────────────────────────────────
 function getDB(): PDO {
     static $pdo = null;
@@ -26,6 +30,8 @@ function getDB(): PDO {
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
+            // Смещением, а не именем пояса: именованные пояса в MySQL есть не на каждом хостинге
+            PDO::MYSQL_ATTR_INIT_COMMAND => "SET time_zone = '" . date('P') . "'",
         ]);
     }
     return $pdo;
