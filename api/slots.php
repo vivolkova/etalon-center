@@ -70,14 +70,10 @@ function checkSlotRequest(PDO $db, array $d, ?int $id, array $lib): void {
     ]);
 }
 
-// GET — список слотов
-if ($method === 'GET' && $action === 'list') {
-    $db    = getDB();
-    $from  = $_GET['from'] ?? date('Y-m-d');
-    $to    = $_GET['to']   ?? date('Y-m-d', strtotime('+14 days'));
-    $cat   = $_GET['cat']  ?? null;
-
-    $sql = 'SELECT s.*, dc.code AS category, dc.name AS category_name,
+// Занятие расписания со всем, что показывает сайт (категория, тип, специалист, описание из библиотеки, вместимость
+// филиала и число заблокированных станков). $extra — дополнительные столбцы (с ведущей запятой); дальше — WHERE
+function slotsSelectSql(string $extra = ''): string {
+    return 'SELECT s.*, dc.code AS category, dc.name AS category_name,
                    dt.code AS type, dt.name AS type_name,
                    t.name AS specialist_name, t.full_name AS specialist_full,
                    l.summary, l.details,
@@ -85,13 +81,53 @@ if ($method === 'GET' && $action === 'list') {
                    (SELECT COUNT(*) FROM slot_station_blocks b
                                         JOIN stations st ON st.id = b.station_id AND st.active = 1
                                        WHERE b.slot_id = s.id
-                                         AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked
+                                         AND NOT EXISTS (SELECT 1 FROM bookings bk WHERE bk.slot_id = s.id AND bk.station_id = b.station_id AND bk.status <> "cancelled")) AS blocked'
+            . $extra . '
             FROM slots s
             LEFT JOIN specialists_view t ON s.specialist_id = t.id
             LEFT JOIN library  l   ON s.library_id = l.id
             JOIN locations   loc ON s.location_id = loc.id
             JOIN dictionaries dc ON s.category_id = dc.id
-            LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id
+            LEFT JOIN dictionaries dt ON l.slot_type_id = dt.id';
+}
+
+// GET — ближайшие занятия для кабинета клиента: расписание филиала (location_id) от «сейчас» по времени филиала
+// на UPCOMING_DAYS дней вперёд, не больше UPCOMING_LIMIT занятий. Только те, что ещё не начались; занятие без
+// свободных мест показываем, только если клиент сам на него записан (booked = 1)
+const UPCOMING_DAYS  = 7;
+const UPCOMING_LIMIT = 8;
+if ($method === 'GET' && $action === 'upcoming') {
+    $user  = authUser();
+    $locId = (int)($_GET['location_id'] ?? 0);
+    if (!$locId) err('Не указан филиал');
+    $db  = getDB();
+    $now = branchNow($db, $locId);
+    $today = $now->format('Y-m-d');
+
+    $stmt = $db->prepare(slotsSelectSql(',
+                   EXISTS (SELECT 1 FROM bookings mb WHERE mb.slot_id = s.id AND mb.user_id = ? AND mb.status <> "cancelled") AS booked') . '
+            WHERE s.active = 1 AND s.slot_date BETWEEN ? AND ? AND s.location_id = ? AND s.auto_created = 0
+              AND (s.slot_date > ? OR s.start_time > ?)
+            ORDER BY s.slot_date, s.start_time');
+    $stmt->execute([(int)$user['id'], $today, $now->modify('+' . UPCOMING_DAYS . ' days')->format('Y-m-d'), $locId, $today, $now->format('H:i:s')]);
+    $slots = [];
+    foreach ($stmt->fetchAll() as $s) {
+        $free = (int)$s['max_people'] - (int)$s['blocked'] - (int)$s['taken'];
+        if ($free <= 0 && !(int)$s['booked']) continue;
+        $slots[] = $s;
+        if (count($slots) >= UPCOMING_LIMIT) break;
+    }
+    ok(['today' => $today, 'days' => UPCOMING_DAYS, 'slots' => $slots]);
+}
+
+// GET — список слотов
+if ($method === 'GET' && $action === 'list') {
+    $db    = getDB();
+    $from  = $_GET['from'] ?? date('Y-m-d');
+    $to    = $_GET['to']   ?? date('Y-m-d', strtotime('+14 days'));
+    $cat   = $_GET['cat']  ?? null;
+
+    $sql = slotsSelectSql() . '
             WHERE s.slot_date BETWEEN ? AND ? AND s.active = 1 AND s.auto_created = 0';
     // Только расписание: занятия, которые поставил админ. Слоты, созданные записью клиента (auto_created = 1 —
     // персональная, самостоятельная, услуга), сюда не попадают — их показывают «Журнал записи» (api/journal.php)

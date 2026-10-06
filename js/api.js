@@ -104,6 +104,10 @@ const SlotsAPI = {
     if (cat && cat !== 'all') url += `&cat=${cat}`;
     return apiRequest(url);
   },
+  // ближайшие занятия филиала для кабинета клиента: { today, days, slots }
+  async upcoming(locationId) {
+    return apiRequest(`/slots.php?action=upcoming&location_id=${locationId}`);
+  },
   async get(id) {
     return apiRequest(`/slots.php?action=get&id=${id}`);
   },

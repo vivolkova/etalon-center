@@ -295,10 +295,12 @@ CREATE TABLE slots (
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     location_id INT NOT NULL,
-    KEY idx_active_date (active, slot_date),
+    KEY idx_active_date (active, slot_date),              -- расписание всех филиалов за период (сайт)
+    -- занятия одного филиала за день или период: журнал, ближайшие занятия, проверки пересечений;
+    -- начинается с location_id, поэтому служит и внешнему ключу fk_slots_location
+    KEY idx_loc_active_date (location_id, active, slot_date),
     KEY specialist_id (specialist_id),
     KEY library_id (library_id),
-    KEY fk_slots_location (location_id),
     KEY fk_slots_category (category_id),
     CONSTRAINT fk_slots_category FOREIGN KEY (category_id) REFERENCES dictionaries(id),
     CONSTRAINT fk_slots_location FOREIGN KEY (location_id) REFERENCES locations(id),

@@ -193,6 +193,31 @@ function fmtLocalDate(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// Занятие расписания в том виде, в каком с ним работает страница (строка api/slots.php → элемент SLOTS)
+function slotFromRow(s) {
+  const slotDate = parseLocalDate(s.slot_date);
+  return {
+    id: s.id,
+    date: slotDate,
+    dayOfWeek: (slotDate.getDay() + 6) % 7,
+    time: s.start_time ? s.start_time.slice(0, 5) : s.start_time,
+    dur: parseInt(s.duration),
+    name: s.name,
+    cat: s.category,
+    type: s.type || null,   // slot_type записи библиотеки: group / personal / free; у услуг null
+    specialist: s.specialist_name || '',
+    specialist_id: s.specialist_id || null,
+    price: Number(s.price),
+    max: parseInt(s.max_people),
+    taken: parseInt(s.taken),
+    blocked: parseInt(s.blocked) || 0,   // заблокированные на занятие станки
+    location_id: s.location_id || null,
+    description: s.summary || '',
+    features: s.details || null,
+    library_id: s.library_id || null,
+  };
+}
+
 async function loadSlots(fromDate, toDate) {
   try {
     const fmt = fmtLocalDate;
@@ -207,29 +232,7 @@ async function loadSlots(fromDate, toDate) {
       const t = SLOTS[i].date ? SLOTS[i].date.getTime() : 0;
       if (t >= fromTime && t <= toTime) SLOTS.splice(i, 1);
     }
-    data.forEach(function (s) {
-      const slotDate = parseLocalDate(s.slot_date);
-      SLOTS.push({
-        id: s.id,
-        date: slotDate,
-        dayOfWeek: (slotDate.getDay() + 6) % 7,
-        time: s.start_time ? s.start_time.slice(0, 5) : s.start_time,
-        dur: parseInt(s.duration),
-        name: s.name,
-        cat: s.category,
-        type: s.type || null,   // slot_type записи библиотеки: group / personal / free; у услуг null
-        specialist: s.specialist_name || '',
-        specialist_id: s.specialist_id || null,
-        price: Number(s.price),
-        max: parseInt(s.max_people),
-        taken: parseInt(s.taken),
-        blocked: parseInt(s.blocked) || 0,   // заблокированные на занятие станки
-        location_id: s.location_id || null,
-        description: s.summary || '',
-        features: s.details || null,
-        library_id: s.library_id || null,
-      });
-    });
+    data.forEach(function (s) { SLOTS.push(slotFromRow(s)); });
     const sm = data.find(s => s.max_people != null);
     if (sm) HALL_CAP = parseInt(sm.max_people);
   } catch (e) {

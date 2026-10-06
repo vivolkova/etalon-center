@@ -50,6 +50,7 @@ function renderSitePages() {
   renderSchLoc();
   if (currentPage === 'trainings') renderTrainings();
   if (currentPage === 'services') renderServices();
+  if (currentPage === 'client') renderClientFeed();   // ближайшие занятия кабинета: другой филиал, запись, отмена
 }
 
 // Название филиала слота/записи — только когда филиалов несколько (при одном это лишний шум)

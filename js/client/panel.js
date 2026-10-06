@@ -31,22 +31,50 @@ function switchClientTab(name, el) {
 }
 
 // ── FEED ──────────────────────────────────────────────────────────
-function renderClientFeed() {
-  // Upcoming slots (today's dayOfWeek)
-  const todayDow = (new Date().getDay() + 6) % 7;
-  const upcoming = SLOTS.filter(s => s.dayOfWeek === todayDow && slotFree(s) > 0 && !slotStarted(s)).slice(0, 4);
-  const feedSlots = document.getElementById('feed-slots');
-  feedSlots.innerHTML = upcoming.length
-    ? upcoming.map(s => `<div class="cp-slot-row u-pointer" onclick="openSlotDetail(${s.id})">
-    <div class="cp-slot-time">${s.time}</div>
-    <div class="cp-slot-info">
-      <div class="cp-slot-name">${s.name}</div>
-      <div class="cp-slot-meta"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${s.specialist} · ${s.dur} мин${slotUsesHall(s.cat) ? ` · ${slotFree(s)} мест` : ''}</div>
-    </div>
-    <div class="u-bold u-brand u-text-ui">${s.price.toLocaleString('ru')} ₽</div>
-    <button class="btn-primary u-text-small" onclick="event.stopPropagation();openBookingModal(${s.id})">Записаться</button>
-  </div>`).join('')
-    : `<div class="u-muted u-text-ui u-py-16">Сегодня занятий нет</div>`;
+// Ближайшие занятия: расписание выбранного филиала на несколько дней вперёд, по дням. Список считает сервер
+// (api/slots.php?action=upcoming): только то, что ещё не началось и куда есть места, плюс занятия, на которые
+// клиент уже записан. Свежие занятия кладём и в SLOTS — карточка занятия и окно записи берут их оттуда
+let feedSeq = 0;   // номер запроса: ответ на устаревший запрос (сменили филиал, вышли) не показываем
+async function renderClientFeed() {
+  const box = document.getElementById('feed-slots');
+  const loc = schLoc();
+  if (!box || !loc || !currentUser) return;
+  const seq = ++feedSeq;
+  let res;
+  try { res = await SlotsAPI.upcoming(loc.id); } catch (e) { return; }
+  if (seq !== feedSeq || !currentUser) return;
+
+  const mine = new Set(res.slots.filter(function (r) { return Number(r.booked); }).map(function (r) { return r.id; }));
+  const list = res.slots.map(slotFromRow);
+  list.forEach(function (s) {
+    const i = SLOTS.findIndex(function (x) { return x.id === s.id; });
+    if (i >= 0) SLOTS[i] = s; else SLOTS.push(s);
+  });
+  if (!list.length) {
+    box.innerHTML = '<div class="u-muted u-text-ui u-py-16">В ближайшие ' + res.days + ' дн. занятий нет</div>';
+    return;
+  }
+  const today = parseLocalDate(res.today);
+  let day = '', h = '';
+  list.forEach(function (s) {
+    const key = fmtLocalDate(s.date);
+    if (key !== day) {
+      day = key;
+      const diff = Math.round((s.date - today) / 86400000);
+      h += '<div class="u-text-small u-bold u-muted' + (h ? ' u-mt-12' : '') + '">'
+        + (diff === 0 ? 'Сегодня' : diff === 1 ? 'Завтра' : DAYS_FULL[s.dayOfWeek]) + ', ' + s.date.getDate() + ' ' + MONTHS_FULL[s.date.getMonth()] + '</div>';
+    }
+    const booked = mine.has(s.id);
+    h += '<div class="cp-slot-row u-pointer" onclick="openSlotDetail(' + s.id + ')">'
+      + '<div class="cp-slot-time">' + s.time + '</div>'
+      + '<div class="cp-slot-info"><div class="cp-slot-name">' + escAttr(s.name) + '</div>'
+      + '<div class="cp-slot-meta"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>' + escAttr(s.specialist) + ' · ' + s.dur + ' мин' + (slotUsesHall(s.cat) ? ' · ' + slotFree(s) + ' мест' : '') + '</div></div>'
+      + '<div class="u-bold u-brand u-text-ui">' + s.price.toLocaleString('ru') + ' ₽</div>'
+      + (booked ? '<button class="btn-primary u-text-small is-booked-ok" onclick="event.stopPropagation()">✓ Вы записаны</button>'
+        : '<button class="btn-primary u-text-small" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>')
+      + '</div>';
+  });
+  box.innerHTML = h;
 }
 
 // ── MY BOOKINGS ───────────────────────────────────────────────────
