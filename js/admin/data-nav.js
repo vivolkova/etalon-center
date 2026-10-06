@@ -98,8 +98,7 @@ function admBranchSet(value) {
   admBranchId = Number(value) || null;
   try { localStorage.setItem(admBranchKey(), admBranchId ? String(admBranchId) : ''); } catch (e) { /* выбор действует до перезагрузки */ }
   const cur = document.querySelector('.adm-nav-item.active');
-  const m = cur ? (cur.getAttribute('onclick') || '').match(/admNav\('(\w+)'/) : null;
-  if (m && currentPage === 'admin') admNav(m[1], cur);
+  if (cur && currentPage === 'admin') admNav(admNavName(cur), cur);
 }
 
 // Текущий филиал (объект) или null — «все филиалы»
@@ -116,19 +115,55 @@ const ADM_PICK_BRANCH = 'Выберите филиал в шапке — это�
 
 // Разделы меню, которые требуют права (остальные видит любой администратор)
 const ADM_NAV_RIGHT = { journal: 'journal', bookings: 'bookings', clients: 'clients', schedule: 'schedule', specialists: 'spec_hours' };
-// Скрыть в меню разделы без права и заголовки групп, в которых ничего не осталось
+// Скрыть в меню разделы без права и пункты шапки тех групп, в которых ничего не осталось.
+// Вызывается при входе и выходе: без администратора пунктов групп в шапке нет
 function admMenuApply() {
-  let group = null, shown = 0;
-  const closeGroup = function () { if (group) group.style.display = shown ? '' : 'none'; };
-  document.querySelectorAll('.adm-nav > *').forEach(function (el) {
-    if (el.classList.contains('adm-nav-section')) { closeGroup(); group = el; shown = 0; return; }
-    const m = (el.getAttribute('onclick') || '').match(/admNav\('(\w+)'/);
-    const ok = !m || !ADM_NAV_RIGHT[m[1]] || canDo(ADM_NAV_RIGHT[m[1]]);
-    el.style.display = ok ? '' : 'none';
-    if (ok) shown++;
+  const isAdmin = !!currentUser && currentUser.role === 'admin';
+  document.querySelectorAll('.adm-nav-group').forEach(function (group) {
+    let shown = 0;
+    group.querySelectorAll('.adm-nav-item').forEach(function (el) {
+      const name = admNavName(el);
+      const ok = !ADM_NAV_RIGHT[name] || canDo(ADM_NAV_RIGHT[name]);
+      el.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    admGroupLink(group.getAttribute('data-group')).style.display = isAdmin && shown ? '' : 'none';
   });
-  closeGroup();
   admApplyNeeds();
+}
+// Раздел, который открывает пункт левого меню
+function admNavName(el) {
+  const m = (el.getAttribute('onclick') || '').match(/admNav\('(\w+)'/);
+  return m ? m[1] : '';
+}
+
+// ═══ ГРУППЫ РАЗДЕЛОВ ═════════════════════════════════════════════════
+// Группы панели («Работа», «Планирование», «Система») — пункты шапки (index.html, data-adm-group);
+// в меню слева — разделы выбранной группы (.adm-nav-group). Экран один для администратора системы
+// и администратора студии: что видно и доступно, решают права (admMenuApply, needAttr)
+let admGroupCur = 'work';
+function admGroupLink(name) {
+  return document.querySelector('.nav-link[data-adm-group="' + name + '"]');
+}
+// Пункт шапки: открыть группу
+function admGroup(name) {
+  admGroupCur = name;
+  showPage('admin');
+}
+// Показать текущую группу и её первый доступный раздел (вызывается из showPage('admin'))
+function admGroupOpen() {
+  const visible = function (el) { return el.style.display !== 'none'; };
+  const groups = Array.from(document.querySelectorAll('.adm-nav-group'));
+  const open = function (g) { return visible(admGroupLink(g.getAttribute('data-group'))); };
+  const group = groups.find(function (g) { return g.getAttribute('data-group') === admGroupCur && open(g); }) || groups.find(open);
+  if (!group) return;
+  admGroupCur = group.getAttribute('data-group');
+  groups.forEach(function (g) { g.classList.toggle('active', g === group); });
+  const link = admGroupLink(admGroupCur);
+  setNavActive(link);
+  document.getElementById('adm-group-title').textContent = link.textContent;
+  const first = Array.from(group.querySelectorAll('.adm-nav-item')).find(visible);
+  admNav(admNavName(first), first);
 }
 
 // ═══ ADMIN NAVIGATION ════════════════════════════════════════════════

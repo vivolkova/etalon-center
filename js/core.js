@@ -210,8 +210,15 @@ function showPage(name) {
   if (name === 'trainings') renderTrainings();
   if (name === 'services') renderServices();
   if (name === 'client') renderClientPanel();
-  if (name === 'admin') { admNav('journal', document.querySelector('.adm-nav-item')); }
+  if (name === 'admin') admGroupOpen();   // текущая группа разделов панели и её первый раздел
   window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Логотип: клиенту и гостю — главная страница сайта, администратору — панель (сайт ему не показывается)
+function goHome() {
+  if (currentUser && currentUser.role === 'admin') { admGroup('work'); return; }
+  showPage('home');
+  setNavActive(document.querySelector('.nav-link'));
 }
 
 function setNavActive(el) {

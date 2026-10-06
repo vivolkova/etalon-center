@@ -131,11 +131,13 @@ async function loginUser(user, quiet) {
   document.getElementById('btn-logout').style.display = '';
   renderUserButton();
   if (user.role !== 'admin') document.getElementById('nav-client').style.display = '';
-  if (user.role === 'admin') { document.getElementById('nav-admin').style.display = ''; admMenuApply(); }
+  admMenuApply();   // администратору — группы панели в шапке и разделы по правам
   admBranchInit();
   showPendingDocs();
-  // Клиентские разделы (запись на тренировки и услуги) администратору не нужны — он работает в панели (журнал записи)
+  // Сайт (главная, запись на тренировки и услуги) администратору не нужен — он работает в панели и сразу попадает в неё
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
+  if (user.role === 'admin') admGroup('work');
+  admBootMark(user.role === 'admin');
   if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
   // Загружаем записи с сервера; слоты — заново (свежие счётчики мест)
   await Promise.allSettled([loadMyBookings(), loadSlots()]);
@@ -237,8 +239,20 @@ async function loadSlots(fromDate, toDate) {
 // Сессия живёт в cookie: спрашиваем сервер, кто вошёл. Не вошёл — остаёмся в виде «не вошёл»
 async function restoreSession() {
   let user;
-  try { user = await AuthAPI.me(); } catch (e) { return; }
+  try { user = await AuthAPI.me(); } catch (e) { admBootMark(false); return; }
   await loginUser(user, true);
+}
+
+// Чтобы при обновлении страницы у администратора не мелькала главная страница сайта: в браузере запоминается
+// только отметка «здесь работал администратор». По ней скрипт в начале index.html прячет страницу (класс adm-boot,
+// css/admin.css), пока сервер не ответит, кто вошёл. Прав отметка не даёт: их проверяет сервер
+const ADM_BOOT_KEY = 'etalon.admin';
+function admBootMark(isAdmin) {
+  try {
+    if (isAdmin) localStorage.setItem(ADM_BOOT_KEY, '1');
+    else localStorage.removeItem(ADM_BOOT_KEY);
+  } catch (e) { /* хранилище недоступно — главная мелькнёт, как раньше */ }
+  document.documentElement.classList.remove('adm-boot');
 }
 
 // Выход: завершаем сессию на сервере и возвращаем страницу к виду «не вошёл»
@@ -250,6 +264,7 @@ async function logout() {
 // Вид «не вошёл» (выход или сессия закончилась)
 function logoutLocal() {
   currentUser = null;
+  admBootMark(false);
   admBranchInit();
   showPendingDocs();   // окно «Мы обновили документы» закрывается вместе с сессией
   bookings = [];
@@ -257,7 +272,7 @@ function logoutLocal() {
   document.getElementById('btn-signup').style.display = '';
   document.getElementById('btn-logout').style.display = 'none';
   document.getElementById('nav-client').style.display = 'none';
-  document.getElementById('nav-admin').style.display = 'none';
+  admMenuApply();
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = ''; });
   renderSitePages();
   showPage('home');
