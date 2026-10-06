@@ -98,12 +98,12 @@ INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VAL
 (@south, (SELECT id FROM station_type WHERE name='Велотренажёр'),   'Юг Bike 2',   1, 0, 2),
 (@south, (SELECT id FROM station_type WHERE name='Велостанок 11s'), 'Юг Станок 1', 2, 0, 3);
 
--- Локальные учётные записи (вход — по телефону; пароли прежние, в файле только bcrypt-хэши).
+-- Локальные учётные записи (вход — по телефону). Пароль у всех один — abwx (в файле только его bcrypt-хэш).
 -- Администратор системы: +7 (911) 145-70-89
 INSERT INTO users (first_name, last_name, phone, password, account_created_at) VALUES
-('Алексей', 'Щебелин', '79111457089', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', NOW()),
+('Алексей', 'Щебелин', '79111457089', '$2y$12$5/H4cZjWaqhDjNmqnER.X.VPE.P1BxNlafm9v/fxobPuwpyhxD0yq', NOW()),
 -- Клиент: +7 (951) 660-56-66
-('Виктория', 'Волкова', '79516605666', '$2y$12$t4RYOd0pszvOvb0W2X8QQuCZ808dHmohFy5m5t.2vXjlJ5xyGhV7i', NOW());
+('Виктория', 'Волкова', '79516605666', '$2y$12$5/H4cZjWaqhDjNmqnER.X.VPE.P1BxNlafm9v/fxobPuwpyhxD0yq', NOW());
 
 -- Специалисты — тоже люди из users (телефоны условные, кабинета нет: has_account = 0)
 INSERT INTO users (first_name, last_name, phone, has_account) VALUES
@@ -134,12 +134,17 @@ SET @dev_admin = (SELECT id FROM users WHERE phone = '79111457089');
 INSERT INTO user_roles (user_id, role_id)
 VALUES (@dev_admin, (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'system_admin'));
 
--- Администратор студии филиала «Юг» (условный, для проверки прав по филиалам): +7 (900) 000-00-10,
--- пароль тот же, что у администратора системы
+-- Администраторы студии (условные, для проверки прав по филиалам):
+-- филиал «Юг» — +7 (900) 000-00-10
 INSERT INTO users (first_name, last_name, phone, password, account_created_at) VALUES
-('Мария', 'Южная', '79000000010', '$2y$12$N6HM/utEyDnERNj9S/WPIumZmbMtnbnWEbkeuzytl5O.HLuZYoWnK', NOW());
+('Мария', 'Южная', '79000000010', '$2y$12$5/H4cZjWaqhDjNmqnER.X.VPE.P1BxNlafm9v/fxobPuwpyhxD0yq', NOW());
 INSERT INTO user_roles (user_id, role_id, location_id)
 VALUES (LAST_INSERT_ID(), (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'studio_admin'), @south);
+-- основной филиал — +7 (900) 000-00-11
+INSERT INTO users (first_name, last_name, phone, password, account_created_at) VALUES
+('Ольга', 'Главная', '79000000011', '$2y$12$5/H4cZjWaqhDjNmqnER.X.VPE.P1BxNlafm9v/fxobPuwpyhxD0yq', NOW());
+INSERT INTO user_roles (user_id, role_id, location_id)
+VALUES (LAST_INSERT_ID(), (SELECT id FROM dictionaries WHERE group_code = 'user_role' AND code = 'studio_admin'), 1);
 
 -- Графики специалистов (в пределах режима работы филиалов). Анна — по месяцам: сентябрь, октябрь, ноябрь 2026
 -- (в остальные месяцы не работает); Максим и Игорь — бессрочно. Максим по вторникам и четвергам вечером — в «Юге»
