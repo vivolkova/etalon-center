@@ -160,6 +160,7 @@ input[type="checkbox"]:required:invalid {
 .u-medium { font-weight: 500 !important; }
 .u-strong { font-weight: 600 !important; }
 .u-bold { font-weight: 700 !important; }
+.u-upper { text-transform: uppercase !important; letter-spacing: .5px !important; }   /* заголовок блока в окне */
 
 .u-muted { color: var(--ink-60) !important; }     /* второстепенный текст */
 .u-faint { color: var(--ink-40) !important; }     /* отключённое, подсказки */

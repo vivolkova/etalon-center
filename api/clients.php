@@ -68,7 +68,13 @@ if ($method === 'GET' && $action === 'get') {
     if (!$id) err('Не указан id');
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT id,first_name,last_name,name,phone,has_account,type,birth_date,notes,created_at FROM users WHERE id=?');
+    // Личный кабинет: есть ли, когда создан, подтверждён ли номер (когда и кем), последний вход
+    $stmt = $db->prepare('SELECT u.id, u.first_name, u.last_name, u.name, u.phone, u.has_account, u.account_created_at,
+                                 u.phone_verified_at, u.phone_verified_method, v.name AS phone_verified_by_name,
+                                 (SELECT MAX(se.created_at) FROM sessions se WHERE se.user_id = u.id) AS last_login_at,
+                                 u.type, u.birth_date, u.notes, u.created_at
+                          FROM users u LEFT JOIN users v ON v.id = u.phone_verified_by
+                          WHERE u.id = ?');
     $stmt->execute([$id]);
     $user = $stmt->fetch();
     if (!$user) err('Клиент не найден', 404);
@@ -121,6 +127,47 @@ if ($method === 'PUT' && $action === 'update') {
     setUserPhone($db, $id, $phone, $admin);
     $db->commit();
     ok(null, 'Клиент обновлён');
+}
+
+// Клиент для действий с кабинетом и номером: действующий и не администратор (у сотрудников — свой раздел)
+function clientForAccount(PDO $db, int $id): array {
+    if (!$id) err('Не указан id');
+    $st = $db->prepare('SELECT u.id, u.phone, u.has_account, u.phone_verified_at FROM users u
+                        WHERE u.id = ? AND u.active = 1 AND ' . NOT_ADMIN_SQL . ' FOR UPDATE');
+    $st->execute([$id]);
+    $c = $st->fetch();
+    if (!$c) err('Клиент не найден', 404);
+    return $c;
+}
+
+// POST ?action=verify_phone {id} — администратор позвонил на номер из карточки, клиент рядом принял звонок.
+// Записываем когда, кто и способ (admin). Смена телефона подтверждение сбрасывает (setUserPhone)
+if ($method === 'POST' && $action === 'verify_phone') {
+    $admin = authCan('clients');
+    $db = getDB();
+    $db->beginTransaction();
+    $c = clientForAccount($db, (int)(input()['id'] ?? 0));
+    if ($c['phone_verified_at'] !== null) { $db->rollBack(); err('Номер уже подтверждён'); }
+    $db->prepare("UPDATE users SET phone_verified_at = NOW(), phone_verified_by = ?, phone_verified_method = 'admin' WHERE id = ?")
+       ->execute([(int)$admin['id'], (int)$c['id']]);
+    logAction($db, $admin, 'client.phone_verified', 'users', (int)$c['id'], ['phone' => $c['phone'], 'method' => 'admin']);
+    $db->commit();
+    ok(null, 'Номер подтверждён');
+}
+
+// POST ?action=disable_account {id} — отключить личный кабинет: пароль стирается, все сессии клиента завершаются.
+// Сам клиент и его записи на занятия остаются; кабинет создаётся заново по ссылке от администратора
+if ($method === 'POST' && $action === 'disable_account') {
+    $admin = authCan('clients');
+    $db = getDB();
+    $db->beginTransaction();
+    $c = clientForAccount($db, (int)(input()['id'] ?? 0));
+    if (!(int)$c['has_account']) { $db->rollBack(); err('У клиента нет личного кабинета'); }
+    $db->prepare('UPDATE users SET password = NULL, has_account = 0 WHERE id = ?')->execute([(int)$c['id']]);
+    sessionEndAll($db, (int)$c['id'], 'admin');
+    logAction($db, $admin, 'account.disabled', 'users', (int)$c['id']);
+    $db->commit();
+    ok(null, 'Кабинет отключён');
 }
 
 // DELETE — удалить клиента

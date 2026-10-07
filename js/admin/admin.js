@@ -56,7 +56,7 @@ function renderAdminClients(list) {
       <div class="client-avatar" style="background:${av}20;color:${av}">${init}</div>
       <div>
         <div class="u-strong u-text-ui">${c.name}</div>
-        <div class="u-muted u-text-caption">${c.hasAccount ? '' : 'без личного кабинета'}</div>
+        <div class="u-muted u-text-caption">${clientMarks(c).join(' · ')}</div>
       </div>
     </div>
   </td>
@@ -167,7 +167,7 @@ function openClientProfile(id) {
   <div class="client-avatar" style="width:52px;height:52px;font-size:20px;background:${av}20;color:${av}">${init}</div>
   <div>
     <div class="u-bold u-text-lead">${c.name}</div>
-    <div class="u-text-small u-muted u-mt-2">${c.phone || '—'}${c.hasAccount ? '' : ' · без личного кабинета'}</div>
+    <div class="u-text-small u-muted u-mt-2">${c.phone || '—'}</div>
     <div class="u-text-small u-muted u-mt-2">${c.birth ? 'ДР: ' + c.birth : ''}</div>
     ${c.notes ? `<div class="u-text-small u-muted u-mt-4 u-max-w-380 u-lh-tight"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${c.notes}</div>` : ''}
   </div>
@@ -199,7 +199,67 @@ function openClientProfile(id) {
     }).join('');
   }
 
+  document.getElementById('cp-account').innerHTML = '';
+  cpAccountLoad(id);
   document.getElementById('client-profile-modal').classList.add('show');
+}
+
+// ── Личный кабинет клиента (блок в окне просмотра) ────────────────
+// Пометки клиента для списка клиентов, карточки и журнала записи: чего у него пока нет
+function clientMarks(c) {
+  const m = [];
+  if (!c.hasAccount) m.push('нет кабинета');
+  if (!c.phoneVerified) m.push('номер не подтверждён');
+  return m;
+}
+// «05.10.2026 18:40» из даты и времени сервера
+function cpDateTime(v) {
+  const m = String(v || '').match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  return m ? m[3] + '.' + m[2] + '.' + m[1] + ' ' + m[4] + ':' + m[5] : '';
+}
+
+// Свежие сведения о кабинете берём с сервера при каждом открытии окна и после каждого действия
+let cpAccountId = null;   // чьё окно открыто: ответ на запрос по другому клиенту не показываем
+async function cpAccountLoad(id) {
+  cpAccountId = id;
+  let c;
+  try { c = await ClientsAPI.get(id); } catch (e) { return; }
+  if (cpAccountId !== id) return;
+  const has = Number(c.has_account) === 1;
+  const line = function (text, btn) {
+    return '<div class="u-flex u-items-center u-gap-10 u-wrap u-text-body u-mb-6"><span>' + text + '</span>' + (btn || '') + '</div>';
+  };
+  const verified = c.phone_verified_at
+    ? 'Номер подтверждён ' + docDate(c.phone_verified_at) + (c.phone_verified_by_name ? ' — администратор ' + escAttr(c.phone_verified_by_name) : '')
+    : 'Номер не подтверждён';
+  document.getElementById('cp-account').innerHTML = '<div class="u-text-ui u-bold u-muted u-mb-10 u-upper">Личный кабинет</div>'
+    + line(has ? 'Создан ' + (docDate(c.account_created_at) || '—') : 'Кабинета нет — клиент записан администратором')
+    + line(verified, c.phone_verified_at ? '' : '<button class="btn-ghost btn-sm" onclick="cpVerifyPhone(' + id + ')">Подтвердить номер</button>')
+    + (has ? line(c.last_login_at ? 'Последний вход ' + cpDateTime(c.last_login_at) : 'Входов ещё не было')
+      + '<div class="u-mt-10"><button class="btn-danger btn-sm" onclick="cpDisableAccount(' + id + ')">Отключить кабинет</button></div>' : '');
+}
+
+// После действия: блок в окне и пометки в списке клиентов — заново
+async function cpAccountChanged(id) {
+  cpAccountLoad(id);
+  await loadClients();
+  renderAdminClients();
+}
+
+async function cpVerifyPhone(id) {
+  const c = CLIENTS.find(x => x.id === id);
+  if (!c) return;
+  if (!await uiConfirm('Вы позвонили на ' + c.phone + ' и клиент рядом принял звонок?')) return;
+  try { await ClientsAPI.verifyPhone(id); } catch (e) { return; }
+  showToast('Номер подтверждён', 'success');
+  cpAccountChanged(id);
+}
+
+async function cpDisableAccount(id) {
+  if (!await uiConfirm('Отключить кабинет клиента?', 'Клиент не сможет войти на сайт. Записи на занятия останутся.')) return;
+  try { await ClientsAPI.disableAccount(id); } catch (e) { return; }
+  showToast('Кабинет отключён', 'success');
+  cpAccountChanged(id);
 }
 
 async function adminCancel(id) {

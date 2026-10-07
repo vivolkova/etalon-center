@@ -277,6 +277,14 @@ const ClientsAPI = {
   async delete(id) {
     return apiRequest(`/clients.php?action=delete&id=${id}`, 'DELETE');
   },
+  // администратор позвонил на номер из карточки, клиент рядом принял звонок
+  async verifyPhone(id) {
+    return apiRequest('/clients.php?action=verify_phone', 'POST', { id });
+  },
+  // отключить личный кабинет: пароль стирается, сессии завершаются, записи на занятия остаются
+  async disableAccount(id) {
+    return apiRequest('/clients.php?action=disable_account', 'POST', { id });
+  },
 };
 
 // ── TRAINERS ───────────────────────────────────────────────
