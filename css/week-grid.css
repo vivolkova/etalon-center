@@ -331,6 +331,23 @@
   font-weight: 700;
 }
 
+/* Расписание только для просмотра (нет права менять): без «+» и перетаскивания; занятие открывается нажатием */
+.wg--admin.wg--readonly .wg-cell {
+  cursor: default;
+}
+
+.wg--admin.wg--readonly .wg-cell:hover {
+  background: none;
+}
+
+.wg--admin.wg--readonly .wg-cell:hover::after {
+  content: none;
+}
+
+.wg--admin.wg--readonly .wg-slot {
+  cursor: pointer;
+}
+
 .wg--admin .wg-slot {
   cursor: grab;
   right: 18px;   /* полоса справа — для «+» (ADM_ADD_GUTTER в js/admin/schedule.js) */

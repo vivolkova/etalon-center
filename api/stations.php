@@ -259,7 +259,7 @@ if ($method === 'DELETE' && $action === 'delete') {
 
 // POST ?action=block — заблокировать станок на слот (admin)
 if ($method === 'POST' && $action === 'block') {
-    $user = authCan('schedule');
+    $user = authCan('blocks');
     $d = input();
     require_fields($d, ['slot_id', 'station_id']);
     $db = getDB();
@@ -280,7 +280,7 @@ if ($method === 'POST' && $action === 'block') {
 
 // DELETE ?action=unblock&slot_id=X&station_id=Y — снять блокировку (admin)
 if ($method === 'DELETE' && $action === 'unblock') {
-    $user = authCan('schedule');
+    $user = authCan('blocks');
     $slotId    = (int)($_GET['slot_id'] ?? 0);
     $stationId = (int)($_GET['station_id'] ?? 0);
     if (!$slotId || !$stationId) err('Нужны slot_id и station_id');

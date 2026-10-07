@@ -69,7 +69,6 @@ function renderAdminClients(list) {
     <div class="u-flex u-gap-4 u-wrap">
       <button class="action-btn confirm btn-sm" onclick="openClientProfile(${c.id})">Просмотр</button>
       <button class="action-btn confirm btn-sm" onclick="openClientModal(${c.id})">Ред.</button>
-      <button class="action-btn cancel btn-sm"${needAttr('system')} onclick="deleteClient(${c.id})">Уд.</button>
     </div>
   </td>
 </tr>`;
@@ -199,11 +198,6 @@ function openClientProfile(id) {
   </div>`;
     }).join('');
   }
-
-  document.getElementById('cp-edit-btn').onclick = () => {
-    document.getElementById('client-profile-modal').classList.remove('show');
-    openClientModal(id);
-  };
 
   document.getElementById('client-profile-modal').classList.add('show');
 }

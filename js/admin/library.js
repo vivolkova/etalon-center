@@ -61,7 +61,7 @@ function renderLibrary() {
     const delBadge = inactive ? '<span class="lib-meta-tag tag-muted">Удалена</span>' : '';
     const actionsHtml = inactive
       ? '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
-      : (libCanSchedule(item) ? '<button class="lib-add-slot-btn" onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
+      : (libCanSchedule(item) ? '<button class="lib-add-slot-btn"' + needAttr('schedule') + ' onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
         '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
         '<button class="action-btn cancel btn-sm"' + needAttr('library') + ' onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
     // Цвет плашки и точек — по категории и виду тренировки

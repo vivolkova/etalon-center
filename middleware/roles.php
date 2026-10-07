@@ -8,7 +8,8 @@
 // Права:
 //   journal     — журнал записи филиала: запись, перенос и отмена записей клиентов
 //   bookings    — раздел «Записи» филиала и отметка оплаты
-//   schedule    — расписание филиала (занятия), в том числе блокировка станка на занятие
+//   schedule    — расписание филиала: добавить, изменить, перенести и удалить занятие
+//   blocks      — блокировка станков на занятие в расписании филиала
 //   library     — изменение библиотеки тренировок и услуг
 //   hall        — изменение зала: станки и их расстановка
 //   clients     — клиентская база (общая для всех филиалов)
@@ -20,9 +21,10 @@
 // в филиалах своих ролей (user_roles.location_id). Библиотеку, зал, справочники и параметры он видит (своих
 // филиалов), но не меняет: на чтение достаточно быть администратором (authAdmin). Тренер и механик прав в панели пока не имеют.
 
-const BRANCH_RIGHTS = ['journal', 'bookings', 'schedule', 'library', 'hall'];   // проверяются вместе с филиалом
-const STUDIO_ADMIN_RIGHTS = ['journal', 'bookings', 'schedule', 'clients', 'spec_hours'];
-const ALL_RIGHTS = ['journal', 'bookings', 'schedule', 'clients', 'spec_hours', 'specialists', 'library', 'hall', 'system'];
+const BRANCH_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'library', 'hall'];   // проверяются вместе с филиалом
+// Расписание администратор студии не меняет (право schedule) — только блокирует станки на занятие (blocks)
+const STUDIO_ADMIN_RIGHTS = ['journal', 'bookings', 'blocks', 'clients', 'spec_hours'];
+const ALL_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'clients', 'spec_hours', 'specialists', 'library', 'hall', 'system'];
 
 function isSystemAdmin(array $user): bool {
     foreach ($user['roles'] as $r) if ($r['code'] === 'system_admin') return true;

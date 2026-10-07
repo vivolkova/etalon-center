@@ -744,6 +744,17 @@
   margin: 0;
 }
 
+/* Станок заблокирован на занятие — знак «недоступен» */
+.jr-blk-seats span.off {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.jr-blk-seats span.off svg {
+  display: block;
+  margin: 0 auto;
+}
+
 .jr-blk-seats span.on {
   opacity: 1;
   font-weight: 600;

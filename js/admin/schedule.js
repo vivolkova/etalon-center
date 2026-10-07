@@ -82,6 +82,9 @@ function renderAdminSchedule() {
   const grid = document.getElementById('adm-week-grid');
   if (!grid) return;
   admRenderSpecFilter();
+  // Менять расписание может администратор системы; администратор студии видит его и блокирует станки на занятие
+  const canEdit = canDo('schedule');
+  grid.classList.toggle('wg--readonly', !canEdit);
 
   const MONTHS_SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const DAYS_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
@@ -143,7 +146,7 @@ function renderAdminSchedule() {
         const st = timeToMin(s.time), en = st + (parseInt(s.dur) || 0);
         return st < (hr + 1) * 60 && en > hr * 60;
       });
-      let cellHtml = "<div class='wg-cell" + (busy ? " wg-cell--busy" : "") + "' data-day='" + di + "' data-hr='" + hr + "' onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'>";
+      let cellHtml = "<div class='wg-cell" + (busy ? " wg-cell--busy" : "") + "' data-day='" + di + "' data-hr='" + hr + "'" + (canEdit ? " onclick='openSlotModalAtTime(" + di + "," + hr + ")' title='Добавить занятие в " + timeStr + "'" : "") + ">";
 
       // Рисуем слоты
       daySlots.forEach(function (s) {
@@ -153,16 +156,19 @@ function renderAdminSchedule() {
         // Пересекающиеся занятия — рядом по колонкам, чтобы были видны все
         const colStyle = wgLaneStyle(dayLayouts[di].get(s.id), ADM_ADD_GUTTER);
         const locName = admSlotLocName(s);
-        cellHtml += '<div class="wg-slot ' + colorClass(s.cat, s.type) + '" draggable="true" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + escAttr(s.name + ' · ' + s.time + (locName ? ' · ' + locName : '')) + ' (перетащите, чтобы изменить время)">';
+        cellHtml += '<div class="wg-slot ' + colorClass(s.cat, s.type) + '" draggable="' + canEdit + '" data-slot-id="' + s.id + '" style="top:' + topPx + 'px;height:' + heightPx + 'px;' + colStyle + '" onclick="event.stopPropagation();openSlotModal(' + s.id + ')" title="' + escAttr(s.name + ' · ' + s.time + (locName ? ' · ' + locName : '')) + ' (перетащите, чтобы изменить время)">';
         cellHtml += '<div class="wg-slot-time">' + s.time + '</div>';
         cellHtml += '<div class="wg-slot-name">' + s.name + '</div>';
         // Филиал (зал) · специалист · цена · свободно/мест (у байкфита мест в зале нет); пустые части не показываем
         const meta = [locName && admManyLocsShown() ? '<b>' + escAttr(locName) + '</b>' : '', s.specialist, s.price.toLocaleString('ru') + '₽', slotUsesHall(s.cat) ? slotFree(s) + '/' + slotCap(s) : ''].filter(Boolean).join(' · ');
         cellHtml += '<div class="wg-slot-meta">' + meta + '</div>';
-        cellHtml += '<div class="wg-slot-btns">';
-        cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
-        cellHtml += '<button class="wg-slot-btn u-danger" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
-        cellHtml += '</div>';
+        // Кнопки занятия — только у того, кто может менять расписание; остальным занятие открывается нажатием (блокировка станков)
+        if (canEdit) {
+          cellHtml += '<div class="wg-slot-btns">';
+          cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
+          cellHtml += '<button class="wg-slot-btn u-danger" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
+          cellHtml += '</div>';
+        }
         cellHtml += '</div>';
       });
 
@@ -376,6 +382,8 @@ function smSetSlotMode(isEdit) {
 }
 
 function openSlotModal(slotId) {
+  const canEdit = canDo('schedule');
+  if (!slotId && !canEdit) return;   // добавлять занятия может только администратор системы
   const modal = document.getElementById('slot-modal');
   if (slotId) {
     const s = SLOTS.find(x => x.id === slotId);
@@ -429,6 +437,14 @@ function openSlotModal(slotId) {
   smHallSlotId = slotId && usesHall ? slotId : null;
   document.getElementById('sm-hall-wrap').style.display = smHallSlotId ? '' : 'none';
   if (smHallSlotId) smRenderHall();
+  // Без права менять расписание: поля занятия только для чтения, доступны блокировка станков и её причина
+  modal.querySelectorAll('select, input:not([type=hidden])').forEach(function (el) {
+    if (el.id !== 'sm-block-reason') el.disabled = !canEdit;
+  });
+  if (!canEdit) document.getElementById('slot-modal-title').textContent = 'Блокировка станков';
+  const save = document.getElementById('sm-save');
+  save.disabled = !canEdit && !smHallSlotId;
+  save.title = save.disabled ? NEED_TITLE : '';
   modal.classList.add('show');
 }
 function closeSlotModal() { document.getElementById('slot-modal').classList.remove('show'); }
@@ -527,6 +543,16 @@ async function smApplyBlocks(slotId) {
 }
 
 async function saveSlot() {
+  // Администратор студии: занятие не меняется, сохраняются только блокировки станков
+  if (!canDo('schedule')) {
+    const slotId = parseInt(document.getElementById('sm-id').value);
+    if (!slotId) return;
+    const blk = await smApplyBlocks(slotId);
+    showToast(blk ? 'Сохранено' + blk : 'Ничего не изменено', blk ? 'success' : undefined);
+    closeSlotModal();
+    renderAdminSchedule();
+    return;
+  }
   const sid = document.getElementById('sm-id').value;
   if (!smSelectedLibId) { showToast('Выберите тренировку из библиотеки', 'error'); return; }
   const name = document.getElementById('sm-name').value.trim();

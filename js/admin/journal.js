@@ -14,6 +14,7 @@ const JR_ROW_H = 56;        // px на час
 const JR_PAY = { paid: 'оплачено', unpaid: 'не оплачено', refunded: 'возврат' };
 
 let jrDate = new Date(today);
+const JR_OFF_SVG = '<svg width="12" height="12" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="currentColor"/><rect x="5" y="10" width="14" height="4" rx="1" fill="#fff"/></svg>';
 let jrData = null;          // ответ api/journal.php за выбранный день
 let jrReq = 0;              // номер последнего запроса (ответ на устаревший выбор отбрасываем)
 let jrView = { h0: 0, n: 0 }; // первый час доски и число станков — чтобы по месту нажатия понять время и станок
@@ -126,7 +127,9 @@ function renderJournal() {
         // Групповая — на весь зал; под названием — кто на каком станке
         const cells = stations.map(function (st) {
           const b = s.bookings.find(function (x) { return x.station_id === st.id; });
-          return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : s.blocked.indexOf(st.id) >= 0 ? '✕' : '') + '</span>';
+          // станок заблокирован на это занятие — знак «недоступен» (красный круг с белой полосой)
+          if (!b && s.blocked.indexOf(st.id) >= 0) return '<span class="off" title="Станок заблокирован">' + JR_OFF_SVG + '</span>';
+          return '<span class="' + (b ? 'on' : '') + '">' + (b ? escAttr(jrShortName(b.name)) : '') + '</span>';
         }).join('');
         hallBlocks += '<div class="jr-blk jr-blk--group" style="left:0;width:100%;' + pos(s) + '" onclick="event.stopPropagation();jrOpenSlot(' + s.id + ')" title="' + escAttr(time(s) + ' · ' + s.name) + '">'
           + '<div class="jr-blk-title">' + escAttr([s.name, jrSpecLabel(s)].filter(Boolean).join(' · ')) + '</div>'

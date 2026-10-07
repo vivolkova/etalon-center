@@ -9,8 +9,9 @@ let SPECIALISTS_ALL = [];    // все, включая неактивных (п�
 // Что доступно вошедшему в панели — приходит с сервера при входе (currentUser.rights, currentUser.branches);
 // сервер проверяет права и филиал сам на каждом вызове, здесь — только чтобы не показывать недоступное.
 
-// Есть ли право: journal, bookings, clients, schedule, spec_hours (графики специалистов) — у любого администратора
-// (в своих филиалах); specialists (добавить, изменить, удалить специалиста), library, hall, system — у администратора системы
+// Есть ли право: journal, bookings, clients, blocks (блокировка станков на занятие), spec_hours (графики специалистов) —
+// у любого администратора (в своих филиалах); schedule (изменение расписания), specialists (добавить, изменить,
+// удалить специалиста), library, hall, system — у администратора системы
 function canDo(right) {
   return !!(currentUser && (currentUser.rights || []).indexOf(right) >= 0);
 }
@@ -114,7 +115,7 @@ function admCurLocs() {
 const ADM_PICK_BRANCH = 'Выберите филиал в шапке — этот раздел показывает один филиал';
 
 // Разделы меню, которые требуют права (остальные видит любой администратор)
-const ADM_NAV_RIGHT = { journal: 'journal', bookings: 'bookings', clients: 'clients', schedule: 'schedule', specialists: 'spec_hours' };
+const ADM_NAV_RIGHT = { journal: 'journal', bookings: 'bookings', clients: 'clients', schedule: 'blocks', specialists: 'spec_hours' };
 // Скрыть в меню разделы без права и пункты шапки тех групп, в которых ничего не осталось.
 // Вызывается при входе и выходе: без администратора пунктов групп в шапке нет
 function admMenuApply() {
