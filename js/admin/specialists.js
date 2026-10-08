@@ -193,7 +193,7 @@ function openTrainerModal(id, tab) {
     '<button class="btn-primary" id="trm-save">Сохранить</button>' +
     '</div></div>' +
     // ── График работы: периоды с недельным шаблоном
-    '<div data-trm-pane="hours" style="display:none">' +
+    '<div class="tab-pane-body" data-trm-pane="hours" style="display:none">' +
     '<div class="u-text-small u-muted u-mb-10">Недельный график на период (например, по месяцам). ' +
     'Вне периодов специалист не работает. У каждого интервала — филиал; часы — в пределах режима работы этого филиала.</div>' +
     '<div id="trm-sched-list"></div>' +
@@ -220,6 +220,13 @@ function openTrainerModal(id, tab) {
   el.querySelectorAll('[data-trm-tab]').forEach(function (b) {
     b.onclick = function () { if (!b.disabled) trmSwitchTab(b.getAttribute('data-trm-tab')); };
   });
+  // Окно не меняет размер при переключении вкладок: остальные вкладки получают высоту «Основного» без строки
+  // кнопок (у них она общая — «Закрыть»), длинные списки прокручиваются внутри вкладки (.tab-pane-body, css/kit.css)
+  trmSwitchTab('main');
+  const mainPane = el.querySelector('[data-trm-pane="main"]');
+  const acts = mainPane.querySelector('.admin-modal-actions');
+  const paneH = mainPane.offsetHeight - acts.offsetHeight - (parseFloat(getComputedStyle(acts).marginTop) || 0);
+  el.querySelectorAll('.tab-pane-body').forEach(function (p) { p.style.height = paneH + 'px'; });
   trmSwitchTab(t ? (tab || 'main') : 'main');
   if (!t) return;
 
@@ -371,7 +378,7 @@ function trmRenderSchedules() {
 
 // Вкладка исключений одного типа: off — «Отсутствия», custom — «Особые часы работы»
 function trmExcPaneHtml(type, hint, addLabel) {
-  return '<div data-trm-pane="' + type + '" style="display:none">' +
+  return '<div class="tab-pane-body" data-trm-pane="' + type + '" style="display:none">' +
     '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
     '<div class="u-text-small u-muted">' + hint + '</div>' +
     '<label class="u-flex u-items-center u-gap-6 u-text-small u-nowrap u-pointer"><input type="checkbox" id="trm-exc-past-' + type + '"> Прошедшие</label>' +

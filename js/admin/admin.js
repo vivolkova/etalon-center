@@ -158,66 +158,6 @@ async function saveClient() {
   }
 }
 
-async function deleteClient(id) {
-  if (!await uiConfirm('Удалить клиента?', 'Его записи сохранятся.')) return;
-  try {
-    await ClientsAPI.delete(id);
-    await loadClients();
-    renderAdminClients();
-    showToast('Клиент удалён');
-  } catch (e) {
-    // Отказ сервера или нет связи — сообщение уже показано (apiRequest)
-  }
-}
-
-function openClientProfile(id) {
-  const c = CLIENTS.find(x => x.id === id);
-  if (!c) return;
-  const av = clientAvatarColor(c.name);
-  const init = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const stats = getClientStats(id);
-  const MONTHS_FULL3 = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-
-  document.getElementById('cp-header').innerHTML = `
-<div class="u-flex u-items-center u-gap-14">
-  <div class="client-avatar" style="width:52px;height:52px;font-size:20px;background:${av}20;color:${av}">${init}</div>
-  <div>
-    <div class="u-bold u-text-lead">${c.name}</div>
-    <div class="u-text-small u-muted u-mt-2">${c.phone || '—'}</div>
-    <div class="u-text-small u-muted u-mt-2">${c.birth ? 'ДР: ' + c.birth : ''}</div>
-    ${c.notes ? `<div class="u-text-small u-muted u-mt-4 u-max-w-380 u-lh-tight"><svg class="ico-inline" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg> ${c.notes}</div>` : ''}
-  </div>
-</div>`;
-
-  const lastStr = stats.last ? stats.last.getDate() + ' ' + MONTHS_FULL3[stats.last.getMonth()] + ' ' + stats.last.getFullYear() : '—';
-  document.getElementById('cp-stats').innerHTML = [
-    { val: stats.total, label: 'Записей', color: 'var(--green)' },
-    { val: stats.spent ? stats.spent.toLocaleString('ru') + ' ₽' : '0 ₽', label: 'Потрачено', color: 'var(--purple)' },
-    { val: lastStr, label: 'Последний визит', color: 'var(--ink)' },
-  ].map(s => `<div class="cp-stat-card"><div class="cp-stat-val" style="color:${s.color}">${s.val}</div><div class="cp-stat-label">${s.label}</div></div>`).join('');
-
-  const history = bookings.filter(b => b.clientId === id).sort((a, b) => new Date(b.date) - new Date(a.date));
-  const histEl = document.getElementById('cp-history');
-  if (!history.length) {
-    histEl.innerHTML = `<div class="u-text-ui empty-state">Записей нет</div>`;
-  } else {
-    histEl.innerHTML = history.map(b => {
-      const d = new Date(b.date);
-      const sMap = { confirmed: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>', pending: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h14M5 21h14M6 3v4l6 5-6 5v4M18 3v4l-6 5 6 5v4"/></svg>', cancelled: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>' };
-      return `<div class="cp-history-row">
-    <div class="u-center u-w-40 u-text-title">${sMap[b.status] || sMap.confirmed || '•'}</div>
-    <div class="u-flex-1">
-      <div class="u-strong u-text-ui">${b.service}</div>
-      <div class="u-text-caption u-muted">${d.getDate()} ${MONTHS_FULL3[d.getMonth()]} · ${b.time} · ${b.specialist}</div>
-    </div>
-    <div class="u-bold u-text-ui cat-text ${colorClass(b.cat, b.type)}">${b.price.toLocaleString('ru')} ₽</div>
-  </div>`;
-    }).join('');
-  }
-
-  document.getElementById('client-profile-modal').classList.add('show');
-}
-
 // ── Личный кабинет клиента (вторая вкладка окна клиента) ──────────
 // Пометки клиента для списка клиентов, карточки и журнала записи: чего у него пока нет
 function clientMarks(c) {

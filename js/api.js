@@ -284,9 +284,6 @@ const ClientsAPI = {
   async update(data) {
     return apiRequest('/clients.php?action=update', 'PUT', data);
   },
-  async delete(id) {
-    return apiRequest(`/clients.php?action=delete&id=${id}`, 'DELETE');
-  },
   // администратор позвонил на номер из карточки, клиент рядом принял звонок
   async verifyPhone(id) {
     return apiRequest('/clients.php?action=verify_phone', 'POST', { id });

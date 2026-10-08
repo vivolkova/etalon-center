@@ -210,17 +210,4 @@ if ($method === 'POST' && $action === 'reset_password') {
     ok($link);
 }
 
-// DELETE — удалить клиента
-// Удалять клиента может только администратор системы
-if ($method === 'DELETE' && $action === 'delete') {
-    authCan('system');
-    $id = (int)($_GET['id'] ?? 0);
-    if (!$id) err('Не указан id');
-    $db = getDB();
-    if (userRoles($db, $id)) err('Это сотрудник: сначала снимите с него роли');
-    // Soft-delete: пользователя не удаляем (на него ссылаются записи) — гасим флаг.
-    $db->prepare('UPDATE users SET active = 0 WHERE id=?')->execute([$id]);
-    ok(null, 'Клиент удалён');
-}
-
 err('Неизвестный endpoint', 404);
