@@ -247,53 +247,6 @@
 }
 
 
-/* mini schedule in client panel */
-.cp-slots-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.cp-slot-row {
-  background: #fff;
-  border-radius: var(--r-lg);
-  padding: 14px 18px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .05);
-  border: 1.5px solid var(--border);
-  transition: border-color .15s, transform .15s, box-shadow .15s;
-}
-
-.cp-slot-row:hover {
-  border-color: var(--green);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-lg);
-}
-
-.cp-slot-time {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  min-width: 52px;
-}
-
-.cp-slot-info {
-  flex: 1;
-}
-
-.cp-slot-name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.cp-slot-meta {
-  font-size: 11px;
-  color: var(--ink-60);
-  margin-top: 3px;
-}
-
 /* profile form */
 .profile-card {
   background: #fff;

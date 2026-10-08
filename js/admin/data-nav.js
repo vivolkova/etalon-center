@@ -80,24 +80,35 @@ function admBranchKey() { return 'etalon.admBranch.' + (currentUser ? currentUse
 
 // При входе и выходе: показать переключатель администратору и восстановить его выбор (по умолчанию — первый филиал)
 function admBranchInit() {
-  const sel = document.getElementById('adm-branch');
-  if (!sel) return;
+  const box = document.getElementById('adm-branch');
+  if (!box) return;
   const isAdmin = !!currentUser && currentUser.role === 'admin';
-  sel.style.display = isAdmin ? '' : 'none';
+  box.hidden = !isAdmin;
   admBranchId = null;
-  if (!isAdmin) return;
+  if (!isAdmin) { box.innerHTML = ''; return; }
   const locs = admLocs();
   let saved = null;
   try { saved = localStorage.getItem(admBranchKey()); } catch (e) { /* хранилище недоступно */ }
   const known = saved !== null && (saved === '' || locs.some(function (l) { return String(l.id) === saved; }));
   const value = known ? saved : (locs[0] ? String(locs[0].id) : '');
-  admBranchId = Number(fillLocSelect(sel, { empty: 'Все филиалы', single: true, value: value })) || null;
+  admBranchId = Number(value) || null;
+  admBranchRender();
+}
+// Переключатель в шапке — того же вида, что выбор филиала на сайте (locPickerHtml в js/site/schedule.js).
+// «Все филиалы» — когда у администратора их несколько
+function admBranchRender() {
+  const box = document.getElementById('adm-branch');
+  const locs = admLocs(), cur = admCurLoc();
+  box.innerHTML = locPickerHtml(locs, cur ? cur.id : null, cur ? cur.name : 'Все филиалы', 'admBranchSet', locs.length > 1 ? 'Все филиалы' : '');
 }
 
 // Администратор выбрал филиал: запомнить и перерисовать открытый раздел панели
 function admBranchSet(value) {
   admBranchId = Number(value) || null;
   try { localStorage.setItem(admBranchKey(), admBranchId ? String(admBranchId) : ''); } catch (e) { /* выбор действует до перезагрузки */ }
+  admBranchRender();
+  document.getElementById('adm-branch').classList.remove('open');
+  navToggle(false);   // на телефоне переключатель — в выпадающем меню шапки
   const cur = document.querySelector('.adm-nav-item.active');
   if (cur && currentPage === 'admin') admNav(admNavName(cur), cur);
 }

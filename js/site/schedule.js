@@ -14,6 +14,24 @@ function schLoc() {
   return LOCATIONS.find(function (l) { return Number(l.id) === schLocId; }) || LOCATIONS[0] || null;
 }
 
+// Выбор филиала в шапке — один вид для сайта (#nav-loc) и панели администратора (#adm-branch, js/admin/data-nav.js):
+// кнопка с меткой и названием, по нажатию — список филиалов с адресом и телефоном (готовый выпадающий .ms из js/ui.js).
+// list — филиалы, curId — выбранный (null — «все»), label — подпись кнопки, onSelect — имя функции выбора (получает id
+// или '' для «всех»), allLabel — пункт «Все филиалы», если он нужен
+const LOC_PIN = '<svg class="ico-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+function locPickerHtml(list, curId, label, onSelect, allLabel) {
+  const opt = function (id, name, info, on) {
+    return '<div class="ms-opt u-col u-items-start u-gap-4" onclick="' + onSelect + '(' + (id === '' ? "''" : id) + ')">'
+      + '<span class="u-strong' + (on ? ' u-brand-dark' : '') + '">' + escAttr(name) + '</span>'
+      + (info ? '<span class="u-text-small u-muted">' + info + '</span>' : '') + '</div>';
+  };
+  return '<button type="button" class="btn-ghost ms-btn u-max-w-280" title="Филиал">' + LOC_PIN + escAttr(label) + '</button>'
+    + '<div class="ms-panel u-w-280">' + (allLabel ? opt('', allLabel, '', curId === null) : '')
+    + list.map(function (l) {
+      return opt(l.id, l.name, [l.address, l.phone].filter(Boolean).map(escAttr).join(' · '), Number(l.id) === Number(curId));
+    }).join('') + '</div>';
+}
+
 // Выбор филиала — в шапке сайта, справа (#nav-loc), как выбор города: кнопка с названием выбранного филиала,
 // по нажатию — список филиалов с адресом и телефоном. Список — готовый выпадающий .ms (js/ui.js открывает его
 // по кнопке .ms-btn, закрывает нажатием мимо и клавишей Esc).
@@ -26,15 +44,8 @@ function renderSchLoc() {
   // На телефоне выбор спрятан в меню шапки — название выбранного филиала показываем под заголовком экрана (.site-loc-name)
   document.querySelectorAll('.site-loc-name').forEach(function (el) { el.innerHTML = ''; });
   if (box.hidden) { box.innerHTML = ''; return; }
-  const pin = '<svg class="ico-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.800-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>';
-  box.innerHTML = '<button type="button" class="btn-ghost ms-btn u-max-w-280" title="Филиал">' + pin + escAttr(loc.name) + '</button>'
-    + '<div class="ms-panel u-w-280">' + LOCATIONS.map(function (l) {
-      const info = [l.address, l.phone].filter(Boolean).map(escAttr).join(' · ');
-      return '<div class="ms-opt u-col u-items-start u-gap-4" onclick="selectSchLoc(' + l.id + ')">'
-        + '<span class="u-strong' + (l.id === loc.id ? ' u-brand-dark' : '') + '">' + escAttr(l.name) + '</span>'
-        + (info ? '<span class="u-text-small u-muted">' + info + '</span>' : '') + '</div>';
-    }).join('') + '</div>';
-  document.querySelectorAll('.site-loc-name').forEach(function (el) { el.innerHTML = pin + escAttr(loc.name); });
+  box.innerHTML = locPickerHtml(LOCATIONS, loc.id, loc.name, 'selectSchLoc');
+  document.querySelectorAll('.site-loc-name').forEach(function (el) { el.innerHTML = LOC_PIN + escAttr(loc.name); });
 }
 
 function selectSchLoc(id) {
@@ -50,7 +61,6 @@ function renderSitePages() {
   renderSchLoc();
   if (currentPage === 'trainings') renderTrainings();
   if (currentPage === 'services') renderServices();
-  if (currentPage === 'client') renderClientFeed();   // ближайшие занятия кабинета: другой филиал, запись, отмена
 }
 
 // Название филиала слота/записи — только когда филиалов несколько (при одном это лишний шум)

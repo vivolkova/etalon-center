@@ -3,7 +3,7 @@
 // middleware/booking_client.php — Для кого создаётся запись
 // ═══════════════════════════════════════════════════════════
 // Клиент записывает себя. Администратор записывает клиента, который звонит по телефону (журнал записи):
-// существующего — user_id, нового — new_client: {first_name, last_name, phone} (создаётся вместе с записью).
+// существующего — user_id, нового — new_client: {first_name, last_name, phone, consents} (создаётся вместе с записью).
 // Один телефон — один человек (users.uq_users_phone): нового с уже известным номером завести нельзя.
 // Новый клиент — без личного кабинета (users.has_account = 0): пароля нет, войти на сайт он не может.
 // Вызывать внутри транзакции записи: если запись не пройдёт, новый клиент не останется.
@@ -52,6 +52,10 @@ function bookingClient(PDO $db, array $actor, array $d): array {
     $n = $d['new_client'] ?? null;
     if (!is_array($n)) err('Выберите клиента');
     $c = createPhoneClient($db, $n);
+    // Документы, которые новый клиент подписал в студии при записи (new_client.consents: ['offer', …]).
+    // Необязательны: по звонку клиента записывают без них, подписанное отмечают позже в его карточке
+    $codes = array_values(array_unique(array_map('strval', (array)($n['consents'] ?? []))));
+    if ($codes) consentAccept($db, $c['id'], $codes, 'admin', (int)$actor['id']);
     return ['id' => $c['id'], 'name' => $c['name'], 'by_admin' => true, 'created' => true];
 }
 

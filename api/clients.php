@@ -12,6 +12,10 @@ const NOT_ADMIN_SQL = "NOT EXISTS (SELECT 1 FROM user_roles ur JOIN dictionaries
                                    WHERE ur.user_id = u.id AND ur.amnd_state = 'A'
                                      AND rd.code IN ('system_admin', 'studio_admin'))";
 
+// Согласия за клиента администратор отмечает и отзывает, только пока у клиента нет личного кабинета (его завёл
+// администратор, документы он подписывает в студии). Клиент с кабинетом даёт и отзывает согласия сам на сайте
+const CONSENT_SELF = 'У клиента есть личный кабинет — согласия он даёт и отзывает сам на сайте';
+
 // Поля карточки клиента из запроса: [first_name, last_name, type, birth_date, notes]
 function clientFields(array $d): array {
     $first = trim((string)($d['first_name'] ?? ''));
@@ -35,7 +39,7 @@ if ($method === 'GET' && $action === 'list') {
 
     // Только сведения о самих клиентах: число записей и суммы в списке не показываются, и сервер их не считает
     $sql = 'SELECT u.id, u.first_name, u.last_name, u.name, u.phone, u.has_account, u.phone_verified_at, u.type,
-                   u.birth_date, u.notes, u.created_at
+                   u.birth_date, u.notes, u.created_at, ' . consentsOkSql($db, 'u.id') . ' AS consents_ok
             FROM users u
             WHERE u.active = 1 AND ' . NOT_ADMIN_SQL;
     $params = [];
@@ -94,6 +98,8 @@ if ($method === 'GET' && $action === 'get') {
     $stmt->execute(array_merge([$id, $from], $bf['params']));
     $user['bookings'] = $stmt->fetchAll();
     $user['bookings_from'] = $from;
+    // Согласия клиента по документам: что принято, на какую редакцию, когда и как (на сайте или на бумаге)
+    $user['consents'] = userConsents($db, $id);
 
     ok($user);
 }
@@ -114,7 +120,10 @@ if ($method === 'POST' && $action === 'create') {
 }
 
 // PUT — обновить клиента: имя, фамилия, телефон, дата рождения, заметки; статус — только администратор системы.
-// Телефон — логин: должен остаться уникальным; смена номера сбрасывает его подтверждение
+// Телефон — логин: должен остаться уникальным; смена номера сбрасывает его подтверждение.
+// consents: ['offer', …] — документы, которые клиент без кабинета подписал в студии (галочки на вкладке «Согласия»);
+// consents_revoke: ['photo_consent'] — добровольные согласия, с которых галочку сняли (обязательные не отзываются).
+// Данные клиента и согласия сохраняются одной транзакцией
 if ($method === 'PUT' && $action === 'update') {
     $admin = authCan('clients');
     $d  = input();
@@ -123,10 +132,17 @@ if ($method === 'PUT' && $action === 'update') {
     $f = clientFields($d);
     $phone = phoneDigits((string)($d['phone'] ?? ''));
     if ($phone === null) err('Укажите телефон клиента полностью, например +7 900 123-45-67');
+    $codes  = array_values(array_unique(array_map('strval', (array)($d['consents'] ?? []))));
+    $revoke = array_values(array_unique(array_map('strval', (array)($d['consents_revoke'] ?? []))));
 
     // Статус клиента меняет только администратор системы: у администратора студии он остаётся прежним
     $db = getDB();
     $db->beginTransaction();
+    if ($codes || $revoke) {
+        $st = $db->prepare('SELECT has_account FROM users WHERE id = ? FOR UPDATE');
+        $st->execute([$id]);
+        if ((int)$st->fetchColumn()) { $db->rollBack(); err(CONSENT_SELF); }
+    }
     if (isSystemAdmin($admin)) {
         $db->prepare('UPDATE users SET first_name=?, last_name=?, type=?, birth_date=?, notes=? WHERE id=?')
            ->execute([$f[0], $f[1], $f[2], $f[3], $f[4], $id]);
@@ -135,6 +151,8 @@ if ($method === 'PUT' && $action === 'update') {
            ->execute([$f[0], $f[1], $f[3], $f[4], $id]);
     }
     setUserPhone($db, $id, $phone, $admin);
+    if ($codes) consentAccept($db, $id, $codes, 'admin', (int)$admin['id']);
+    foreach ($revoke as $code) consentRevoke($db, $id, $code, $admin);
     $db->commit();
     ok(null, 'Клиент обновлён');
 }

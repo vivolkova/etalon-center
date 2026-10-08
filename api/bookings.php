@@ -39,8 +39,10 @@ if ($method === 'GET' && $action === 'all') {
     $search = $_GET['search'] ?? null;
     // Период — по дате занятия. По умолчанию окно вокруг сегодня (−7 … +30 дней); from/to — для истории.
     $isDate = fn($v) => is_string($v) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $v);
-    $from   = $isDate($_GET['from'] ?? null) ? $_GET['from'] : date('Y-m-d', strtotime('-7 days'));
-    $to     = $isDate($_GET['to'] ?? null)   ? $_GET['to']   : date('Y-m-d', strtotime('+30 days'));
+    // Задано только «с» (раздел «Управление записями» по умолчанию — от сегодня) — без верхней границы
+    $hasFrom = $isDate($_GET['from'] ?? null);
+    $from   = $hasFrom ? $_GET['from'] : date('Y-m-d', strtotime('-7 days'));
+    $to     = $isDate($_GET['to'] ?? null) ? $_GET['to'] : ($hasFrom ? null : date('Y-m-d', strtotime('+30 days')));
     $locId  = (int)($_GET['location_id'] ?? 0);   // 0 — все филиалы
 
     $sql = 'SELECT b.*, u.name AS user_name, u.phone AS user_phone,
@@ -57,8 +59,9 @@ if ($method === 'GET' && $action === 'all') {
             LEFT JOIN specialists_view t ON s.specialist_id = t.id
             LEFT JOIN stations st      ON b.station_id = st.id
             LEFT JOIN station_type stt ON st.type_id = stt.id
-            WHERE s.slot_date BETWEEN ? AND ?';
-    $params = [$from, $to];
+            WHERE s.slot_date >= ?';
+    $params = [$from];
+    if ($to !== null) { $sql .= ' AND s.slot_date <= ?'; $params[] = $to; }
     if ($locId) { branchGuard($user, $locId); $sql .= ' AND s.location_id = ?'; $params[] = $locId; }
     else { $bf = branchFilter($user, 's.location_id'); $sql .= $bf['sql']; $params = array_merge($params, $bf['params']); }   // «все филиалы» = все свои
 
@@ -68,7 +71,8 @@ if ($method === 'GET' && $action === 'all') {
         $like = "%$search%";
         $params = array_merge($params, [$like, $like]);
     }
-    $sql .= ' ORDER BY b.created_at DESC';
+    // по дате и времени занятия: ближайшие сверху
+    $sql .= ' ORDER BY s.slot_date, s.start_time, b.id';
 
     $stmt = $db->prepare($sql);
     $stmt->execute($params);

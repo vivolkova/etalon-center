@@ -32,7 +32,23 @@ function switchAuthTab(mode) {
   <div class="form-field"><label class="form-label">Пароль</label>${passFieldHtml('a-pass', 'new-password', 8)}<div class="set-hint">Не короче 8 символов</div></div>
   ${consentChecksHtml('a')}`;
   }
+  authUpdateSubmit();
 }
+
+// «Продолжить» доступна, когда заполнены все обязательные поля формы (вход: телефон и пароль; регистрация: имя,
+// фамилия, телефон полностью, пароль не короче 8 символов, обе обязательные галочки). Проверяем теми же правилами,
+// по которым поле подсвечивается красным (required, шаблон телефона, минимальная длина)
+function authUpdateSubmit() {
+  const btn = document.getElementById('auth-submit');
+  if (!btn) return;
+  btn.disabled = !Array.from(document.querySelectorAll('#auth-fields [required]')).every(function (el) {
+    if (!el.checkValidity()) return false;
+    const min = Number(el.getAttribute('minlength')) || 0;   // minlength браузер проверяет только после ввода с клавиатуры
+    return el.value.length >= min;
+  });
+}
+document.addEventListener('input', function (e) { if (e.target instanceof Element && e.target.closest('#auth-fields')) authUpdateSubmit(); });
+document.addEventListener('change', function (e) { if (e.target instanceof Element && e.target.closest('#auth-fields')) authUpdateSubmit(); });
 
 async function submitAuth() {
   const phone = document.getElementById('a-phone')?.value.trim();
@@ -40,7 +56,7 @@ async function submitAuth() {
   if (!phone || !pass) { showToast('Заполните все поля', 'error'); return; }
 
   // Показываем индикатор загрузки
-  const btn = document.querySelector('.modal-actions .btn-primary');
+  const btn = document.getElementById('auth-submit');
   if (btn) { btn.textContent = 'Подождите...'; btn.disabled = true; }
 
   try {
@@ -59,7 +75,7 @@ async function submitAuth() {
   } catch (e) {
     // Отказ сервера или нет связи — сообщение уже показано (apiRequest)
   } finally {
-    if (btn) { btn.textContent = authMode === 'login' ? 'Войти' : 'Зарегистрироваться'; btn.disabled = false; }
+    if (btn) { btn.textContent = 'Продолжить →'; authUpdateSubmit(); }
   }
 }
 
@@ -179,7 +195,8 @@ async function loginUser(user, quiet) {
   showPendingDocs();
   // Сайт (главная, запись на тренировки и услуги) администратору не нужен — он работает в панели и сразу попадает в неё
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
-  if (user.role === 'admin') admGroup('work');
+  // …кроме страницы, открытой по ссылке на документ (#doc/…): её покажет js/init.js; переход в панель стёр бы адрес
+  if (user.role === 'admin' && !docFromHash()) admGroup('work');
   admBootMark(user.role === 'admin');
   if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
   // Загружаем записи с сервера; слоты — заново (свежие счётчики мест)

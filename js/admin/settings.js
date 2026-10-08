@@ -297,9 +297,8 @@ async function saveLocation() {
 function bookingsPanelFilters() {
   const fromEl = document.getElementById('bookings-from');
   const toEl = document.getElementById('bookings-to');
-  // По умолчанию — как на сервере: −7 … +30 дней от сегодня
-  if (fromEl && !fromEl.value) { const d = new Date(today); d.setDate(d.getDate() - 7); fromEl.value = fmtLocalDate(d); }
-  if (toEl && !toEl.value) { const d = new Date(today); d.setDate(d.getDate() + 30); toEl.value = fmtLocalDate(d); }
+  // По умолчанию — занятия от сегодня и дальше без ограничения: дата «по» пустая, пока её не зададут
+  if (fromEl && !fromEl.value) fromEl.value = fmtLocalDate(new Date());
   return {
     from: fromEl ? fromEl.value : '',
     to: toEl ? toEl.value : '',
@@ -319,7 +318,7 @@ function filterBookingsSearch(q) {
   if (filter !== 'all') list = list.filter(b => b.status === filter);
   if (q) {
     const lq = q.toLowerCase();
-    list = list.filter(b => [b.name, b.phone, b.service, b.specialistFull, b.station]
+    list = list.filter(b => phoneMatches(b.phone, q) || [b.name, b.service, b.specialistFull, b.station]
       .some(v => (v || '').toLowerCase().includes(lq)));
   }
   renderAdminBookingsFiltered(list);
@@ -350,7 +349,7 @@ function renderAdminBookingsFiltered(list) {
   const statusMap = { booked: 'status-confirmed', cancelled: 'status-cancelled' };
   const statusLabel = { booked: 'Активна', cancelled: 'Отменена' };
   const muted = function (v) { return v ? escAttr(v) : '<span class="u-muted">—</span>'; };
-  tbody.innerHTML = [...list].reverse().map(b => {
+  tbody.innerHTML = list.map(b => {   // порядок — с сервера: по дате и времени занятия, ближайшие сверху
     const date = new Date(b.date);
     // Станок: название + тип станка
     const station = b.station

@@ -47,8 +47,9 @@ function consentAccept(PDO $db, int $userId, array $codes, string $source = 'sit
     }
 }
 
-// Отозвать добровольное согласие (на любую редакцию документа)
-function consentRevoke(PDO $db, int $userId, string $code): void {
+// Отозвать добровольное согласие (на любую редакцию документа). $actor — кто отзывает: сам человек (по умолчанию)
+// или администратор, отмечающий отзыв бумажного согласия
+function consentRevoke(PDO $db, int $userId, string $code, ?array $actor = null): void {
     $docs = currentDocs($db);
     if (!isset($docs[$code]) || $docs[$code]['acceptance'] !== 'optional') err('Это согласие отозвать нельзя');
     $st = $db->prepare("UPDATE user_consents c
@@ -57,7 +58,7 @@ function consentRevoke(PDO $db, int $userId, string $code): void {
                         SET c.revoked_at = NOW()
                         WHERE c.user_id = ? AND c.revoked_at IS NULL");
     $st->execute([$code, $userId]);
-    if ($st->rowCount()) logAction($db, ['id' => $userId], 'consent.revoked', 'users', $userId, ['code' => $code]);
+    if ($st->rowCount()) logAction($db, $actor ?? ['id' => $userId], 'consent.revoked', 'users', $userId, ['code' => $code]);
 }
 
 // Согласия человека по документам: [['code', 'name', 'acceptance', 'version' — действующая редакция,
@@ -82,6 +83,16 @@ function userConsents(PDO $db, int $userId): array {
         ];
     }
     return $out;
+}
+
+// Условие SQL «человек принял действующие редакции всех обязательных документов» для списков (клиенты, журнал
+// записи): по нему ставится пометка «согласий нет». $userCol — столбец с id человека (u.id)
+function consentsOkSql(PDO $db, string $userCol): string {
+    $ids = [];
+    foreach (currentDocs($db) as $doc) if ($doc['acceptance'] === 'required') $ids[] = (int)$doc['version_id'];
+    if (!$ids) return '1';
+    return '((SELECT COUNT(*) FROM user_consents uc WHERE uc.user_id = ' . $userCol . ' AND uc.revoked_at IS NULL
+               AND uc.document_version_id IN (' . implode(',', $ids) . ')) = ' . count($ids) . ')';
 }
 
 // Обязательные документы, действующую редакцию которых человек ещё не принял: [['code', 'name', 'version', 'published_at']]

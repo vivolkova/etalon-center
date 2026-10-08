@@ -56,7 +56,7 @@ if ($method === 'GET' && $action === 'day') {
 
     // Кто записан (без отменённых) и какие станки заблокированы на занятие
     $st = $db->prepare("SELECT b.id, b.slot_id, b.station_id, b.payment_status, b.notes, u.id AS user_id, u.name, u.phone,
-                               u.has_account, u.phone_verified_at
+                               u.has_account, u.phone_verified_at, " . consentsOkSql($db, 'u.id') . " AS consents_ok
                         FROM bookings b
                         JOIN slots s ON s.id = b.slot_id
                         JOIN users u ON u.id = b.user_id
@@ -68,8 +68,9 @@ if ($method === 'GET' && $action === 'day') {
             'id' => (int)$r['id'], 'user_id' => (int)$r['user_id'], 'name' => $r['name'], 'phone' => phoneView($r['phone']),
             'station_id' => $r['station_id'] !== null ? (int)$r['station_id'] : null,
             'payment_status' => $r['payment_status'], 'notes' => $r['notes'],
-            // для пометок «нет кабинета», «номер не подтверждён»
+            // для пометок «нет кабинета», «номер не подтверждён», «согласий нет»
             'has_account' => (bool)$r['has_account'], 'phone_verified' => $r['phone_verified_at'] !== null,
+            'consents_ok' => (bool)$r['consents_ok'],
         ];
     }
     $st = $db->prepare('SELECT k.slot_id, k.station_id FROM slot_station_blocks k

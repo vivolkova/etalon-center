@@ -69,8 +69,7 @@ function filterClients(q) {
   if (q) {
     const lq = q.toLowerCase();
     list = list.filter(c =>
-      c.name.toLowerCase().includes(lq) ||
-      (c.phone || '').includes(lq)
+      c.name.toLowerCase().includes(lq) || phoneMatches(c.phone, q)
     );
   }
   renderAdminClients(list);
@@ -81,7 +80,7 @@ function openClientModal(idOrNull) {
   if (idOrNull) {
     const c = CLIENTS.find(x => x.id === idOrNull);
     if (!c) return;
-    document.getElementById('client-modal-title').textContent = 'Данные клиента';
+    document.getElementById('client-modal-title').textContent = 'Данные клиента: ' + c.name;
     document.getElementById('cm-id').value = c.id;
     document.getElementById('cm-first-name').value = c.firstName;
     document.getElementById('cm-last-name').value = c.lastName;
@@ -90,6 +89,7 @@ function openClientModal(idOrNull) {
     document.getElementById('cm-birth').value = c.birth || '';
     document.getElementById('cm-notes').value = c.notes || '';
     document.getElementById('cm-bookings').innerHTML = '';
+    document.getElementById('cm-consents').innerHTML = '';
     document.getElementById('cp-account').innerHTML = '';
     cpAccountLoad(c.id);
   } else {
@@ -99,14 +99,15 @@ function openClientModal(idOrNull) {
     document.getElementById('cm-type').value = 'new';
     cpAccountId = null;   // у нового клиента вкладки «Записи» и «Личный кабинет» недоступны
     document.getElementById('cm-bookings').innerHTML = '';
+    document.getElementById('cm-consents').innerHTML = '';
     document.getElementById('cp-account').innerHTML = '';
   }
   // Статус меняет администратор системы
   const type = document.getElementById('cm-type');
   type.disabled = !canDo('system');
   type.title = type.disabled ? NEED_TITLE : '';
-  // «Записи» и «Личный кабинет» — только у сохранённого клиента; окно всегда открывается на первой вкладке
-  modal.querySelectorAll('[data-cm-tab="bookings"], [data-cm-tab="account"]').forEach(function (tab) {
+  // «Записи», «Согласия» и «Личный кабинет» — только у сохранённого клиента; окно всегда открывается на первой вкладке
+  modal.querySelectorAll('[data-cm-tab]:not([data-cm-tab="main"])').forEach(function (tab) {
     tab.disabled = !idOrNull;
     tab.title = idOrNull ? '' : 'Сначала сохраните клиента';
   });
@@ -118,7 +119,7 @@ function openClientModal(idOrNull) {
   modal.querySelectorAll('.tab-pane').forEach(function (p) { p.style.height = h + 'px'; });
 }
 function closeClientModal() { document.getElementById('client-modal').classList.remove('show'); }
-// Вкладки окна клиента: main — данные, bookings — записи на занятия, account — личный кабинет
+// Вкладки окна клиента: main — данные, bookings — записи на занятия, consents — согласия, account — личный кабинет
 function cmSwitchTab(tab) {
   document.querySelectorAll('#client-modal [data-cm-tab]').forEach(function (b) {
     b.classList.toggle('active', b.getAttribute('data-cm-tab') === tab);
@@ -142,6 +143,14 @@ async function saveClient() {
     birth_date: document.getElementById('cm-birth').value,
     notes: document.getElementById('cm-notes').value.trim(),
   };
+  // Вкладка «Согласия»: что изменили галочками. Поставили у непринятого документа — отметить согласие;
+  // сняли у данного добровольного (фото и видео) — отозвать. У принятых обязательных галочка заблокирована
+  if (id) {
+    const boxes = Array.from(document.querySelectorAll('#cm-consents input[data-consent]:not(:disabled)'));
+    const codes = function (list) { return list.map(function (el) { return el.getAttribute('data-consent'); }); };
+    apiData.consents = codes(boxes.filter(function (el) { return el.checked && !el.hasAttribute('data-given'); }));
+    apiData.consents_revoke = codes(boxes.filter(function (el) { return !el.checked && el.hasAttribute('data-given'); }));
+  }
   try {
     if (id) {
       await ClientsAPI.update({ id: id, ...apiData });
@@ -164,6 +173,7 @@ function clientMarks(c) {
   const m = [];
   if (!c.hasAccount) m.push('нет кабинета');
   if (!c.phoneVerified) m.push('номер не подтверждён');
+  if (!c.consentsOk) m.push('согласий нет');   // не приняты действующие редакции обязательных документов
   return m;
 }
 // «05.10.2026 18:40» из даты и времени сервера
@@ -181,6 +191,7 @@ async function cpAccountLoad(id) {
   if (cpAccountId !== id) return;
   cmBookingsRender(c);
   const has = Number(c.has_account) === 1;
+  cmConsentsRender(id, c.consents, has);
   const reset = Number(c.password_reset) === 1;   // пароль сброшен администратором, новый клиент ещё не задал
   const line = function (text, btn) {
     return '<div class="u-flex u-items-center u-gap-10 u-wrap u-text-body u-mb-6"><span>' + text + '</span>' + (btn || '') + '</div>';
@@ -259,6 +270,42 @@ function cmBookingsRender(c) {
     + (rows || '<div class="u-text-body u-muted">Записей нет</div>');
 }
 
+// ── Согласия клиента (вкладка окна клиента) ───────────────────────
+// Клиент с личным кабинетом даёт согласия сам на сайте (при регистрации) и сам отзывает согласие на фото и видео
+// в профиле — администратору его согласия только показываются.
+// Клиент без кабинета (его завёл администратор) подписывает документы в студии: администратор ставит галочки
+// у подписанных документов и нажимает «Сохранить» — согласия записываются вместе с данными клиента, одной
+// транзакцией (saveClient). Принятое обязательное согласие не снимается (галочка заблокирована); согласие
+// на фото и видео отзывается так же, галочкой: сняли и сохранили
+function cmConsentsRender(id, list, hasAccount) {
+  list = list || [];
+  const link = function (x) { return '<a class="u-brand" href="#doc/' + x.code + '" target="_blank" rel="noopener">' + escAttr(x.name) + '</a>'; };
+  const status = function (x) {
+    const optional = x.acceptance === 'optional';
+    if (!x.accepted_at) return optional ? 'не дано' : 'не принято';
+    const stale = !optional && x.accepted_version !== x.version;   // после согласия вышла новая редакция
+    return (optional ? 'дано: ' : 'принято: ') + 'редакция ' + x.accepted_version + ', ' + docDate(x.accepted_at)
+      + (stale ? ' — вышла редакция ' + x.version + ', её нужно принять' : '');
+  };
+  const box = document.getElementById('cm-consents');
+  if (!list.length) { box.innerHTML = '<div class="u-text-body u-muted">Документов для согласия нет</div>'; return; }
+  if (hasAccount) {
+    box.innerHTML = '<div class="u-text-body u-muted u-mb-10">Согласия клиент даёт и отзывает сам в личном кабинете.</div>'
+      + list.map(function (x) {
+        return '<div class="u-text-body u-mb-6">' + link(x) + ' — <span class="u-muted">' + status(x) + '</span></div>';
+      }).join('');
+    return;
+  }
+  box.innerHTML = '<div class="u-text-body u-muted">У клиента нет личного кабинета: отметьте документы, которые он подписал в студии, и нажмите «Сохранить».</div>'
+    + list.map(function (x) {
+      const optional = x.acceptance === 'optional';
+      const given = !!x.accepted_at && (optional || x.accepted_version === x.version);
+      // data-given — согласие уже записано: по нему saveClient понимает, что изменилось
+      return '<label class="check-label check-label--text u-mt-10"><input type="checkbox" data-consent="' + x.code + '"'
+        + (given ? ' checked data-given' : '') + (given && !optional ? ' disabled' : '') + '>'
+        + '<span>' + link(x) + ' — <span class="u-muted">' + status(x) + '</span></span></label>';
+    }).join('');
+}
 // После действия: блок в окне и пометки в списке клиентов — заново
 async function cpAccountChanged(id) {
   cpAccountLoad(id);

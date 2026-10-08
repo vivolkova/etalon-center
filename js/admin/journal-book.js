@@ -238,7 +238,9 @@ function jbRenderClient() {
     box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required></div>'
       + '<div><label class="form-label">Фамилия</label><input class="form-input" id="jb-new-last" required></div>'
       + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required></div></div>'
+      + '<div id="jb-new-consents"></div>'
       + '<button class="btn-ghost jb-link" onclick="jbSetNew(false)">Найти по телефону</button>';
+    jbConsentsFill();
   } else {
     box.innerHTML = '<input class="form-input" id="jb-search" inputmode="tel" oninput="jbSearch(this.value)" autocomplete="off">'
       + '<div class="set-hint">Номер телефона — от трёх цифр, можно любую часть номера</div>'
@@ -248,17 +250,30 @@ function jbRenderClient() {
   jbUpdateSubmit();
 }
 
+// Согласия нового клиента: он пришёл в студию без записи и подписал документы — администратор отмечает подписанные,
+// они сохраняются вместе с записью. Галочки необязательны: по звонку клиента записывают без них, а подписанное
+// отмечают позже («Клиенты» → клиент → «Согласия»). Список документов берём с сервера один раз
+let jbDocs = null;
+async function jbConsentsFill() {
+  if (!jbDocs) {
+    try { jbDocs = ((await DocumentsAPI.list()) || []).filter(function (d) { return d.acceptance !== 'none'; }); }
+    catch (e) { jbDocs = null; return; }
+  }
+  const box = document.getElementById('jb-new-consents');
+  if (!box || !jbDocs.length) return;   // форму закрыли или сменили клиента, пока шёл запрос
+  box.innerHTML = '<label class="form-label u-mt-12">Согласия</label>'
+    + '<div class="set-hint">Отметьте документы, которые клиент подписал. Необязательно — можно отметить позже в карточке клиента</div>'
+    + jbDocs.map(function (d) {
+      return '<label class="check-label check-label--text u-mt-10"><input type="checkbox" data-jb-consent="' + d.code + '">'
+        + '<span><a class="u-brand" href="#doc/' + d.code + '" target="_blank" rel="noopener">' + escAttr(d.name) + '</a></span></label>';
+    }).join('');
+}
+
 function jbSearch(q) {
   const box = document.getElementById('jb-results');
-  // Ищем только по номеру (поиск по имени пока не делаем): цифры запроса — в номере без кода страны
-  // (последние 10 цифр). Номер, набранный с начала — «8 900…» или «+7 900…», — тот же, что «900…»
-  const digits = q.replace(/\D+/g, '');
-  if (digits.length < 3) { box.innerHTML = ''; return; }
-  const fromStart = /^[78]/.test(digits) ? digits.slice(1) : null;
-  const found = CLIENTS.filter(function (c) {
-    const nat = String(c.phone).replace(/\D+/g, '').slice(-10);
-    return nat.indexOf(digits) >= 0 || (fromStart && nat.indexOf(fromStart) === 0);
-  }).slice(0, 6);
+  // Ищем только по номеру (поиск по имени пока не делаем), от трёх цифр; правило сравнения — phoneMatches (js/ui.js)
+  if (q.replace(/\D+/g, '').length < 3) { box.innerHTML = ''; return; }
+  const found = CLIENTS.filter(function (c) { return phoneMatches(c.phone, q); }).slice(0, 6);
   box.innerHTML = found.length
     ? found.map(function (c) {
       return '<button type="button" class="jb-result" onclick="jbSelectClient(' + c.id + ')"><b>' + escAttr(c.name) + '</b><span>' + escAttr(c.phone || '') + '</span></button>';
@@ -455,6 +470,7 @@ async function jbSubmit() {
       first_name: document.getElementById('jb-new-name').value.trim(),
       last_name: document.getElementById('jb-new-last').value.trim(),
       phone: document.getElementById('jb-new-phone').value.trim(),
+      consents: Array.from(document.querySelectorAll('#jb-new-consents [data-jb-consent]:checked')).map(function (el) { return el.getAttribute('data-jb-consent'); }),
     };
     if (!data.new_client.first_name || !data.new_client.last_name) { showToast('Укажите имя и фамилию клиента', 'error'); return; }
     if (data.new_client.phone.replace(/\D+/g, '').length < 10) { showToast('Укажите телефон клиента (не меньше 10 цифр)', 'error'); return; }

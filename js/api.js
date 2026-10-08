@@ -114,10 +114,6 @@ const SlotsAPI = {
     if (cat && cat !== 'all') url += `&cat=${cat}`;
     return apiRequest(url);
   },
-  // ближайшие занятия филиала для кабинета клиента: { today, days, slots }
-  async upcoming(locationId) {
-    return apiRequest(`/slots.php?action=upcoming&location_id=${locationId}`);
-  },
   async get(id) {
     return apiRequest(`/slots.php?action=get&id=${id}`);
   },
@@ -288,6 +284,8 @@ const ClientsAPI = {
   async verifyPhone(id) {
     return apiRequest('/clients.php?action=verify_phone', 'POST', { id });
   },
+  // Согласия клиента без личного кабинета сохраняются вместе с его данными:
+  // update({ …, consents: [коды подписанных], consents_revoke: [коды добровольных, с которых сняли галочку] })
   // Одноразовая ссылка для клиента — ответ { token, purpose: activate | reset, hours, phone }:
   // создать кабинет (клиенту без кабинета)…
   async authLink(id) {

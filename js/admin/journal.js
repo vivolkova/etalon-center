@@ -244,7 +244,7 @@ function jrOpenSlot(slotId) {
   const rows = s.bookings.map(function (b) {
     const st = jrStationLabel(b.station_id);
     return '<div class="jr-card-row"><div><div class="jr-card-name">' + (st ? escAttr(st) + ' · ' : '') + escAttr(b.name) + '</div>'
-      + '<div class="jr-card-meta">' + [b.phone, JR_PAY[b.payment_status] || b.payment_status].concat(clientMarks({ hasAccount: b.has_account, phoneVerified: b.phone_verified })).filter(Boolean).map(escAttr).join(' · ') + '</div>'
+      + '<div class="jr-card-meta">' + [b.phone, JR_PAY[b.payment_status] || b.payment_status].concat(clientMarks({ hasAccount: b.has_account, phoneVerified: b.phone_verified, consentsOk: b.consents_ok })).filter(Boolean).map(escAttr).join(' · ') + '</div>'
       + (b.notes ? '<div class="jr-card-meta">«' + escAttr(b.notes) + '»</div>' : '') + '</div>'
       + '<div class="u-flex u-gap-6 u-shrink-0">'
       + '<button class="action-btn confirm btn-sm" onclick="' + (s.individual ? 'jbOpenMove(' + s.id + ')' : 'jbOpenGroupMove(' + s.id + ',' + b.id + ')') + '">Перенести</button>'

@@ -91,6 +91,7 @@ async function loadClients() {
           id: parseInt(c.id) || 0, firstName: c.first_name || '', lastName: c.last_name || '', name: c.name, phone: c.phone || '',
           hasAccount: c.has_account == null || Number(c.has_account) === 1,   // false — заведён админом по телефону, входа на сайт нет
           phoneVerified: !!c.phone_verified_at,   // номер подтверждён (администратором, позже — через бота)
+          consentsOk: Number(c.consents_ok) === 1,   // приняты действующие редакции всех обязательных документов
           type: c.type || 'new',
           birth: c.birth_date || '', notes: c.notes || '',
           regDate: c.created_at ? c.created_at.slice(0, 10) : '',

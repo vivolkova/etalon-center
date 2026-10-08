@@ -194,8 +194,12 @@ function openTrainerModal(id, tab) {
     '</div></div>' +
     // ── График работы: периоды с недельным шаблоном
     '<div class="tab-pane-body" data-trm-pane="hours" style="display:none">' +
-    '<div class="u-text-small u-muted u-mb-10">Недельный график на период (например, по месяцам). ' +
+    // «Только активные» (по умолчанию) — без завершённых периодов; та же раскладка, что у «Прошедшие» на вкладках исключений
+    '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
+    '<div class="u-text-small u-muted">Недельный график на период (например, по месяцам). ' +
     'Вне периодов специалист не работает. У каждого интервала — филиал; часы — в пределах режима работы этого филиала.</div>' +
+    '<label class="u-flex u-items-center u-gap-6 u-text-small u-nowrap u-pointer"><input type="checkbox" id="trm-sched-active" checked> Только активные</label>' +
+    '</div>' +
     '<div id="trm-sched-list"></div>' +
     '<button type="button" class="btn-primary" id="trm-sched-add">+ Добавить период</button>' +
     '</div>' +
@@ -231,6 +235,7 @@ function openTrainerModal(id, tab) {
   if (!t) return;
 
   document.getElementById('trm-sched-add').onclick = function () { openScheduleModal(t.id, null); };
+  document.getElementById('trm-sched-active').onchange = trmRenderSchedules;
   ['off', 'custom'].forEach(function (type) {
     document.getElementById('trm-exc-add-' + type).onclick = function () { openExceptionModal(t.id, null, type); };
     document.getElementById('trm-exc-past-' + type).onchange = trmRenderExceptions;
@@ -360,7 +365,15 @@ function trmRenderSchedules() {
     return;
   }
   const d = todayStr();
-  el.innerHTML = list.map(function (s) {
+  // «Только активные»: действующие и будущие периоды; завершённые (дата окончания прошла) скрыты
+  const onlyActive = document.getElementById('trm-sched-active').checked;
+  const shown = onlyActive ? list.filter(function (s) { return !(s.date_to && s.date_to < d); }) : list;
+  if (!shown.length) {
+    el.innerHTML = '<div class="u-text-ui u-danger u-mb-12">Действующих и будущих периодов нет — специалист не будет доступен в расписании. '
+      + 'Завершённые периоды видны, если снять «Только активные».</div>';
+    return;
+  }
+  el.innerHTML = shown.map(function (s) {
     const past = s.date_to && s.date_to < d;
     const now = s.date_from <= d && !past;
     return '<div class="lib-card" style="margin-bottom:8px;padding:12px' + (past ? ';opacity:.55' : '') + '">' +
