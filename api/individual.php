@@ -80,23 +80,20 @@ function indSlot(array $lib, ?int $specId, string $date, int $start, int $dur): 
             'duration' => $dur, 'cat' => $lib['cat'], 'type' => $lib['type'], 'specialist_id' => $specId];
 }
 
-// Специалисты, которые ведут занятие в его филиале: активные, со специализацией категории,
-// специализация доступна в филиале, в графике есть часы в этом филиале. [{id, name, full_name}]
+// Специалисты, которые ведут занятие в его филиале: работающие, с ролью категории в этом филиале,
+// в графике есть часы в этом филиале. [{id, name, full_name}]
 function indSpecialists(PDO $db, array $lib): array {
     if (!activityNeedsSpecialist($lib['cat'], $lib['type']) || !$lib['ref_id']) return [];
     $locId = (int)$lib['location_id'];
-    if (!dictAvailableAt($db, (int)$lib['ref_id'], $locId)) return [];
-    $st = $db->prepare('SELECT s.id, s.name, s.full_name FROM specialists_view s
-                        JOIN specialist_types t ON t.specialist_id = s.id AND t.type_id = ? AND t.active = 1
-                        WHERE s.active = 1 ORDER BY s.name');
-    $st->execute([(int)$lib['ref_id']]);
+    $st = $db->prepare("SELECT s.id, s.name, s.full_name FROM specialists_view s
+                        JOIN user_roles ur ON ur.user_id = s.user_id AND ur.role_id = ? AND ur.location_id = ? AND ur.amnd_state = 'A'
+                        WHERE s.active = 1 ORDER BY s.name");
+    $st->execute([(int)$lib['ref_id'], $locId]);
     $specs = $st->fetchAll();
     if (!$specs) return [];
-    // работает в этом филиале (справочник specialist_locations) и в его графике есть часы здесь
+    // и в его графике есть часы в этом филиале
     $hours = specialistsHoursMap($db, array_column($specs, 'id'), date('Y-m-d'));
-    $locs  = specialistsLocations($db, array_column($specs, 'id'));
-    return array_values(array_filter($specs, fn($s) => in_array($locId, $locs[(int)$s['id']] ?? [], true)
-        && in_array($locId, specLocationIds($hours[$s['id']] ?? []), true)));
+    return array_values(array_filter($specs, fn($s) => in_array($locId, specLocationIds($hours[$s['id']] ?? []), true)));
 }
 
 // Занятие, специалист и длительность из параметров запроса (общие для times / stations / create / move)

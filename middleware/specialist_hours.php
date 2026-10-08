@@ -206,22 +206,42 @@ function specialistAvailability(PDO $db, int $specId, string $from, string $to):
     return $out;
 }
 
-// ── Филиалы специалиста (specialist_locations) ─────────────
-// Справочник — главный: часы работы в графике можно указать только в филиалах из него.
+// ── Роли специалиста: кем и в каких филиалах он работает (user_roles) ─────────────
+// Роль тренера, байкфиттера, механика (SPEC_ROLES) выдаётся с филиалом. Филиалы специалиста — филиалы его ролей:
+// часы работы в графике можно указать только в них.
 
-// Филиалы специалистов из справочника: [specialist_id => [location_id, …]]; $ids — только эти специалисты
-function specialistsLocations(PDO $db, ?array $ids = null): array {
+// Действующие роли специалистов: [specialist_id => [['id' — строка user_roles, 'role_id', 'code', 'location_id'], …]];
+// $ids — только эти специалисты; $lock — заблокировать строки до конца транзакции
+function specialistsRoles(PDO $db, ?array $ids = null, bool $lock = false): array {
     if ($ids !== null && !$ids) return [];
-    $sql = "SELECT specialist_id, location_id FROM specialist_locations WHERE amnd_state = 'A'";
+    $sql = "SELECT sp.id AS specialist_id, ur.id, ur.role_id, d.code, ur.location_id
+            FROM specialists sp
+            JOIN user_roles ur ON ur.user_id = sp.user_id AND ur.amnd_state = 'A'
+            JOIN dictionaries d ON d.id = ur.role_id AND d.group_code = 'user_role'
+                               AND d.code IN ('" . implode("','", SPEC_ROLES) . "')";
     $args = [];
     if ($ids !== null) {
-        $sql .= ' AND specialist_id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
+        $sql .= ' WHERE sp.id IN (' . implode(',', array_fill(0, count($ids), '?')) . ')';
         $args = array_map('intval', array_values($ids));
     }
-    $st = $db->prepare($sql . ' ORDER BY location_id');
+    $st = $db->prepare($sql . ' ORDER BY d.id, ur.location_id' . ($lock ? ' FOR UPDATE' : ''));
     $st->execute($args);
     $map = [];
-    foreach ($st->fetchAll() as $r) $map[(int)$r['specialist_id']][] = (int)$r['location_id'];
+    foreach ($st->fetchAll() as $r) {
+        $map[(int)$r['specialist_id']][] = ['id' => (int)$r['id'], 'role_id' => (int)$r['role_id'],
+                                            'code' => $r['code'], 'location_id' => (int)$r['location_id']];
+    }
+    return $map;
+}
+
+// Филиалы специалистов (филиалы их ролей): [specialist_id => [location_id, …]]; $ids — только эти специалисты
+function specialistsLocations(PDO $db, ?array $ids = null): array {
+    $map = [];
+    foreach (specialistsRoles($db, $ids) as $specId => $roles) {
+        $locs = array_values(array_unique(array_column($roles, 'location_id')));
+        sort($locs);
+        $map[$specId] = $locs;
+    }
     return $map;
 }
 function specialistLocations(PDO $db, int $specId): array {
@@ -261,32 +281,42 @@ function specLocationBusy(PDO $db, int $specId, int $locId): ?string {
     return null;
 }
 
-// Задать филиалы специалиста (внутри транзакции): новые добавляются, убранные закрываются (amnd_state = 'C').
-// Убрать филиал с будущими часами работы или занятиями нельзя — ошибка с причиной
-function saveSpecialistLocations(PDO $db, int $specId, $locIds, ?int $userId): void {
+// Задать роли специалиста (внутри транзакции): каждая роль из $roleIds — в каждом филиале из $locIds. Новые строки
+// user_roles добавляются, лишние закрываются (amnd_state = 'C'). Пустой $roleIds — снять все роли: специалист
+// больше не работает. Убрать филиал с будущими часами работы или занятиями нельзя — ошибка с причиной
+function saveSpecialistRoles(PDO $db, int $specId, array $roleIds, $locIds, ?int $userId): void {
     $ids = array_values(array_unique(array_filter(array_map('intval', is_array($locIds) ? $locIds : []))));
-    if (!$ids) err('Укажите хотя бы один филиал, в котором работает специалист');
+    if ($roleIds && !$ids) err('Укажите хотя бы один филиал, в котором работает специалист');
     foreach ($ids as $locId) specLocation($db, $locId);   // филиал существует и действующий
-
-    $st = $db->prepare("SELECT id, location_id FROM specialist_locations WHERE specialist_id = ? AND amnd_state = 'A' FOR UPDATE");
+    $st = $db->prepare('SELECT user_id FROM specialists WHERE id = ?');
     $st->execute([$specId]);
-    $have = [];
-    foreach ($st->fetchAll() as $r) $have[(int)$r['location_id']] = (int)$r['id'];
+    $personId = (int)$st->fetchColumn();
 
-    foreach ($have as $locId => $rowId) {
-        if (in_array($locId, $ids, true)) continue;
-        if ($why = specLocationBusy($db, $specId, $locId)) {
-            $loc = specLocationOrNull($db, $locId);
-            err('Нельзя убрать филиал «' . ($loc ? $loc['name'] : $locId) . '»: ' . $why);
+    $have = specialistsRoles($db, [$specId], true)[$specId] ?? [];
+    if ($roleIds) {
+        foreach (array_unique(array_column($have, 'location_id')) as $locId) {
+            if (in_array($locId, $ids, true)) continue;
+            if ($why = specLocationBusy($db, $specId, $locId)) {
+                $loc = specLocationOrNull($db, $locId);
+                err('Нельзя убрать филиал «' . ($loc ? $loc['name'] : $locId) . '»: ' . $why);
+            }
         }
-        amndClose($db, 'specialist_locations', $rowId, $userId);
     }
-    foreach ($ids as $locId) {
-        if (!isset($have[$locId])) amndInsert($db, 'specialist_locations', ['specialist_id' => $specId, 'location_id' => $locId], $userId);
+    $keep = [];
+    foreach ($have as $r) {
+        if (in_array($r['role_id'], $roleIds, true) && in_array($r['location_id'], $ids, true)) $keep[$r['role_id'] . ':' . $r['location_id']] = true;
+        else amndClose($db, 'user_roles', $r['id'], $userId);
+    }
+    foreach ($roleIds as $roleId) {
+        foreach ($ids as $locId) {
+            if (!isset($keep[$roleId . ':' . $locId])) {
+                amndInsert($db, 'user_roles', ['user_id' => $personId, 'role_id' => $roleId, 'location_id' => $locId], $userId);
+            }
+        }
     }
 }
 
-// Специалист доступен этому администратору: работает хотя бы в одном из его филиалов (справочник specialist_locations).
+// Специалист доступен этому администратору: работает хотя бы в одном из его филиалов (филиалы ролей специалиста).
 // Администратору системы доступны все. Иначе — ошибка 403
 function specialistGuard(PDO $db, array $user, int $specId): void {
     $branches = adminBranches($user);

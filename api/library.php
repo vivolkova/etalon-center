@@ -82,12 +82,12 @@ if ($method === 'GET' && $action === 'list') {
 }
 
 // GET — категории занятий для фильтров и формы: training (activity_category) и услуги (service_category).
-// is_service — услуга; spec_type / spec_name — тип специалиста, который ведёт категорию (dictionaries.ref_id).
+// is_service — услуга; spec_type / spec_name — роль специалиста, который ведёт категорию (dictionaries.ref_id).
 if ($method === 'GET' && $action === 'categories') {
     $db   = getDB();
     $stmt = $db->prepare("SELECT d.id, d.code, d.name, (d.group_code = 'service_category') AS is_service, st.code AS spec_type, st.name AS spec_name
                           FROM dictionaries d
-                          LEFT JOIN dictionaries st ON st.id = d.ref_id AND st.group_code = 'specialist_type'
+                          LEFT JOIN dictionaries st ON st.id = d.ref_id AND st.group_code = 'user_role'
                           WHERE d.group_code IN (" . CATEGORY_GROUPS_SQL . ") AND d.active = 1 ORDER BY d.group_code, d.id");
     $stmt->execute();
     ok($stmt->fetchAll());

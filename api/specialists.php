@@ -1,7 +1,8 @@
 <?php
-// api/specialists.php — Специалисты (тренеры, байкфиттеры, мастера)
-// Специалист не привязан к филиалу (филиал — у интервалов графика), типов может быть несколько.
+// api/specialists.php — Специалисты (тренеры, байкфиттеры, механики)
 // Специалист — человек из users: имя, фамилия и телефон хранятся там (читаем через specialists_view).
+// Кем и где он работает — его роли с филиалом в user_roles (SPEC_ROLES); в specialists — только карточка (опыт).
+// Окно специалиста пока задаёт специализации и филиалы двумя списками: сохраняется каждая роль в каждом филиале.
 require_once __DIR__ . '/../middleware/helpers.php';
 require_once __DIR__ . '/../middleware/specialist_hours.php';
 require_once __DIR__ . '/../middleware/slot_rules.php';
@@ -10,24 +11,17 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-// Коды типов специалиста -> id справочника specialist_type; нужен хотя бы один, неизвестный код — ошибка
+// Коды специализаций -> id ролей (справочник user_role, только SPEC_ROLES); нужна хотя бы одна, неизвестный код — ошибка
 function specTypeIds(PDO $db, $codes): array {
     $codes = array_values(array_unique(array_filter(array_map('strval', is_array($codes) ? $codes : []))));
     if (!$codes) err('Укажите специализацию');
+    foreach ($codes as $c) if (!in_array($c, SPEC_ROLES, true)) err('Неизвестная специализация: ' . $c);
     $st = $db->prepare('SELECT code, id FROM dictionaries WHERE group_code = ? AND code IN ('
         . implode(',', array_fill(0, count($codes), '?')) . ')');
-    $st->execute(array_merge(['specialist_type'], $codes));
+    $st->execute(array_merge(['user_role'], $codes));
     $ids = $st->fetchAll(PDO::FETCH_KEY_PAIR);
-    foreach ($codes as $c) if (!isset($ids[$c])) err('Неизвестный тип специалиста: ' . $c);
+    foreach ($codes as $c) if (!isset($ids[$c])) err('Неизвестная специализация: ' . $c);
     return array_map('intval', array_values($ids));
-}
-
-// Заменить набор типов специалиста (связи specialist_types): снятые — active = 0, выбранные — active = 1
-function saveSpecTypes(PDO $db, int $specId, array $typeIds): void {
-    $db->prepare('UPDATE specialist_types SET active = 0 WHERE specialist_id = ?')->execute([$specId]);
-    $ins = $db->prepare('INSERT INTO specialist_types (specialist_id, type_id, active) VALUES (?, ?, 1)
-                         ON DUPLICATE KEY UPDATE active = 1');
-    foreach ($typeIds as $t) $ins->execute([$specId, $t]);
 }
 
 // Имя, фамилия и телефон специалиста из запроса: [first_name, last_name, phone цифрами]
@@ -41,18 +35,17 @@ function specPerson(array $d): array {
     return [$first, $last, $phone];
 }
 
-// GET — список специалистов (публичный; телефон — только администратору). types — коды типов; location_ids — филиалы
-// специалиста из справочника specialist_locations; для админки (all=1) ещё актуальные периоды графика и исключения
+// GET — список специалистов (публичный; телефон — только администратору). roles — [{code, location_id}]: кем и где
+// работает; types — коды его ролей, location_ids — филиалы ролей; active — работает ли (specialists_view);
+// для админки (all=1) ещё актуальные периоды графика и исключения
 if ($method === 'GET' && $action === 'list') {
     $db = getDB();
     $all = !empty($_GET['all']);
-    // all=1 — для панели: вместе с неактивными; администратор студии видит только специалистов своих филиалов
+    // all=1 — для панели: вместе с теми, кто больше не работает; администратор студии видит только специалистов своих филиалов
     $branches = $all ? adminBranches(authCan('spec_hours')) : null;
     $where = $all ? '1' : 'sp.active = 1';
     $stmt = $db->prepare('
         SELECT sp.id, sp.user_id, sp.name, sp.full_name, sp.first_name, sp.last_name, sp.experience, sp.active,' . ($all ? ' sp.phone,' : '') . '
-               (SELECT GROUP_CONCAT(d.code ORDER BY d.id) FROM specialist_types stp
-                  JOIN dictionaries d ON d.id = stp.type_id WHERE stp.specialist_id = sp.id AND stp.active = 1) AS types,
                (SELECT COUNT(*) FROM slots s WHERE s.specialist_id = sp.id AND s.active = 1) AS sessions_count
         FROM specialists_view sp
         WHERE ' . $where . '
@@ -61,12 +54,17 @@ if ($method === 'GET' && $action === 'list') {
     $stmt->execute();
     $rows = $stmt->fetchAll();
     $hours = $all ? specialistsHoursMap($db, null, date('Y-m-d')) : [];
-    $locs  = specialistsLocations($db);
+    $roles = specialistsRoles($db);
     foreach ($rows as &$r) {
-        $r['types'] = $r['types'] !== null ? explode(',', $r['types']) : [];
+        $own = $roles[(int)$r['id']] ?? [];
+        $r['active'] = (int)$r['active'];
+        $r['roles'] = array_map(fn($x) => ['code' => $x['code'], 'location_id' => $x['location_id']], $own);
+        $r['types'] = array_values(array_unique(array_column($own, 'code')));
+        $locs = array_values(array_unique(array_column($own, 'location_id')));
+        sort($locs);
+        $r['location_ids'] = $locs;
         if ($all) $r['phone'] = phoneView($r['phone']);
         $h = $hours[$r['id']] ?? [];
-        $r['location_ids'] = $locs[(int)$r['id']] ?? [];
         if ($all) {
             $r['schedules']  = $h['schedules'] ?? [];
             $r['exceptions'] = $h['exceptions'] ?? [];
@@ -96,7 +94,7 @@ if ($method === 'POST' && $action === 'person') {
     ok($p);
 }
 
-// POST — создать специалиста (admin): {first_name, last_name, phone, types:[коды] — специализация, experience, active}.
+// POST — создать специалиста (admin): {first_name, last_name, phone, types:[коды ролей], location_ids, experience, active}.
 // Человек с таким телефоном уже есть (например, клиент) — специалистом становится он, второй записи в users не будет
 if ($method === 'POST' && $action === 'create') {
     authCan('specialists');
@@ -110,11 +108,11 @@ if ($method === 'POST' && $action === 'create') {
     $st = $db->prepare('SELECT id FROM specialists WHERE user_id = ?');
     $st->execute([$userId]);
     if ($st->fetchColumn()) err('Специалист с таким телефоном уже есть');
-    $db->prepare('INSERT INTO specialists (user_id, experience, active) VALUES (?,?,?)')
-       ->execute([$userId, (int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1]);
+    $db->prepare('INSERT INTO specialists (user_id, experience) VALUES (?,?)')->execute([$userId, (int)($d['experience'] ?? 0)]);
     $id = (int)$db->lastInsertId();
-    saveSpecTypes($db, $id, $typeIds);
-    saveSpecialistLocations($db, $id, $d['location_ids'] ?? [], $admin['id'] ?? null);
+    // «Активен» снят — карточка без ролей: специалист заведён, но не работает
+    $works = !isset($d['active']) || !empty($d['active']);
+    saveSpecialistRoles($db, $id, $works ? $typeIds : [], $d['location_ids'] ?? [], $admin['id'] ?? null);
     $db->commit();
     ok(['id' => $id], 'Специалист добавлен');
 }
@@ -135,24 +133,24 @@ if ($method === 'PUT' && $action === 'update') {
     $userId = (int)$st->fetchColumn();
     $db->prepare('UPDATE users SET first_name = ?, last_name = ? WHERE id = ?')->execute([$first, $last, $userId]);
     setUserPhone($db, $userId, $phone, $admin);
-    $db->prepare('UPDATE specialists SET experience=?, active=? WHERE id=?')
-       ->execute([(int)($d['experience'] ?? 0), isset($d['active']) ? (int)(bool)$d['active'] : 1, $id]);
-    saveSpecTypes($db, $id, $typeIds);
-    saveSpecialistLocations($db, $id, $d['location_ids'] ?? [], $admin['id']);
-    // Деактивация или снятие специализации — только если будущие занятия специалиста остаются возможны
+    $db->prepare('UPDATE specialists SET experience=? WHERE id=?')->execute([(int)($d['experience'] ?? 0), $id]);
+    // «Активен» снят — снимаются все роли специалиста: он больше не работает (карточка и прошедшие занятия остаются)
+    $works = !isset($d['active']) || !empty($d['active']);
+    saveSpecialistRoles($db, $id, $works ? $typeIds : [], $d['location_ids'] ?? [], $admin['id']);
+    // Снятие ролей или филиала — только если будущие занятия специалиста остаются возможны
     specialistSlotsGuard($db, $id, null, null, 'сохранить специалиста');
     $db->commit();
     ok(null, 'Специалист обновлён');
 }
 
-// DELETE — мягкое удаление (admin)
+// DELETE — специалист больше не работает: снимаются все его роли специалиста (admin)
 if ($method === 'DELETE' && $action === 'delete') {
-    authCan('specialists');
+    $admin = authCan('specialists');
     $id = (int)($_GET['id'] ?? 0);
     $db = getDB();
     $db->beginTransaction();
     lockSpecialist($db, $id);
-    $db->prepare('UPDATE specialists SET active=0 WHERE id=?')->execute([$id]);
+    saveSpecialistRoles($db, $id, [], [], $admin['id']);
     specialistSlotsGuard($db, $id, null, null, 'удалить специалиста');
     $db->commit();
     ok(null, 'Специалист удалён');

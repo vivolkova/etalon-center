@@ -10,7 +10,7 @@ setCORS();
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? 'list';
 
-const DICT_EDITABLE = ['activity_category', 'service_category', 'specialist_type'];
+const DICT_EDITABLE = ['activity_category', 'service_category'];
 
 function dictRow(PDO $db, int $id): array {
     $st = $db->prepare('SELECT id, group_code, code FROM dictionaries WHERE id = ?');
@@ -20,12 +20,12 @@ function dictRow(PDO $db, int $id): array {
     return $row;
 }
 
-// ref_id допустим только для категорий занятий (тренировка, услуги) и только на specialist_type
+// ref_id допустим только для категорий занятий (тренировка, услуги) и только на роль специалиста (SPEC_ROLES)
 function checkRef(PDO $db, string $group, $refId): ?int {
     if ($refId === null || $refId === '' || (int)$refId === 0) return null;
-    if (!in_array($group, CATEGORY_GROUPS, true)) err('Связь с типом специалиста задаётся только для категорий');
+    if (!in_array($group, CATEGORY_GROUPS, true)) err('Связь с ролью специалиста задаётся только для категорий');
     $ref = dictRow($db, (int)$refId);
-    if ($ref['group_code'] !== 'specialist_type') err('Связь должна указывать на тип специалиста');
+    if ($ref['group_code'] !== 'user_role' || !in_array($ref['code'], SPEC_ROLES, true)) err('Связь должна указывать на роль специалиста');
     return (int)$refId;
 }
 

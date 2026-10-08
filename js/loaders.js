@@ -8,8 +8,9 @@ async function loadSpecialists() {
       return {
         id: t.id, name: t.name, full: t.full_name,
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-        types: t.types || [],          // коды типов: trainer, bikefitter, mechanic (может быть несколько)
-        location_ids: (t.location_ids || []).map(Number),   // филиалы специалиста (справочник «специалист — филиал»)
+        roles: t.roles || [],          // кем и где работает: [{code, location_id}] — роли trainer, bikefitter, mechanic
+        types: t.types || [],          // коды его ролей (может быть несколько)
+        location_ids: (t.location_ids || []).map(Number),   // филиалы его ролей
         active: parseInt(t.active) ? 1 : 0
       };
     });
@@ -27,8 +28,9 @@ async function loadSpecialistsAll() {
         id: t.id, name: t.name, full: t.full_name,
         firstName: t.first_name || '', lastName: t.last_name || '', phone: t.phone || '',
         exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
+        roles: t.roles || [],
         types: t.types || [],
-        location_ids: (t.location_ids || []).map(Number),   // филиалы специалиста (справочник «специалист — филиал»)
+        location_ids: (t.location_ids || []).map(Number),   // филиалы его ролей
         // актуальные (с сегодняшнего дня) периоды графика и исключения — для карточек
         schedules: t.schedules || [],
         exceptions: t.exceptions || [],
@@ -46,12 +48,11 @@ function fillSpecialistSelects() {
   applySpecialistFilter('lts-specialist', 'lts-specialist-label', libItem ? libItem.cat : '', libItem ? libItem.location_id : null);
 }
 
-// Список специалистов по категории активности (значение пункта — id специалиста): тип специалиста берётся из справочника
-// (activity_category.ref_id -> specialist_type: training -> trainer, bikefit -> bikefitter,
-// workshop -> mechanic). Подпись поля — название типа («Тренер», «Байкфиттер», «Мастер»).
+// Список специалистов по категории занятия (значение пункта — id специалиста): роль, которая ведёт категорию, берётся
+// из справочника (ref_id категории -> user_role: training -> trainer, bikefit -> bikefitter,
+// workshop -> mechanic). Подпись поля — название роли («Тренер», «Байкфиттер», «Механик»).
 // Если у категории связи нет — поле «Специалист» и все специалисты.
-// locId — филиал занятия: только специалисты, работающие в нём по графику, и только если их специализация
-// доступна в филиале (Настройки → Справочники). Никого нет — список пустой с пояснением.
+// locId — филиал занятия: только специалисты с этой ролью именно в этом филиале. Никого нет — список пустой с пояснением.
 function applySpecialistFilter(selectId, labelId, cat, locId) {
   var sel = document.getElementById(selectId);
   if (!sel) return;
@@ -62,9 +63,11 @@ function applySpecialistFilter(selectId, labelId, cat, locId) {
     ? SPECIALISTS_DATA.filter(function (t) { return t.types.indexOf(specType) >= 0; })
     : SPECIALISTS_DATA;
   if (locId) {
-    var typeDict = specType ? SPEC_TYPES.find(function (x) { return x.code === specType; }) : null;
-    var typeHere = !typeDict || dictAvailableAt(typeDict.id, locId);
-    list = typeHere ? list.filter(function (t) { return t.location_ids.indexOf(Number(locId)) >= 0; }) : [];
+    list = list.filter(function (t) {
+      return specType
+        ? t.roles.some(function (r) { return r.code === specType && Number(r.location_id) === Number(locId); })
+        : t.location_ids.indexOf(Number(locId)) >= 0;
+    });
   }
   var label = document.getElementById(labelId);
   if (label) label.textContent = title;

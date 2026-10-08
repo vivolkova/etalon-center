@@ -39,11 +39,11 @@ async function loadLocationsAll() {
 
 // Категории занятий: training (dictionaries.activity_category) и услуги (service_category, is_service = 1): code -> name.
 // Значения по умолчанию — пока справочник не загрузился.
-// spec_type / spec_name — тип специалиста категории (dictionaries.ref_id -> specialist_type).
+// spec_type / spec_name — роль специалиста, который ведёт категорию (dictionaries.ref_id -> user_role).
 let ACTIVITY_CATS = [
   { code: 'training', name: 'Тренировка', spec_type: 'trainer',    spec_name: 'Тренер' },
   { code: 'bikefit',  name: 'Байкфит',    spec_type: 'bikefitter', spec_name: 'Байкфиттер' },
-  { code: 'workshop', name: 'Мастерская', spec_type: 'mechanic',   spec_name: 'Мастер' },
+  { code: 'workshop', name: 'Мастерская', spec_type: 'mechanic',   spec_name: 'Механик' },
 ];
 function catName(code) {
   const c = ACTIVITY_CATS.find(function (x) { return x.code === code; });
@@ -85,12 +85,13 @@ async function loadActivityCats() {
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Типы специалистов (dictionaries.specialist_type): [{ id, code, name }] — активные.
+// Специализации — роли специалистов из справочника user_role (тренер, байкфиттер, механик): [{ id, code, name }].
 // Значения по умолчанию — пока справочник не загрузился.
+const SPEC_ROLES = ['trainer', 'bikefitter', 'mechanic'];
 let SPEC_TYPES = [
   { id: 0, code: 'trainer', name: 'Тренер' },
   { id: 0, code: 'bikefitter', name: 'Байкфиттер' },
-  { id: 0, code: 'mechanic', name: 'Мастер' },
+  { id: 0, code: 'mechanic', name: 'Механик' },
 ];
 function specTypeName(code) {
   const t = SPEC_TYPES.find(function (x) { return x.code === code; });
@@ -114,7 +115,7 @@ function slotTypeName(code) {
   return t ? t.name : (code || '—');
 }
 
-// Значения справочника для форм: типы специалистов и типы занятий (одним запросом)
+// Значения справочника для форм: специализации и типы занятий (одним запросом)
 async function loadDictValues() {
   try {
     const res = await DictionariesAPI.list();
@@ -122,13 +123,13 @@ async function loadDictValues() {
       return (res || []).filter(function (d) { return d.group_code === group && d.active; })
         .map(function (d) { return { id: Number(d.id), code: d.code, name: d.name }; });
     };
-    const spec = pick('specialist_type'), slot = pick('slot_type');
+    const spec = pick('user_role').filter(function (d) { return SPEC_ROLES.indexOf(d.code) >= 0; }), slot = pick('slot_type');
     if (spec.length) SPEC_TYPES = spec;
     if (slot.length) SLOT_TYPES = slot;
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Филиалы значений прикладных групп (activity_category, specialist_type): { dictionaryId: [locationId, …] }.
+// Филиалы значений прикладных групп (activity_category, service_category): { dictionaryId: [locationId, …] }.
 // Значение доступно только в своих филиалах; значений других групп здесь нет — они не зависят от филиала
 let DICT_LOCS = {};
 async function loadDictAvailability() {

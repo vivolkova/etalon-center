@@ -4,12 +4,11 @@
 const DICT_GROUP_LABEL = {
   activity_category: 'Тренировки — категория занятий в зале (новые виды добавляйте в «Услуги»)',
   service_category: 'Услуги — разделы страницы «Услуги» на сайте',
-  specialist_type: 'Типы специалистов',
   slot_type: 'Типы занятий — задаются в библиотеке (системный)',
   user_role: 'Роли пользователей (системный)',
 };
-const DICT_GROUP_ORDER = ['specialist_type', 'service_category', 'activity_category', 'slot_type', 'user_role'];
-// Группы с категориями занятий: у значения есть тип специалиста, который его ведёт (ref_id)
+const DICT_GROUP_ORDER = ['service_category', 'activity_category', 'slot_type', 'user_role'];
+// Группы с категориями занятий: у значения есть роль специалиста, который его ведёт (ref_id)
 const DICT_CATEGORY_GROUPS = ['activity_category', 'service_category'];
 
 let DICTS = [];   // значения справочников (с location_ids)
@@ -65,7 +64,7 @@ async function dictReloadCaches() {
 function openDictModal(id, group) {
   const d = id ? DICTS.find(function (v) { return v.id === id; }) : null;
   const g = d ? d.group_code : group;
-  const specTypes = DICTS.filter(function (v) { return v.group_code === 'specialist_type'; });
+  const specTypes = DICTS.filter(function (v) { return v.group_code === 'user_role' && SPEC_ROLES.indexOf(v.code) >= 0; });
   const locOptions = locMsOptions(true);
   const body =
     '<div class="set-hint u-mb-10">' + escAttr(DICT_GROUP_LABEL[g] || g) + '</div>' +
@@ -76,7 +75,7 @@ function openDictModal(id, group) {
        : '<input class="form-input" id="dm-code" required>') +
     '<div class="set-hint">Латиница, цифры и _. После создания не меняется — на код опирается приложение.</div></div>' +
     (DICT_CATEGORY_GROUPS.indexOf(g) >= 0
-      ? '<div class="form-field"><label class="form-label">Кто ведёт (тип специалиста)</label><select class="form-input" id="dm-ref">' +
+      ? '<div class="form-field"><label class="form-label">Кто ведёт</label><select class="form-input" id="dm-ref">' +
         '<option value="">— не задано —</option>' +
         specTypes.map(function (t) { return '<option value="' + t.id + '"' + (d && d.ref_id === t.id ? ' selected' : '') + '>' + escAttr(t.name) + '</option>'; }).join('') +
         '</select></div>'

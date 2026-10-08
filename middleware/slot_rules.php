@@ -148,16 +148,15 @@ function checkSlotSpecialist(PDO $db, array $s): void {
     $who = $sp['full_name'];
     if (!(int)$sp['active']) slotFail($who . ' — неактивный специалист');
 
-    // 2–3) Специализация, которая ведёт категорию, — у специалиста есть и доступна в филиале
+    // 2–3) Роль, которая ведёт категорию, — у специалиста есть, и именно в этом филиале
     if ($cat['ref_id']) {
         $st = $db->prepare('SELECT d.name FROM dictionaries d WHERE d.id = ?');
         $st->execute([(int)$cat['ref_id']]);
         $typeName = (string)$st->fetchColumn();
-        $st = $db->prepare('SELECT 1 FROM specialist_types WHERE specialist_id = ? AND type_id = ? AND active = 1');
-        $st->execute([$specId, (int)$cat['ref_id']]);
-        if (!$st->fetchColumn()) slotFail($who . ' — не ' . mb_strtolower($typeName) . ': «' . $cat['name'] . '» ведёт ' . mb_strtolower($typeName));
-        if (!dictAvailableAt($db, (int)$cat['ref_id'], $locId)) {
-            slotFail('Специализация «' . $typeName . '» недоступна в филиале «' . slotLocName($db, $locId) . '»');
+        $roles = array_filter(specialistsRoles($db, [$specId])[$specId] ?? [], fn($r) => $r['role_id'] === (int)$cat['ref_id']);
+        if (!$roles) slotFail($who . ' — не ' . mb_strtolower($typeName) . ': «' . $cat['name'] . '» ведёт ' . mb_strtolower($typeName));
+        if (!in_array($locId, array_column($roles, 'location_id'), true)) {
+            slotFail($who . ' — не ' . mb_strtolower($typeName) . ' в филиале «' . slotLocName($db, $locId) . '»');
         }
     }
 
@@ -230,14 +229,15 @@ function lockSpecialist(PDO $db, int $specId): array {
     if (!$sp) err('Специалист не найден', 404);
     return $sp;
 }
-// Блокируется только строка specialists; имя — из users (specialists_view), его блокировать незачем. [id, active, full_name] или null
+// Блокируется только строка specialists; имя и «работает ли» — из specialists_view, их блокировать незачем.
+// [id, active, full_name] или null
 function lockSpecialistRow(PDO $db, int $specId): ?array {
-    $st = $db->prepare('SELECT id, active FROM specialists WHERE id = ? FOR UPDATE');
+    $st = $db->prepare('SELECT id FROM specialists WHERE id = ? FOR UPDATE');
     $st->execute([$specId]);
-    $sp = $st->fetch();
-    if (!$sp) return null;
-    $sp['full_name'] = specialistName($db, $specId);
-    return $sp;
+    if (!$st->fetch()) return null;
+    $st = $db->prepare('SELECT id, active, full_name FROM specialists_view WHERE id = ?');
+    $st->execute([$specId]);
+    return $st->fetch();
 }
 function specialistName(PDO $db, int $specId): string {
     $st = $db->prepare('SELECT full_name FROM specialists_view WHERE id = ?');
@@ -262,12 +262,11 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
     $slots = $st->fetchAll();
     if (!$slots) return [];
 
-    $st = $db->prepare('SELECT active FROM specialists WHERE id = ?');
+    $st = $db->prepare('SELECT active FROM specialists_view WHERE id = ?');
     $st->execute([$specId]);
     $active = (int)$st->fetchColumn();
-    $st = $db->prepare('SELECT type_id FROM specialist_types WHERE specialist_id = ? AND active = 1');
-    $st->execute([$specId]);
-    $types = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN));
+    $roles = [];   // 'роль:филиал' => true
+    foreach (specialistsRoles($db, [$specId])[$specId] ?? [] as $r) $roles[$r['role_id'] . ':' . $r['location_id']] = true;
 
     $days = [];   // кеш часов работы по датам
     $out = [];
@@ -275,8 +274,8 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
         $reason = null;
         if (!$active) {
             $reason = 'специалист неактивен';
-        } elseif ($s['ref_id'] && !in_array((int)$s['ref_id'], $types, true)) {
-            $reason = 'нет специализации «' . $s['type_name'] . '»';
+        } elseif ($s['ref_id'] && !isset($roles[(int)$s['ref_id'] . ':' . (int)$s['location_id']])) {
+            $reason = 'нет роли «' . $s['type_name'] . '» в филиале «' . slotLocName($db, (int)$s['location_id']) . '»';
         } else {
             $date = $s['slot_date'];
             $day = $days[$date] ??= specialistAvailability($db, $specId, $date, $date)[0];

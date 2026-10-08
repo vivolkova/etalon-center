@@ -10,7 +10,7 @@
 // Чтение: действующие строки — WHERE amnd_state = 'A'.
 
 // Таблицы с историей изменений (имя таблицы подставляется в запрос — только из этого списка)
-const AMND_TABLES = ['user_roles', 'documents', 'specialist_locations'];
+const AMND_TABLES = ['user_roles', 'documents'];
 
 function amndTable(string $table): string {
     if (!in_array($table, AMND_TABLES, true)) throw new InvalidArgumentException('Таблица без истории изменений: ' . $table);

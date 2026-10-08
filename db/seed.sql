@@ -13,21 +13,19 @@ INSERT INTO dictionaries (group_code, code, name) VALUES
 ('user_role', 'system_admin', 'Администратор системы'),
 ('user_role', 'studio_admin', 'Администратор студии'),
 ('user_role', 'trainer', 'Тренер'),
+('user_role', 'bikefitter', 'Байкфиттер'),
 ('user_role', 'mechanic', 'Механик'),
 ('activity_category', 'training', 'Тренировка'),
 ('service_category', 'bikefit', 'Байкфит'),
 ('service_category', 'workshop', 'Мастерская'),
 ('slot_type', 'group', 'Групповая'),
 ('slot_type', 'personal', 'Персональная'),
-('slot_type', 'free', 'Самостоятельная'),
-('specialist_type', 'trainer', 'Тренер'),
-('specialist_type', 'bikefitter', 'Байкфиттер'),
-('specialist_type', 'mechanic', 'Мастер');
+('slot_type', 'free', 'Самостоятельная');
 
--- Связь категория активности -> тип специалиста (dictionaries.ref_id).
+-- Связь категория занятия -> роль специалиста, который его ведёт (dictionaries.ref_id).
 -- Новая категория (например, massage -> masseur) — добавить пару сюда.
 UPDATE dictionaries c
-JOIN dictionaries s ON s.group_code = 'specialist_type'
+JOIN dictionaries s ON s.group_code = 'user_role'
  AND (c.code, s.code) IN (('training', 'trainer'), ('bikefit', 'bikefitter'), ('workshop', 'mechanic'))
 SET c.ref_id = s.id
 WHERE c.group_code IN ('activity_category', 'service_category');
@@ -51,10 +49,10 @@ INSERT INTO settings (code, name, value) VALUES
 ('free_training_max_minutes', 'Самостоятельная тренировка: максимальная длительность, мин', '180'),
 ('free_training_extra_price', 'Самостоятельная тренировка: доплата за каждые 30 минут сверх базовой длительности, ₽', '500');
 
--- Категории активностей и типы специалистов доступны в основном филиале (филиалы у значений — явным списком)
+-- Категории занятий доступны в основном филиале (филиалы у значений — явным списком)
 INSERT INTO location_dictionaries (dictionary_id, location_id)
 SELECT d.id, l.id FROM dictionaries d CROSS JOIN locations l
-WHERE d.group_code IN ('activity_category', 'service_category', 'specialist_type');
+WHERE d.group_code IN ('activity_category', 'service_category');
 
 -- Станки основного филиала: 1-й ряд — 4 велотренажёра + 2 велостанка, 2-й ряд — роллер.
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
@@ -87,10 +85,10 @@ INSERT INTO locations (name, address, hall_cols, hall_rows, max_people, email, p
  '[{"day":"Понедельник","open":true,"from":"08:00","to":"21:00"},{"day":"Вторник","open":true,"from":"08:00","to":"21:00"},{"day":"Среда","open":true,"from":"08:00","to":"21:00"},{"day":"Четверг","open":true,"from":"08:00","to":"21:00"},{"day":"Пятница","open":true,"from":"08:00","to":"21:00"},{"day":"Суббота","open":true,"from":"08:00","to":"21:00"},{"day":"Воскресенье","open":false,"from":"","to":""}]');
 SET @south = LAST_INSERT_ID();
 
--- В «Юге» — только тренировки, их ведёт тренер (байкфита и мастерской нет)
+-- В «Юге» — только тренировки (байкфита и мастерской нет)
 INSERT INTO location_dictionaries (dictionary_id, location_id)
 SELECT d.id, @south FROM dictionaries d
-WHERE (d.group_code, d.code) IN (('activity_category', 'training'), ('specialist_type', 'trainer'));
+WHERE (d.group_code, d.code) IN (('activity_category', 'training'));
 
 -- Зал «Юга» настроен: два велотренажёра и велостанок (1-й ряд)
 INSERT INTO stations (location_id, type_id, label, pos_x, pos_y, sort_order) VALUES
@@ -115,18 +113,17 @@ INSERT INTO specialists (user_id, experience)
 SELECT id, ELT(FIELD(phone, '79000000001', '79000000002', '79000000003'), 5, 7, 6)
 FROM users WHERE phone IN ('79000000001', '79000000002', '79000000003') ORDER BY phone;
 
--- Типы специалистов: Максим — и тренер, и байкфиттер
-INSERT INTO specialist_types (specialist_id, type_id)
-SELECT sp.id, d.id FROM specialists_view sp
-JOIN dictionaries d ON d.group_code = 'specialist_type'
- AND (sp.full_name, d.code) IN (('Анна Козлова', 'trainer'), ('Максим Романов', 'trainer'),
-                                ('Максим Романов', 'bikefitter'), ('Игорь Белов', 'bikefitter'));
-
--- Филиалы специалистов: все трое — в основном филиале (id 1), Максим ещё и в «Юге»
-INSERT INTO specialist_locations (specialist_id, location_id)
-SELECT sp.id, 1 FROM specialists_view sp;
-INSERT INTO specialist_locations (specialist_id, location_id)
-SELECT sp.id, @south FROM specialists_view sp WHERE sp.full_name = 'Максим Романов';
+-- Роли специалистов — кем и в каком филиале работает: Анна — тренер в основном филиале (id 1); Максим — тренер
+-- в основном и в «Юге», байкфиттер в основном; Игорь — байкфиттер в основном
+INSERT INTO user_roles (user_id, role_id, location_id)
+SELECT u.id, d.id, IF(x.loc = 'south', @south, 1)
+FROM (SELECT '79000000001' AS phone, 'trainer' AS code, 'main' AS loc
+      UNION ALL SELECT '79000000002', 'trainer', 'main'
+      UNION ALL SELECT '79000000002', 'trainer', 'south'
+      UNION ALL SELECT '79000000002', 'bikefitter', 'main'
+      UNION ALL SELECT '79000000003', 'bikefitter', 'main') x
+JOIN users u ON u.phone = x.phone
+JOIN dictionaries d ON d.group_code = 'user_role' AND d.code = x.code;
 
 -- Графики и исключения ниже заводит локальный админ (created_by обязателен)
 SET @dev_admin = (SELECT id FROM users WHERE phone = '79111457089');

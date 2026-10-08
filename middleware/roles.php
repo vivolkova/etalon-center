@@ -26,6 +26,11 @@ const BRANCH_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'library', '
 const STUDIO_ADMIN_RIGHTS = ['journal', 'bookings', 'blocks', 'clients', 'spec_hours'];
 const ALL_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'clients', 'spec_hours', 'specialists', 'library', 'hall', 'system'];
 
+// Роли специалистов: тренер, байкфиттер, механик. Такая роль выдаётся с филиалом (user_roles.location_id) — это и есть
+// «кем и где работает специалист»; категория занятия ссылается на роль, которая его ведёт (dictionaries.ref_id).
+// Тот же список — в specialists_view (db/schema.sql)
+const SPEC_ROLES = ['trainer', 'bikefitter', 'mechanic'];
+
 function isSystemAdmin(array $user): bool {
     foreach ($user['roles'] as $r) if ($r['code'] === 'system_admin') return true;
     return false;

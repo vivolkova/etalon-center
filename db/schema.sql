@@ -28,14 +28,14 @@ CREATE TABLE locations (
 
 -- ── Единый справочник ───────────────────────────────────────
 -- group_code — код справочника (user_role, activity_category, service_category,
--- slot_type, specialist_type); неизменяем — защищён триггером ниже.
+-- slot_type); неизменяем — защищён триггером ниже.
 -- Категории занятий — две группы: activity_category (только training — тренировки) и service_category
 -- (услуги: bikefit, workshop, massage…). Код категории уникален в обеих группах (проверка в API).
 -- station_type вынесен в отдельную таблицу (см. ниже).
 -- ref_id — связанное значение другого справочника. Сейчас используется так:
--- activity_category -> specialist_type (какой специалист ведёт активность:
+-- категория занятия -> роль из user_role (какой специалист ведёт занятие:
 -- training -> trainer, bikefit -> bikefitter, workshop -> mechanic).
--- В каких филиалах доступно значение (activity_category, specialist_type) — location_dictionaries.
+-- В каких филиалах доступно значение (activity_category, service_category) — location_dictionaries.
 CREATE TABLE dictionaries (
     id         INT AUTO_INCREMENT PRIMARY KEY,
     group_code VARCHAR(40)  NOT NULL,
@@ -61,7 +61,7 @@ END$$
 DELIMITER ;
 
 -- ── Филиалы, в которых доступно значение справочника ────────
--- Для прикладных групп (activity_category, specialist_type): значение доступно только в филиалах с активной строкой,
+-- Для прикладных групп (activity_category, service_category): значение доступно только в филиалах с активной строкой,
 -- всегда явным списком — новый филиал автоматически никуда не добавляется. Филиал убрали из значения — active = 0.
 CREATE TABLE location_dictionaries (
     id            INT AUTO_INCREMENT PRIMARY KEY,
@@ -130,7 +130,8 @@ CREATE TABLE user_roles (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
     role_id     INT NOT NULL,                      -- dictionaries.user_role
-    location_id INT NULL,
+    location_id INT NULL,                          -- филиал роли: NULL только у администратора системы; у администратора студии,
+                                                   -- тренера, байкфиттера, механика — обязателен (одна строка на каждый филиал)
     amnd_state  CHAR(1)  NOT NULL DEFAULT 'A',
     amnd_date   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     amnd_prev   INT NULL,
@@ -146,66 +147,36 @@ CREATE TABLE user_roles (
     CONSTRAINT chk_user_roles_state   CHECK (amnd_state IN ('A','I','C'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- ── Специалисты (тренеры, байкфиттеры, мастера) ────────────
--- Специалист — это человек из users (user_id обязателен): имя, фамилия и телефон берутся оттуда и здесь не повторяются.
--- Под этой учётной записью он входит и видит своё расписание.
--- Не привязан к филиалу: в каком филиале работает — задаётся у интервалов графика (specialist_schedules.week).
--- Специализация — типы из справочника specialist_type, может быть несколько (тренер и байкфиттер) — specialist_types.
+-- ── Специалисты (тренеры, байкфиттеры, механики) ───────────
+-- Карточка специалиста — человек из users (user_id обязателен): имя, фамилия и телефон берутся оттуда и здесь
+-- не повторяются. Под этой учётной записью он входит и видит своё расписание.
+-- Кем и где он работает, здесь не записано: это его роли trainer, bikefitter, mechanic с филиалом в user_roles.
+-- Карточка создаётся при первой такой роли и не удаляется: на неё ссылаются занятия, графики и отсутствия.
 CREATE TABLE specialists (
     id          INT AUTO_INCREMENT PRIMARY KEY,
-    user_id     INT NOT NULL,                    -- users.id: один человек — один специалист
+    user_id     INT NOT NULL,                    -- users.id: один человек — одна карточка специалиста
     experience  INT DEFAULT 0,
-    active      TINYINT(1) DEFAULT 1,
     created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_specialists_user (user_id),
     CONSTRAINT fk_specialists_user FOREIGN KEY (user_id) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- Специалист вместе с именем из users — для чтения (запись идёт в таблицы specialists и users).
+-- Специалист вместе с именем из users — для чтения (запись идёт в таблицы specialists, users и user_roles).
 -- name — короткое имя для сетки расписания («Анна К.»), full_name — полное («Анна Козлова»).
+-- active — вычисляется, в базе не хранится: 1 — человек не отключён (users.active) и у него есть действующая роль
+-- тренера, байкфиттера или механика; 0 — специалист больше не работает (карточка остаётся ради прошедших занятий).
 CREATE VIEW specialists_view AS
-SELECT sp.id, sp.user_id, sp.experience, sp.active, sp.created_at, sp.updated_at,
+SELECT sp.id, sp.user_id, sp.experience,
+       (u.active = 1 AND EXISTS (SELECT 1 FROM user_roles ur JOIN dictionaries d ON d.id = ur.role_id
+                                 WHERE ur.user_id = sp.user_id AND ur.amnd_state = 'A'
+                                   AND d.code IN ('trainer', 'bikefitter', 'mechanic'))) AS active,
+       sp.created_at, sp.updated_at,
        u.first_name, u.last_name, u.phone,
        CONCAT(u.first_name, ' ', LEFT(u.last_name, 1), '.') AS name,
        u.name AS full_name
 FROM specialists sp
 JOIN users u ON u.id = sp.user_id;
-
--- ── Филиалы специалиста: в каких филиалах он работает ───────
--- Справочник — главный: в графике специалиста (specialist_schedules, specialist_exceptions) можно указать только
--- филиалы отсюда. Убрать филиал нельзя, пока у специалиста там есть будущие часы работы или занятия (проверка в API).
--- История изменений (amnd_*) — как в user_roles: убранный филиал — amnd_state = 'C', вернули — новая строка 'A'.
-CREATE TABLE specialist_locations (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    specialist_id INT NOT NULL,
-    location_id   INT NOT NULL,
-    amnd_state    CHAR(1)  NOT NULL DEFAULT 'A',
-    amnd_date     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    amnd_prev     INT NULL,
-    updated_by    INT NULL,                      -- users.id; NULL — начальные данные
-    UNIQUE KEY uq_spec_location (specialist_id, location_id, (IF(amnd_state = 'A', 1, NULL))),
-    KEY fk_spec_loc_location (location_id),
-    CONSTRAINT fk_spec_loc_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
-    CONSTRAINT fk_spec_loc_location   FOREIGN KEY (location_id)   REFERENCES locations(id),
-    CONSTRAINT fk_spec_loc_prev       FOREIGN KEY (amnd_prev)     REFERENCES specialist_locations(id),
-    CONSTRAINT fk_spec_loc_by         FOREIGN KEY (updated_by)    REFERENCES users(id),
-    CONSTRAINT chk_spec_loc_state     CHECK (amnd_state IN ('A','I','C'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- ── Типы специалиста (тренер / байкфиттер / мастер), может быть несколько ──
--- Тип сняли со специалиста — active = 0 (физически не удаляем).
-CREATE TABLE specialist_types (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    specialist_id INT NOT NULL,
-    type_id       INT NOT NULL,                  -- dictionaries.specialist_type
-    active        TINYINT(1) NOT NULL DEFAULT 1, -- 0 — тип снят со специалиста
-    updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_spec_type (specialist_id, type_id),
-    KEY fk_spec_types_type (type_id),
-    CONSTRAINT fk_spec_types_specialist FOREIGN KEY (specialist_id) REFERENCES specialists(id),
-    CONSTRAINT fk_spec_types_type       FOREIGN KEY (type_id)       REFERENCES dictionaries(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ── График работы специалиста: недельный шаблон на период ───
 -- Периоды одного специалиста не пересекаются (проверка в API, среди активных). Например, «Зима» 01.09–31.05, «Лето» 01.06–31.08.

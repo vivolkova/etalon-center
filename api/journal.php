@@ -96,9 +96,10 @@ if ($method === 'GET' && $action === 'day') {
     // плюс те, на кого в этот день уже есть запись на услугу (даже если график с тех пор изменили).
     // cats — категории услуг специалиста: в какой вкладке журнала его показывать
     $st = $db->prepare("SELECT sp.id, sp.name, sp.full_name, c.code AS cat FROM specialists_view sp
-                        JOIN specialist_types t ON t.specialist_id = sp.id AND t.active = 1
-                        JOIN dictionaries c ON c.ref_id = t.type_id AND c.group_code = 'service_category' AND c.active = 1
+                        JOIN user_roles t ON t.user_id = sp.user_id AND t.amnd_state = 'A'
+                        JOIN dictionaries c ON c.ref_id = t.role_id AND c.group_code = 'service_category' AND c.active = 1
                         JOIN location_dictionaries ld ON ld.dictionary_id = c.id AND ld.location_id = ? AND ld.active = 1
+                                                     AND ld.location_id = t.location_id
                         WHERE sp.active = 1 ORDER BY sp.name, sp.id");
     $st->execute([$locId]);
     $byId = [];
