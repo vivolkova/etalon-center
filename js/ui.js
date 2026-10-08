@@ -182,6 +182,8 @@ document.addEventListener('click', e => {
     const ms = btn.closest('.ms');
     document.querySelectorAll('.ms.open').forEach(x => { if (x !== ms) x.classList.remove('open'); });
     ms.classList.toggle('open');
+    // список внутри прокручиваемой вкладки окна (.tab-pane-body) мог открыться за её краем — показать целиком
+    if (ms.classList.contains('open')) ms.querySelector('.ms-panel').scrollIntoView({ block: 'nearest' });
   }
 });
 document.addEventListener('change', e => {

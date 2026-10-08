@@ -11,7 +11,7 @@ let SPECIALISTS_ALL = [];    // все, включая неактивных (п�
 
 // Есть ли право: journal, bookings, clients, blocks (блокировка станков на занятие), spec_hours (графики специалистов) —
 // у любого администратора (в своих филиалах); schedule (изменение расписания), specialists (добавить, изменить,
-// удалить специалиста), library, hall, system — у администратора системы
+// удалить специалиста), staff (добавить и изменить сотрудника, его роли), library, hall, system — у администратора системы
 function canDo(right) {
   return !!(currentUser && (currentUser.rights || []).indexOf(right) >= 0);
 }
@@ -215,6 +215,7 @@ async function admNav(name, el) {
     journal: async function () { await Promise.allSettled([jrLoad(), loadClients()]); },   // день филиала; клиенты — для записи по звонку
     bookings: loadBookingsPanel,   // с фильтрами раздела (период, филиал)
     clients: loadClients,
+    staff: async function () { await Promise.allSettled([loadStaff(), loadLocationsAll()]); },
     specialists: async function () { await Promise.allSettled([loadSpecialists(), loadSpecialistsAll(), loadLocationsAll(), loadDictValues(), loadDictAvailability()]); },
     library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats(), loadDictAvailability(), loadDictValues()]); },
     settings: loadLocationsAll,
@@ -228,6 +229,7 @@ async function admNav(name, el) {
     library: renderLibrary,
     bookings: renderAdminBookings,
     clients: renderAdminClients,
+    staff: renderStaff,
     settings: renderSettings,
     profile: renderAdmProfile,
   };
