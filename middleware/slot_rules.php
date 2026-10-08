@@ -259,7 +259,9 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
             ORDER BY s.slot_date, s.start_time';
     $st = $db->prepare($sql);
     $st->execute($to !== null ? [$specId, $from, $to] : [$specId, $from]);
-    $slots = $st->fetchAll();
+    // Занятие, которое сегодня уже началось (по времени его филиала), «невозможным» стать не может — его не проверяем
+    $slots = array_values(array_filter($st->fetchAll(), fn($s) => $s['slot_date'] . ' ' . substr($s['start_time'], 0, 5)
+        > branchNow($db, (int)$s['location_id'])->format('Y-m-d H:i')));
     if (!$slots) return [];
 
     $st = $db->prepare('SELECT active FROM specialists_view WHERE id = ?');

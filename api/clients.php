@@ -12,6 +12,15 @@ const NOT_ADMIN_SQL = "NOT EXISTS (SELECT 1 FROM user_roles ur JOIN dictionaries
                                    WHERE ur.user_id = u.id AND ur.amnd_state = 'A'
                                      AND rd.code IN ('system_admin', 'studio_admin'))";
 
+// Сотрудник (человек с ролью) в запросах клиентской базы от администратора студии. Администраторов в клиентской
+// базе нет вовсе — для него их как будто не существует (404). Остальные сотрудники (тренер, байкфиттер, механик)
+// в базе есть: они тоже записываются на занятия. Возвращает роли человека; администратору системы доступны все
+function staffRolesFor(PDO $db, array $admin, int $id): array {
+    $roles = userRoles($db, $id);
+    if (!isSystemAdmin($admin) && array_filter($roles, fn($r) => in_array($r['code'], ADMIN_ROLES, true))) err('Клиент не найден', 404);
+    return $roles;
+}
+
 // Согласия за клиента администратор отмечает и отзывает, только пока у клиента нет личного кабинета (его завёл
 // администратор, документы он подписывает в студии). Клиент с кабинетом даёт и отзывает согласия сам на сайте
 const CONSENT_SELF = 'У клиента есть личный кабинет — согласия он даёт и отзывает сам на сайте';
@@ -67,6 +76,7 @@ if ($method === 'GET' && $action === 'get') {
     if (!$id) err('Не указан id');
 
     $db   = getDB();
+    staffRolesFor($db, $user, $id);
     // Личный кабинет: есть ли, когда создан, подтверждён ли номер (когда и кем), последний вход
     $stmt = $db->prepare('SELECT u.id, u.first_name, u.last_name, u.name, u.phone, u.has_account, u.account_created_at,
                                  u.phone_verified_at, u.phone_verified_method, v.name AS phone_verified_by_name,
@@ -138,6 +148,16 @@ if ($method === 'PUT' && $action === 'update') {
     // Статус клиента меняет только администратор системы: у администратора студии он остаётся прежним
     $db = getDB();
     $db->beginTransaction();
+    // Имя и телефон (логин) сотрудника меняет только администратор системы — в разделе «Сотрудники»
+    if (staffRolesFor($db, $admin, $id) && !isSystemAdmin($admin)) {
+        $st = $db->prepare('SELECT first_name, last_name, phone FROM users WHERE id = ?');
+        $st->execute([$id]);
+        $cur = $st->fetch();
+        if ($cur && ($cur['first_name'] !== $f[0] || $cur['last_name'] !== $f[1] || $cur['phone'] !== $phone)) {
+            $db->rollBack();
+            err('Это сотрудник: его имя, фамилию и телефон меняет администратор системы', 403);
+        }
+    }
     if ($codes || $revoke) {
         $st = $db->prepare('SELECT has_account FROM users WHERE id = ? FOR UPDATE');
         $st->execute([$id]);
@@ -157,9 +177,11 @@ if ($method === 'PUT' && $action === 'update') {
     ok(null, 'Клиент обновлён');
 }
 
-// Клиент для действий с кабинетом и номером: действующий и не администратор (у сотрудников — свой раздел)
-function clientForAccount(PDO $db, int $id): array {
+// Клиент для действий с кабинетом и номером: действующий и не администратор (у сотрудников — свой раздел).
+// Кабинетом сотрудника (человека с ролью) управляет только администратор системы
+function clientForAccount(PDO $db, int $id, array $admin): array {
     if (!$id) err('Не указан id');
+    if (userRoles($db, $id) && !isSystemAdmin($admin)) err('Это сотрудник: его кабинетом управляет администратор системы', 403);
     $st = $db->prepare('SELECT u.id, u.phone, u.has_account, u.phone_verified_at, u.password IS NULL AS no_password FROM users u
                         WHERE u.id = ? AND u.active = 1 AND ' . NOT_ADMIN_SQL . ' FOR UPDATE');
     $st->execute([$id]);
@@ -174,7 +196,7 @@ if ($method === 'POST' && $action === 'verify_phone') {
     $admin = authCan('clients');
     $db = getDB();
     $db->beginTransaction();
-    $c = clientForAccount($db, (int)(input()['id'] ?? 0));
+    $c = clientForAccount($db, (int)(input()['id'] ?? 0), $admin);
     if ($c['phone_verified_at'] !== null) { $db->rollBack(); err('Номер уже подтверждён'); }
     $db->prepare("UPDATE users SET phone_verified_at = NOW(), phone_verified_by = ?, phone_verified_method = 'admin' WHERE id = ?")
        ->execute([(int)$admin['id'], (int)$c['id']]);
@@ -202,7 +224,7 @@ if ($method === 'POST' && $action === 'auth_link') {
     $admin = authCan('clients');
     $db = getDB();
     $db->beginTransaction();
-    $c = clientForAccount($db, (int)(input()['id'] ?? 0));
+    $c = clientForAccount($db, (int)(input()['id'] ?? 0), $admin);
     if ((int)$c['has_account']) { $db->rollBack(); err('У клиента уже есть кабинет — сбросьте ему пароль'); }
     $link = authLinkIssue($db, $admin, $c, 'activate');
     $db->commit();
@@ -216,7 +238,7 @@ if ($method === 'POST' && $action === 'reset_password') {
     $admin = authCan('clients');
     $db = getDB();
     $db->beginTransaction();
-    $c = clientForAccount($db, (int)(input()['id'] ?? 0));
+    $c = clientForAccount($db, (int)(input()['id'] ?? 0), $admin);
     if (!(int)$c['has_account']) { $db->rollBack(); err('У клиента нет личного кабинета'); }
     if (!(int)$c['no_password']) {
         $db->prepare('UPDATE users SET password = NULL WHERE id = ?')->execute([(int)$c['id']]);

@@ -15,6 +15,7 @@
 //   clients     — клиентская база (общая для всех филиалов)
 //   spec_hours  — графики специалистов (администратор студии меняет только интервалы своего филиала)
 //   specialists — добавление, изменение и удаление специалиста
+//   staff       — сотрудники: добавить и изменить человека, выдать и снять роли, история ролей
 //   system      — справочники, параметры, филиалы, типы станков
 //
 // Администратор системы может всё и во всех филиалах. Администратор студии — права из списка ниже и только
@@ -24,7 +25,7 @@
 const BRANCH_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'library', 'hall'];   // проверяются вместе с филиалом
 // Расписание администратор студии не меняет (право schedule) — только блокирует станки на занятие (blocks)
 const STUDIO_ADMIN_RIGHTS = ['journal', 'bookings', 'blocks', 'clients', 'spec_hours'];
-const ALL_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'clients', 'spec_hours', 'specialists', 'library', 'hall', 'system'];
+const ALL_RIGHTS = ['journal', 'bookings', 'schedule', 'blocks', 'clients', 'spec_hours', 'specialists', 'staff', 'library', 'hall', 'system'];
 
 // Роли специалистов: тренер, байкфиттер, механик. Такая роль выдаётся с филиалом (user_roles.location_id) — это и есть
 // «кем и где работает специалист»; категория занятия ссылается на роль, которая его ведёт (dictionaries.ref_id).
