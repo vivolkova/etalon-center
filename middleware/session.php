@@ -143,6 +143,20 @@ function waitMinutesText(int $m): string {
     return $m . ' ' . $w;
 }
 
+// ── Одноразовые ссылки от администратора (auth_links) ─────
+// Отменить неиспользованные ссылки человека: срок действия заканчивается сейчас
+function authLinksCancel(PDO $db, int $userId): void {
+    $db->prepare('UPDATE auth_links SET expires_at = NOW() WHERE user_id = ? AND used_at IS NULL AND expires_at > NOW()')
+       ->execute([$userId]);
+}
+// Перебор ссылок с одного адреса: столько же неудач, сколько при входе, — и ссылки с этого адреса не принимаются
+function linkBlocked(PDO $db): ?string {
+    $st = $db->prepare("SELECT COUNT(*) FROM auth_attempts
+                        WHERE kind = 'link' AND success = 0 AND ip = ? AND created_at > DATE_SUB(NOW(), INTERVAL ? MINUTE)");
+    $st->execute([clientIp(), LOGIN_FAILS_MINUTES]);
+    return (int)$st->fetchColumn() >= LOGIN_FAILS_PER_IP ? 'Слишком много попыток. Попробуйте позже' : null;
+}
+
 function registerBlocked(PDO $db): ?string {
     $st = $db->prepare("SELECT COUNT(*) FROM auth_attempts
                         WHERE kind = 'register' AND success = 1 AND ip = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");

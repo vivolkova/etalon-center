@@ -328,9 +328,10 @@ function filterBookingsSearch(q) {
 function renderAdminBookings() {
   bookingsPanelFilters();
   filterBookingsSearch(document.getElementById('bookings-search')?.value || '');
-  // KPI — по загруженному периоду и филиалу
+  // KPI — по загруженному периоду и филиалу; сводные цифры видит только администратор системы
   const kpi = document.getElementById('bookings-kpi');
-  if (kpi) {
+  if (kpi) kpi.style.display = canDo('system') ? '' : 'none';
+  if (kpi && canDo('system')) {
     kpi.innerHTML = [
       { val: bookings.length, label: 'Всего', color: 'var(--ink)' },
       { val: bookings.filter(b => b.status === 'booked').length, label: 'Активные', color: 'var(--green)' },

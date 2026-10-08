@@ -101,6 +101,79 @@ if ($method === 'POST' && $action === 'login') {
     ok(['user' => authUserData($db, (int)$row['id']), 'session_key' => $session['key']]);
 }
 
+// ── Одноразовая ссылка от администратора: сайт/#access=<секрет> ──
+// Секрет приходит в теле запроса, а не в адресе: так он не попадает в журналы сервера. В базе — его отпечаток.
+const LINK_INVALID = 'Ссылка недействительна. Попросите администратора прислать новую';
+// Действующая ссылка с человеком, которому она выдана, или null. Ссылка для создания кабинета годится,
+// пока кабинета нет; для смены пароля — пока он есть
+function authLinkFind(PDO $db, string $token, bool $lock = false): ?array {
+    if (!preg_match('/^[0-9a-f]{64}$/', $token)) return null;
+    $st = $db->prepare('SELECT l.id, l.user_id, l.purpose, u.first_name, u.last_name, u.phone, u.has_account
+                        FROM auth_links l JOIN users u ON u.id = l.user_id
+                        WHERE l.token_hash = ? AND l.used_at IS NULL AND l.expires_at > NOW() AND u.active = 1'
+                        . ($lock ? ' FOR UPDATE' : ''));
+    $st->execute([hash('sha256', $token)]);
+    $l = $st->fetch();
+    if (!$l || ($l['purpose'] === 'activate') === ((int)$l['has_account'] === 1)) return null;
+    return $l;
+}
+function authLinkFail(PDO $db): void {
+    if ($db->inTransaction()) $db->rollBack();
+    attemptLog($db, 'link', null, false);
+    err(LINK_INVALID);
+}
+
+// POST /api/auth.php?action=link_check {token} — что это за ссылка: для кого и зачем (экран по ссылке)
+if ($method === 'POST' && $action === 'link_check') {
+    originGuard();
+    $db = getDB();
+    if ($blocked = linkBlocked($db)) err($blocked, 429);
+    $l = authLinkFind($db, (string)(input()['token'] ?? ''));
+    if (!$l) authLinkFail($db);
+    ok(['purpose' => $l['purpose'], 'first_name' => $l['first_name'], 'phone' => phoneView($l['phone'])]);
+}
+
+// POST /api/auth.php?action=link_use {token, password, agree_offer, agree_pd, agree_photo} — создать кабинет
+// (пароль и согласия, как при регистрации) или сменить пароль. Ссылка гасится, прежние сессии завершаются, вход выполнен
+if ($method === 'POST' && $action === 'link_use') {
+    originGuard();
+    $d  = input();
+    $db = getDB();
+    if ($blocked = linkBlocked($db)) err($blocked, 429);
+    $token = (string)($d['token'] ?? '');
+    $l = authLinkFind($db, $token);
+    if (!$l) authLinkFail($db);
+    $pass = (string)($d['password'] ?? '');
+    if ($problem = passwordProblem($pass, ['phone' => $l['phone'], 'names' => [$l['first_name'], $l['last_name']]])) err($problem);
+    $activate = $l['purpose'] === 'activate';
+    if ($activate) {
+        if (empty($d['agree_offer'])) err('Чтобы создать кабинет, нужно согласиться с офертой и правилами студии');
+        if (empty($d['agree_pd']))    err('Чтобы создать кабинет, нужно дать согласие на обработку персональных данных');
+    }
+
+    $db->beginTransaction();
+    // под блокировкой — ещё раз: две отправки одной ссылки не должны сработать обе
+    $l = authLinkFind($db, $token, true);
+    if (!$l) authLinkFail($db);
+    $userId = (int)$l['user_id'];
+    $hash = password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]);
+    if ($activate) {
+        $db->prepare('UPDATE users SET password = ?, has_account = 1, account_created_at = NOW() WHERE id = ?')->execute([$hash, $userId]);
+        consentAccept($db, $userId, array_merge(CONSENT_OFFER, CONSENT_PD, !empty($d['agree_photo']) ? CONSENT_PHOTO : []));
+    } else {
+        $db->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([$hash, $userId]);
+    }
+    $db->prepare('UPDATE auth_links SET used_at = NOW() WHERE id = ?')->execute([(int)$l['id']]);
+    sessionEndAll($db, $userId, 'password');
+    // в этом браузере был открыт чей-то кабинет — его сессия завершается: cookie сейчас заменится новой
+    if ($prev = sessionCurrent($db)) sessionEnd($db, $prev['session_id'], 'logout');
+    $session = sessionStart($db, $userId);
+    attemptLog($db, 'link', $l['phone'], true, $session['id']);
+    logAction($db, ['id' => $userId, 'session_id' => $session['id']], 'auth.link_used', 'users', $userId, ['purpose' => $l['purpose']]);
+    $db->commit();
+    ok(['user' => authUserData($db, $userId), 'session_key' => $session['key']]);
+}
+
 // POST /api/auth.php?action=logout — завершить эту сессию
 if ($method === 'POST' && $action === 'logout') {
     $user = authUser();

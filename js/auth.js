@@ -79,6 +79,49 @@ function consentChecksRead(prefix) {
   return { agree_offer: on('agree-offer'), agree_pd: on('agree-pd'), agree_photo: on('agree-photo') };
 }
 
+// ── Экран по одноразовой ссылке от администратора: сайт/#access=<секрет> ──
+// Создание кабинета — пароль и три галочки, как при регистрации; смена пароля — только пароль.
+// Секрет убираем из адреса сразу: он остаётся только в памяти открытого окна
+function accessFromHash() {
+  const m = location.hash.match(/^#access=([0-9a-f]{64})$/);
+  return m ? m[1] : null;
+}
+async function openAccessLink(token) {
+  history.replaceState(null, '', location.pathname + location.search);
+  let info;
+  try { info = await AuthAPI.linkCheck(token); }
+  catch (e) { uiInfo(e.offline ? 'Не удалось проверить ссылку' : 'Ссылка не сработала', e.message); return; }
+  const activate = info.purpose === 'activate';
+  const el = document.createElement('div');
+  el.className = 'admin-modal-overlay show';
+  el.id = 'access-modal';
+  el.innerHTML = '<div class="admin-modal u-max-w-460">'
+    + '<div class="admin-modal-title u-mb-8">' + (activate ? 'Создание личного кабинета' : 'Новый пароль') + '</div>'
+    + '<div class="u-text-body u-muted u-mb-12">' + escAttr(info.first_name) + ', придумайте ' + (activate ? 'пароль для входа' : 'новый пароль')
+    + '. Вход — по номеру ' + escAttr(info.phone) + '</div>'
+    + '<div class="form-field"><label class="form-label">Пароль</label>' + passFieldHtml('ac-pass', 'new-password', 8)
+    + '<div class="set-hint">Не короче 8 символов</div></div>'
+    + (activate ? consentChecksHtml('ac') : '')
+    + '<div class="admin-modal-actions"><button class="btn-ghost" id="ac-cancel">Отмена</button>'
+    + '<button class="btn-primary" id="ac-submit">' + (activate ? 'Создать кабинет' : 'Сохранить пароль') + '</button></div></div>';
+  document.body.appendChild(el);
+  document.getElementById('ac-cancel').onclick = function () { el.remove(); };
+  document.getElementById('ac-submit').onclick = async function () {
+    const pass = document.getElementById('ac-pass').value;
+    if (!pass) { showToast('Введите пароль', 'error'); return; }
+    const agree = activate ? consentChecksRead('ac') : {};
+    if (activate && (!agree.agree_offer || !agree.agree_pd)) { showToast('Отметьте согласие с офертой, правилами студии и обработкой персональных данных', 'error'); return; }
+    let user;
+    this.disabled = true;
+    try { user = await AuthAPI.linkUse(Object.assign({ token: token, password: pass }, agree)); }
+    catch (e) { this.disabled = false; return; }
+    el.remove();
+    if (currentUser) logoutLocal();   // на этом устройстве был открыт другой кабинет — его сессия заменена
+    showToast(activate ? 'Кабинет создан' : 'Пароль изменён', 'success');
+    loginUser(user, true);
+  };
+}
+
 // «Забыли пароль?» — пока восстановление только через администратора: он присылает ссылку для смены пароля
 function forgotPassword() {
   const loc = (typeof LOCATIONS !== 'undefined' && LOCATIONS[0]) || null;

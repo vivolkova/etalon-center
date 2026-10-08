@@ -366,15 +366,17 @@
   cursor: grabbing;
 }
 
+/* Кнопки занятия («Ред.», «Уд.») — всегда видны, в правом нижнем углу занятия любой высоты.
+   Раньше они шли строкой после текста и появлялись при наведении: у коротких занятий эта строка не помещалась
+   и обрезалась, поэтому кнопки были не на всех занятиях */
 .wg-slot-btns {
-  display: none;
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  display: flex;
   gap: 3px;
-  margin-top: 3px;
 }
 
-.wg-slot:hover .wg-slot-btns {
-  display: flex;
-}
 
 .wg-slot-btn {
   font-size: 9px;

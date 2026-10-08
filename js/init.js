@@ -34,7 +34,11 @@ renderFooterDocs();   // ссылки на документы студии в п
   renderSitePages();
   renderServices();
 
-  // 5. Страницу открыли по ссылке на документ (#doc/offer) — показываем его
+  // 5. Страницу открыли по одноразовой ссылке от администратора (#access=…) — экран создания кабинета или смены пароля
+  const access = accessFromHash();
+  if (access) openAccessLink(access);
+
+  // 6. Страницу открыли по ссылке на документ (#doc/offer) — показываем его
   const docCode = docFromHash();
   if (docCode) openDoc(docCode);
 })();

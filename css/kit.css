@@ -287,6 +287,68 @@ input[type="checkbox"]:required:invalid {
   .u-phone-only { display: block; }
 }
 
+/* ── Вкладка окна постоянной высоты: содержимое (.tab-pane-body) прокручивается внутри, кнопки остаются внизу.
+   Высоту задаёт скрипт — по первой вкладке, чтобы окно не меняло размер при переключении ── */
+.tab-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.tab-pane-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* ── Единый вид кнопок действий во всей системе (владелец 08.10.2026): белый фон, зелёный текст, зелёная рамка;
+   при наведении кнопка заливается зелёным. Размер, шрифт и отступы у каждого вида остаются свои (css/site.css,
+   css/library.css, css/week-grid.css) — здесь только цвета, поэтому новый вид кнопки достаточно добавить в список.
+   Не кнопки действий и сюда не входят: вкладки и фильтры (.chip), стрелки недели, «×» окна, плитки станков,
+   «Записаться» на плитке занятия у клиента; «✓ Вы записаны» остаётся золотой — это отметка, а не действие ── */
+.btn-primary,
+.btn-ghost,
+.btn-danger,
+.btn-ghost.btn-danger,
+.btn-cancel,
+.action-btn,
+.action-btn.confirm,
+.action-btn.cancel,
+.lib-add-slot-btn,
+.wg-today-btn,
+.wg-slot-btn {
+  background: #fff;
+  color: var(--green-dark);
+  border: 1px solid var(--green);
+}
+
+.btn-primary:hover,
+.btn-ghost:hover,
+.btn-danger:hover,
+.btn-ghost.btn-danger:hover,
+.btn-cancel:hover,
+.action-btn:hover,
+.action-btn.confirm:hover,
+.action-btn.cancel:hover,
+.lib-add-slot-btn:hover,
+.wg-today-btn:hover,
+.wg-slot-btn:hover {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+.btn-primary.is-booked-ok,
+.btn-primary.is-booked-ok:hover {
+  border-color: var(--mine-edge);
+}
+
+/* ── Кнопка в фокусе при работе с клавиатуры (Tab): одна рамка цвета студии у всех кнопок вместо чёрной рамки
+   браузера. При нажатии мышью рамки нет ── */
+button:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
 /* ── Недоступное действие: кнопка серая и не нажимается — один вид для всей системы (любая кнопка с disabled).
    Плитка станка (.station) — не действие, а место в зале: её вид «только показан» задан в css/admin.css ── */
 button:disabled:not(.station),

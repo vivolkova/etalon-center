@@ -59,6 +59,10 @@ document.addEventListener('keydown', e => {
   const btn = Array.from(modal.querySelectorAll('.modal-close, [data-act="cancel"]')).find(visible)
     || Array.from(modal.querySelectorAll('button')).find(b => visible(b) && /^(Отмена|Закрыть)$/.test(b.textContent.trim()));
   if (btn) btn.click(); else modal.classList.remove('show');
+  // Окно закрыто с клавиатуры — браузер иначе обвёл бы рамкой кнопку, которой его открывали («Детали», «Ред.»…):
+  // снимаем с неё фокус, чтобы после Esc кнопки выглядели так же, как после закрытия мышью
+  const focused = document.activeElement;
+  if (focused instanceof HTMLElement && focused !== document.body && !focused.closest('.show')) focused.blur();
 });
 
 

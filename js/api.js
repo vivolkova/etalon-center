@@ -69,6 +69,16 @@ const AuthAPI = {
     Auth.set(res.session_key);
     return res.user;
   },
+  // Одноразовая ссылка от администратора: что это за ссылка — { purpose, first_name, phone }
+  async linkCheck(token) {
+    return apiRequest('/auth.php?action=link_check', 'POST', { token }, true);
+  },
+  // …и её использование: создать кабинет или сменить пароль; вход выполнен
+  async linkUse(data) {   // { token, password, agree_offer, agree_pd, agree_photo }
+    const res = await apiRequest('/auth.php?action=link_use', 'POST', data);
+    Auth.set(res.session_key);
+    return res.user;
+  },
   async login(phone, password) {
     const res = await apiRequest('/auth.php?action=login', 'POST', { phone, password });
     Auth.set(res.session_key);
@@ -281,9 +291,14 @@ const ClientsAPI = {
   async verifyPhone(id) {
     return apiRequest('/clients.php?action=verify_phone', 'POST', { id });
   },
-  // отключить личный кабинет: пароль стирается, сессии завершаются, записи на занятия остаются
-  async disableAccount(id) {
-    return apiRequest('/clients.php?action=disable_account', 'POST', { id });
+  // Одноразовая ссылка для клиента — ответ { token, purpose: activate | reset, hours, phone }:
+  // создать кабинет (клиенту без кабинета)…
+  async authLink(id) {
+    return apiRequest('/clients.php?action=auth_link', 'POST', { id });
+  },
+  // …или задать новый пароль: пароль стирается, клиент выходит на всех устройствах, записи на занятия остаются
+  async resetPassword(id) {
+    return apiRequest('/clients.php?action=reset_password', 'POST', { id });
   },
 };
 

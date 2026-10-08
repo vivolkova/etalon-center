@@ -166,7 +166,7 @@ function renderAdminSchedule() {
         if (canEdit) {
           cellHtml += '<div class="wg-slot-btns">';
           cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
-          cellHtml += '<button class="wg-slot-btn u-danger" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
+          cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
           cellHtml += '</div>';
         }
         cellHtml += '</div>';

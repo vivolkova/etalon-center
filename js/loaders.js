@@ -94,9 +94,6 @@ async function loadClients() {
           type: c.type || 'new',
           birth: c.birth_date || '', notes: c.notes || '',
           regDate: c.created_at ? c.created_at.slice(0, 10) : '',
-          totalBookings: parseInt(c.total_bookings) || 0,
-          totalSpent: parseInt(c.total_spent) || 0,
-          lastVisit: c.last_visit || ''
         };
       });
     }
