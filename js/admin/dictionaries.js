@@ -52,7 +52,7 @@ async function renderDictsTab() {
       // Категория тренировок одна (training) — новые значения добавляются только в услуги и типы специалистов
       (editable && g !== 'activity_category' ? '<button class="btn-ghost u-text-small"' + needAttr('system') + ' onclick="openDictModal(null,\'' + g + '\')">+ Значение</button>' : '') +
       '</div>' +
-      '<table class="dict-table">' + head + body + '</table></div>';
+      '<div class="admin-table"><table><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div></div>';
   }).join('');
 }
 

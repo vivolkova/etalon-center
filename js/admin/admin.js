@@ -43,20 +43,12 @@ function renderAdminClients(list) {
     tbody.innerHTML = `<tr><td class="empty-state" colspan="3">Клиентов не найдено</td></tr>`;
     return;
   }
+  // Имя — как в остальных таблицах панели, без кружка с инициалами; пометки («нет кабинета»…) — второй строкой
   tbody.innerHTML = rows.map(c => {
-    const av = clientAvatarColor(c.name);
-    const init = c.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const marks = clientMarks(c).join(' · ');
     return `<tr class="u-pointer" onclick="openClientModal(${c.id})">
-  <td>
-    <div class="client-name-cell">
-      <div class="client-avatar" style="background:${av}20;color:${av}">${init}</div>
-      <div>
-        <div class="u-strong u-text-ui">${c.name}</div>
-        <div class="u-muted u-text-caption">${clientMarks(c).join(' · ')}</div>
-      </div>
-    </div>
-  </td>
-  <td class="u-text-ui">${c.phone || '—'}</td>
+  <td><strong>${escAttr(c.name)}</strong>${marks ? '<br><span class="u-muted u-text-caption">' + marks + '</span>' : ''}</td>
+  <td class="u-nowrap">${c.phone || '—'}</td>
   <td><span class="c-badge ${c.type}">${{ new: 'Новый', regular: 'Постоянный', vip: 'VIP' }[c.type] || c.type}</span></td>
 </tr>`;
   }).join('');

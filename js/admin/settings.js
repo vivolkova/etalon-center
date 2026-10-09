@@ -432,10 +432,10 @@ function renderAdminBookingsFiltered(list) {
       '<td class="u-nowrap">' + date.getDate() + ' ' + MONTHS_RU[date.getMonth()] + ' · ' + b.time + '</td>' +
       '<td class="u-strong u-nowrap">' + b.price.toLocaleString('ru') + ' ₽</td>' +
       '<td><span class="status-badge ' + statusMap[b.status] + '">' + statusLabel[b.status] + '</span></td>' +
-      '<td class="u-flex u-gap-4 u-wrap">' +
+      '<td><div class="u-flex u-gap-4">' +
       (b.status !== 'cancelled' ? '<button class="action-btn confirm btn-sm" title="Изменить" aria-label="Изменить" onclick="bookingMove(' + b.id + ')">' + ICO_EDIT + '</button>' : '') +
       (b.status !== 'cancelled' ? '<button class="action-btn cancel btn-sm" title="Отменить запись" aria-label="Отменить запись" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
-      '</td></tr>';
+      '</div></td></tr>';
   }).join('');
 }
 

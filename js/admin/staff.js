@@ -31,14 +31,19 @@ function staffLocName(id) {
   const l = admLocs(true).find(function (x) { return Number(x.id) === Number(id); }) || LOCATIONS_ALL.find(function (x) { return Number(x.id) === Number(id); });
   return l ? l.name : '#' + id;
 }
-// «Кем и где работает»: по строке на роль в порядке справочника, после двоеточия — филиалы роли (в названиях филиалов есть тире)
-function staffRolesHtml(s) {
-  return STAFF_ROLES.map(function (r) {
-    const own = s.roles.filter(function (x) { return x.code === r.code; });
-    if (!own.length) return '';
-    const locs = own.filter(function (x) { return x.location_id !== null; }).map(function (x) { return staffLocName(x.location_id); });
-    return '<div>' + escAttr(r.name) + (locs.length ? ': ' + escAttr(locs.join(', ')) : '') + '</div>';
-  }).join('');
+// Столбец «Где и кем работает»: по филиалам — «филиал: его роли», через « · » (решение владельца 09.10.2026: из списка
+// должно быть видно, какая роль в каком филиале). Роль без филиала (главный управляющий) — «Все филиалы: …» первой
+function staffWorkText(s) {
+  const groups = [];   // [{loc: id филиала или null, roles: [названия]}] — филиалы в порядке ролей справочника
+  STAFF_ROLES.forEach(function (r) {
+    s.roles.filter(function (x) { return x.code === r.code; }).forEach(function (x) {
+      let g = groups.find(function (y) { return y.loc === x.location_id; });
+      if (!g) groups.push(g = { loc: x.location_id, roles: [] });
+      g.roles.push(r.name);
+    });
+  });
+  groups.sort(function (a, b) { return (a.loc === null ? -1 : a.loc) - (b.loc === null ? -1 : b.loc); });
+  return groups.map(function (g) { return (g.loc === null ? 'Все филиалы' : staffLocName(g.loc)) + ': ' + g.roles.join(', '); }).join(' · ');
 }
 
 // Раздел открыт (из меню или после смены филиала в шапке): фильтр по филиалу встаёт на филиал из шапки
@@ -53,7 +58,7 @@ function renderStaff() {
   document.getElementById('staff-add').style.display = canDo('staff') ? '' : 'none';
   document.getElementById('staff-former-box').style.display = canDo('staff') ? '' : 'none';
   const former = staffFormer();
-  document.getElementById('staff-col-roles').textContent = former ? 'Уволен' : 'Кем и где работает';
+  document.getElementById('staff-col-work').textContent = former ? 'Уволен' : 'Где и кем работает';
   const roleSel = document.getElementById('staff-role');
   roleSel.style.display = former ? 'none' : '';
   const locSel = document.getElementById('staff-loc');
@@ -82,19 +87,13 @@ function renderStaff() {
     return;
   }
   tbody.innerHTML = rows.map(function (s) {
-    const av = clientAvatarColor(s.name);
-    const init = s.name.split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase();
     const marks = [];
     if (!s.has_account) marks.push('нет кабинета');
     if (!s.phone_verified) marks.push('номер не подтверждён');
     return '<tr class="u-pointer" onclick="openStaffModal(' + s.id + (former ? ", 'history'" : '') + ')">' +
-      '<td><div class="client-name-cell">' +
-      '<div class="client-avatar" style="background:' + av + '20;color:' + av + '">' + escAttr(init) + '</div>' +
-      '<div><div class="u-strong u-text-ui">' + escAttr(s.name) + '</div>' +
-      '<div class="u-muted u-text-caption">' + marks.join(' · ') + '</div></div>' +
-      '</div></td>' +
-      '<td class="u-text-ui u-nowrap">' + escAttr(s.phone || '—') + '</td>' +
-      '<td class="u-text-ui">' + (former ? docDate(s.left_at) : staffRolesHtml(s)) + '</td>' +
+      '<td><strong>' + escAttr(s.name) + '</strong>' + (marks.length ? '<br><span class="u-muted u-text-caption">' + marks.join(' · ') + '</span>' : '') + '</td>' +
+      '<td class="u-nowrap">' + escAttr(s.phone || '—') + '</td>' +
+      '<td>' + (former ? docDate(s.left_at) : escAttr(staffWorkText(s))) + '</td>' +
       '</tr>';
   }).join('');
 }
@@ -223,11 +222,11 @@ async function stHistoryLoad(id) {
     '<th>Роль</th><th>Филиал</th><th>С</th><th>По</th><th>Кто выдал / снял</th></tr></thead><tbody>' +
     rows.map(function (r) {
       return '<tr' + (r.date_to ? ' class="u-muted"' : '') + '>' +
-        '<td class="u-text-ui">' + escAttr(r.name) + '</td>' +
-        '<td class="u-text-ui">' + (r.location_id !== null ? escAttr(staffLocName(r.location_id)) : 'все филиалы') + '</td>' +
-        '<td class="u-text-ui u-nowrap">' + docDate(r.date_from) + '</td>' +
-        '<td class="u-text-ui u-nowrap">' + (r.date_to ? docDate(r.date_to) : 'действует') + '</td>' +
-        '<td class="u-text-ui">' + escAttr(r.granted_by || '—') + (r.date_to ? ' / ' + escAttr(r.revoked_by || '—') : '') + '</td>' +
+        '<td>' + escAttr(r.name) + '</td>' +
+        '<td>' + (r.location_id !== null ? escAttr(staffLocName(r.location_id)) : 'все филиалы') + '</td>' +
+        '<td class="u-nowrap">' + docDate(r.date_from) + '</td>' +
+        '<td class="u-nowrap">' + (r.date_to ? docDate(r.date_to) : 'действует') + '</td>' +
+        '<td>' + escAttr(r.granted_by || '—') + (r.date_to ? ' / ' + escAttr(r.revoked_by || '—') : '') + '</td>' +
         '</tr>';
     }).join('') + '</tbody></table></div>';
 }
