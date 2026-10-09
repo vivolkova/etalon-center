@@ -18,28 +18,6 @@ async function loadSpecialists() {
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Все специалисты, включая неактивных — только для панели «Специалисты» (admin).
-// SPECIALISTS_DATA остаётся списком активных для выпадающих списков.
-async function loadSpecialistsAll() {
-  try {
-    const res = await apiRequest('/specialists.php?action=list&all=1');
-    SPECIALISTS_ALL = (res || []).map(function (t) {
-      return {
-        id: t.id, name: t.name, full: t.full_name,
-        firstName: t.first_name || '', lastName: t.last_name || '', phone: t.phone || '',
-        exp: parseInt(t.experience) || 0, sessions: parseInt(t.sessions_count) || 0,
-        roles: t.roles || [],
-        types: t.types || [],
-        location_ids: (t.location_ids || []).map(Number),   // филиалы его ролей
-        // актуальные (с сегодняшнего дня) периоды графика и исключения — для карточек
-        schedules: t.schedules || [],
-        exceptions: t.exceptions || [],
-        active: parseInt(t.active) ? 1 : 0
-      };
-    });
-  } catch (e) { /* сервер недоступен */ }
-}
-
 // Перезаполнить выпадающие списки специалистов после загрузки данных из БД
 function fillSpecialistSelects() {
   var cat = document.getElementById('sm-cat');

@@ -1,66 +1,6 @@
-// Админка: специалисты, график работы специалиста
-// Кем и где работает специалист — его роли с филиалом (тренер, байкфиттер, механик); окно пока задаёт их двумя
-// списками — специализации и филиалы: сохраняется каждая роль в каждом филиале.
-
-// ═══ TRAINERS ════════════════════════════════════════════════════════
-
-// Панель «Специалисты» — карточки в формате библиотеки; неактивные — серым
-function renderSpecialists() {
-  const q = (document.getElementById('spec-search') ? document.getElementById('spec-search').value : '').toLowerCase();
-  const locSel = document.getElementById('spec-loc-filter');
-  let locFilter = null;
-  if (locSel) {
-    fillLocSelect(locSel, { empty: 'Все филиалы' });
-    locFilter = locSel.value ? parseInt(locSel.value) : null;
-  }
-  const actSel = document.getElementById('spec-active-filter');
-  const activeOnly = actSel && actSel.value === 'active';
-  const items = SPECIALISTS_ALL.filter(function (t) {
-    const okQ = !q || t.full.toLowerCase().includes(q) ||
-      t.types.some(function (c) { return specTypeName(c).toLowerCase().includes(q); });
-    // Филиал — где специалист работает по графику
-    const okLoc = !locFilter || t.location_ids.indexOf(locFilter) >= 0;
-    const okAct = !activeOnly || t.active;
-    return okQ && okLoc && okAct;
-  });
-  const grid = document.getElementById('adm-specialists-grid');
-  if (!grid) return;
-  if (!items.length) {
-    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary"' + needAttr('specialists') + ' onclick="openTrainerModal(null)">Добавить специалиста</button></div>';
-    return;
-  }
-  grid.innerHTML = items.map(function (t) {
-    // Плашки типов; цвет — как у связанной категории активности (trainer -> training и т.д.)
-    const typesHtml = t.types.map(function (code) {
-      const cat = ACTIVITY_CATS.find(function (c) { return c.spec_type === code; });
-      return '<div class="lib-card-cat' + (cat ? ' cat-' + cat.code : '') + '">' + escAttr(specTypeName(code)) + '</div>';
-    }).join('');
-    // Филиалы — где специалист работает по графику и особым часам
-    const locTags = t.location_ids.map(function (id) {
-      const l = findLocation(id);
-      return l ? '<span class="lib-meta-tag">' + escAttr(l.name) + '</span>' : '';
-    }).join('');
-    const inactive = !t.active;
-    const cardStyle = inactive ? ' style="background:#f3f4f6;opacity:.65"' : '';
-    const badge = inactive ? '<span class="lib-meta-tag tag-muted">Неактивен</span>' : '';
-    const actionsHtml =
-      '<button class="action-btn confirm btn-sm" onclick="openTrainerModal(' + t.id + ')">Ред.</button>';
-    return '<div class="lib-card"' + cardStyle + '>' +
-      '<div class="lib-card-header"><div>' +
-      '<div class="u-flex u-gap-4 u-wrap">' + typesHtml + '</div>' +
-      '<div class="lib-card-title">' + t.full + '</div>' +
-      '</div></div>' +
-      '<div class="lib-card-meta">' + badge + locTags +
-      '<span class="lib-meta-tag">Опыт: ' + t.exp + ' лет</span>' +
-      '</div>' +
-      specHoursCardHtml(t) +
-      '<div class="lib-card-footer">' +
-      '<div></div>' +
-      '<div class="lib-card-actions">' + actionsHtml + '</div>' +
-      '</div>' +
-      '</div>';
-  }).join('');
-}
+// Админка: график работы специалиста — вкладки «График работы», «Отсутствия», «Особые часы работы» в окне
+// сотрудника (js/admin/staff.js открывает окно и вызывает trmOpen) и окна периода графика и исключения.
+// Кем и где работает специалист — его роли с филиалом; часы работы можно задать только в филиалах ролей.
 
 // ── Форматирование графика ─────────────────────────────────────
 // 'YYYY-MM-DD' -> 'ДД.ММ.ГГГГ' (или 'ДД.ММ' без года)
@@ -97,54 +37,10 @@ function weekSummaryHtml(week) {
   }).join('');
 }
 
-// Период, действующий сегодня, иначе ближайший будущий
-function currentSchedule(schedules) {
-  const d = todayStr();
-  const list = schedules || [];
-  return list.find(function (s) { return s.date_from <= d && (!s.date_to || s.date_to >= d); }) ||
-    list.filter(function (s) { return s.date_from > d; })[0] || null;
-}
-
-function excText(e) {
-  return fmtDateRange(e.date_from, e.date_to) + ' · ' + (e.type === 'custom' ? ivText(e.work_hours) : 'не работает') +
-    (e.reason ? ' · ' + escAttr(e.reason) : '');
-}
-
-// График на карточке специалиста: текущий период + ближайшие исключения
-function specHoursCardHtml(t) {
-  const s = currentSchedule(t.schedules);
-  let html = '<div class="u-mt-10 u-border-top u-pt-8">';
-  if (!s) {
-    html += '<div class="u-text-small u-danger">График работы не задан</div>';
-  } else {
-    html += '<div class="u-text-small u-muted u-mb-2">' +
-      (s.date_from <= todayStr() ? 'График' : 'График с ' + fmtDateRu(s.date_from)) +
-      ' «' + escAttr(s.name) + '»' + (s.date_to ? ' до ' + fmtDateRu(s.date_to) : '') + '</div>' +
-      weekSummaryHtml(s.work_hours);
-  }
-  const exc = t.exceptions || [];
-  exc.slice(0, 2).forEach(function (e) {
-    html += '<div class="u-text-small u-warning u-lh-relaxed">' + excText(e) + '</div>';
-  });
-  if (exc.length > 2) html += '<div class="u-text-small u-muted">и ещё ' + (exc.length - 2) + '</div>';
-  return html + '</div>';
-}
-
-// ── Модалка специалиста: Основное / График работы / Отсутствия / Особые часы работы ─────
+// ── Вкладки графика в окне сотрудника ─────────────────────────────
 let trmHours = { schedules: [], exceptions: [] };
 
-// Специализация — выпадающий список ролей специалиста (можно несколько).
-// Отключённую в справочнике роль показываем, если она уже выбрана
-function trmTypesHtml(t) {
-  const cur = t ? t.types : [];
-  let list = SPEC_TYPES.slice();
-  cur.forEach(function (code) {
-    if (!list.some(function (x) { return x.code === code; })) list.push({ code: code, name: specTypeName(code) + ' (отключён)' });
-  });
-  return msHtml('trm-types', list.map(function (x) { return { value: x.code, label: x.name }; }), cur, '— Выберите специализацию —', false, true);
-}
-
-// Филиалы открытого в окне специалиста (справочник «специалист — филиал»): часы работы можно задать только в них
+// Филиалы открытого в окне специалиста (филиалы его ролей): часы работы можно задать только в них
 let trmSpecLocs = [];
 // Из них — доступные этому администратору: только в этих филиалах он добавляет и меняет часы
 function trmLocs() {
@@ -152,48 +48,11 @@ function trmLocs() {
 }
 const TRM_NO_LOCS = 'У специалиста нет филиалов, в которых вы можете задать часы. Филиалы специалисту назначает администратор системы';
 
-function openTrainerModal(id, tab) {
-  var t = id ? SPECIALISTS_ALL.find(function (x) { return x.id === id; }) : null;
-  trmSpecLocs = t ? t.location_ids.slice() : [];
-  var old = document.getElementById('trainer-tmp-modal'); if (old) old.remove();
-  var el = document.createElement('div');
-  el.className = 'admin-modal-overlay show';
-  el.id = 'trainer-tmp-modal';
-  // График и отсутствия — только у сохранённого специалиста
-  var tabOff = t ? '' : ' disabled title="Сначала сохраните специалиста"';
-  el.innerHTML =
-    '<div class="admin-modal u-max-w-560">' +
-    '<div class="admin-modal-title">' + (t ? 'Редактировать специалиста' : 'Добавить специалиста') + '</div>' +
-    '<div class="u-flex u-gap-6 u-wrap u-mb-16">' +
-    '<button type="button" class="chip" data-trm-tab="main">Основное</button>' +
-    '<button type="button" class="chip" data-trm-tab="hours"' + tabOff + '>График работы</button>' +
-    '<button type="button" class="chip" data-trm-tab="off"' + tabOff + '>Отсутствия</button>' +
-    '<button type="button" class="chip" data-trm-tab="custom"' + tabOff + '>Особые часы работы</button>' +
-    '</div>' +
-    // ── Основное
-    '<div data-trm-pane="main">' +
-    // Телефон — первым: по нему ищем человека в базе (trmFindPerson), имя и фамилия подставляются
-    '<div class="form-field"><label class="form-label">Телефон</label><input class="form-input phone-input" id="trm-phone" required value="' + (t ? escAttr(t.phone) : '') + '">' +
-    '<div class="set-hint" id="trm-phone-hint"></div></div>' +
-    '<div class="form-row">' +
-    '<div class="form-field"><label class="form-label">Имя</label><input class="form-input" id="trm-first" required value="' + (t ? escAttr(t.firstName) : '') + '"></div>' +
-    '<div class="form-field"><label class="form-label">Фамилия</label><input class="form-input" id="trm-last" required value="' + (t ? escAttr(t.lastName) : '') + '"></div>' +
-    '</div>' +
-    '<div class="form-row">' +
-    '<div class="form-field"><label class="form-label">Специализация</label>' + trmTypesHtml(t) + '</div>' +
-    '<div class="form-field"><label class="form-label">Опыт (лет)</label><input class="form-input" id="trm-exp" value="' + (t ? t.exp : '') + '" type="number" min="0"></div>' +
-    '</div>' +
-    // Филиалы специалиста: в графике можно будет указать только их; у нового — текущий филиал панели
-    '<div class="form-field"><label class="form-label">Филиалы</label>' +
-    msHtml('trm-locs', locMsOptions(), t ? t.location_ids : (admBranchId ? [admBranchId] : []), '— Выберите филиалы —', true, true) + '</div>' +
-    '<div class="form-field"><label class="check-label">' +
-    '<input type="checkbox" id="trm-active"' + (!t || t.active ? ' checked' : '') + '> Активен</label></div>' +
-    '<div class="admin-modal-actions">' +
-    '<button class="btn-ghost" id="trm-cancel">Отмена</button>' +
-    '<button class="btn-primary" id="trm-save">Сохранить</button>' +
-    '</div></div>' +
-    // ── График работы: периоды с недельным шаблоном
-    '<div class="tab-pane-body" data-trm-pane="hours" style="display:none">' +
+// Заполнить вкладки графика в окне сотрудника (#staff-modal) и загрузить данные специалиста.
+// specId — специалист, locs — филиалы его ролей (часы работы можно задать только в них)
+function trmOpen(specId, locs) {
+  trmSpecLocs = (locs || []).slice();
+  document.getElementById('st-hours-body').innerHTML =
     // «Только активные» (по умолчанию) — без завершённых периодов; та же раскладка, что у «Прошедшие» на вкладках исключений
     '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
     '<div class="u-text-small u-muted">Недельный график на период (например, по месяцам). ' +
@@ -201,139 +60,30 @@ function openTrainerModal(id, tab) {
     '<label class="u-flex u-items-center u-gap-6 u-text-small u-nowrap u-pointer"><input type="checkbox" id="trm-sched-active" checked> Только активные</label>' +
     '</div>' +
     '<div id="trm-sched-list"></div>' +
-    '<button type="button" class="btn-primary" id="trm-sched-add">+ Добавить период</button>' +
-    '</div>' +
-    // ── Исключения: отсутствия (off) и особые часы работы (custom) — отдельные вкладки
-    trmExcPaneHtml('off', 'Даты, когда специалист не работает: сборы, соревнования, отпуск, больничный.', '+ Добавить отсутствие') +
-    trmExcPaneHtml('custom', 'Даты, когда специалист работает по другим часам. Особые часы полностью заменяют график в эти дни.', '+ Добавить особые часы') +
-    '<div class="admin-modal-actions" id="trm-close-actions" style="display:none"><button class="btn-ghost" id="trm-close">Закрыть</button></div>' +
-    '</div>';
-  document.body.appendChild(el);
-  document.getElementById('trm-cancel').onclick = function () { el.remove(); };
-  document.getElementById('trm-close').onclick = function () { el.remove(); };
-  document.getElementById('trm-save').onclick = function () { saveTrainer(t ? t.id : null); };
-  // Данные специалиста меняет тот, у кого есть право specialists; остальные видят их и ведут только график
-  if (!canDo('specialists')) {
-    el.querySelectorAll('[data-trm-pane="main"] input, [data-trm-pane="main"] select, [data-trm-pane="main"] .ms-btn, #trm-save').forEach(function (x) {
-      x.disabled = true; x.title = NEED_TITLE;
-    });
-  }
-  // Новый специалист: как только номер набран полностью — ищем человека в базе
-  if (!t) document.getElementById('trm-phone').addEventListener('input', trmFindPerson);
+    '<button type="button" class="btn-primary" id="trm-sched-add">+ Добавить период</button>';
+  document.getElementById('st-off-body').innerHTML = trmExcPaneHtml('off', 'Даты, когда специалист не работает: сборы, соревнования, отпуск, больничный.', '+ Добавить отсутствие');
+  document.getElementById('st-custom-body').innerHTML = trmExcPaneHtml('custom', 'Даты, когда специалист работает по другим часам. Особые часы полностью заменяют график в эти дни.', '+ Добавить особые часы');
 
-  el.querySelectorAll('[data-trm-tab]').forEach(function (b) {
-    b.onclick = function () { if (!b.disabled) trmSwitchTab(b.getAttribute('data-trm-tab')); };
-  });
-  // Окно не меняет размер при переключении вкладок: остальные вкладки получают высоту «Основного» без строки
-  // кнопок (у них она общая — «Закрыть»), длинные списки прокручиваются внутри вкладки (.tab-pane-body, css/kit.css)
-  trmSwitchTab('main');
-  const mainPane = el.querySelector('[data-trm-pane="main"]');
-  const acts = mainPane.querySelector('.admin-modal-actions');
-  const paneH = mainPane.offsetHeight - acts.offsetHeight - (parseFloat(getComputedStyle(acts).marginTop) || 0);
-  el.querySelectorAll('.tab-pane-body').forEach(function (p) { p.style.height = paneH + 'px'; });
-  trmSwitchTab(t ? (tab || 'main') : 'main');
-  if (!t) return;
-
-  document.getElementById('trm-sched-add').onclick = function () { openScheduleModal(t.id, null); };
+  document.getElementById('trm-sched-add').onclick = function () { openScheduleModal(specId, null); };
   document.getElementById('trm-sched-active').onchange = trmRenderSchedules;
   ['off', 'custom'].forEach(function (type) {
-    document.getElementById('trm-exc-add-' + type).onclick = function () { openExceptionModal(t.id, null, type); };
+    document.getElementById('trm-exc-add-' + type).onclick = function () { openExceptionModal(specId, null, type); };
     document.getElementById('trm-exc-past-' + type).onchange = trmRenderExceptions;
   });
-  // Ред./удалить в списках периодов и исключений
-  el.addEventListener('click', function (e) {
+  // Ред./удалить в списках периодов и исключений (окно одно на всех — обработчик заменяется, а не добавляется)
+  document.getElementById('staff-modal').onclick = function (e) {
     var b = e.target.closest('[data-sched-edit],[data-sched-del],[data-exc-edit],[data-exc-del]');
     if (!b) return;
-    if (b.hasAttribute('data-sched-edit')) openScheduleModal(t.id, trmHours.schedules.find(function (s) { return s.id === +b.getAttribute('data-sched-edit'); }));
-    if (b.hasAttribute('data-sched-del')) deleteSchedule(t.id, +b.getAttribute('data-sched-del'));
+    if (b.hasAttribute('data-sched-edit')) openScheduleModal(specId, trmHours.schedules.find(function (s) { return s.id === +b.getAttribute('data-sched-edit'); }));
+    if (b.hasAttribute('data-sched-del')) deleteSchedule(specId, +b.getAttribute('data-sched-del'));
     if (b.hasAttribute('data-exc-edit')) {
       var exc = trmHours.exceptions.find(function (x) { return x.id === +b.getAttribute('data-exc-edit'); });
-      if (exc) openExceptionModal(t.id, exc, exc.type);
+      if (exc) openExceptionModal(specId, exc, exc.type);
     }
-    if (b.hasAttribute('data-exc-del')) deleteException(t.id, +b.getAttribute('data-exc-del'));
-  });
-  trmHours = { schedules: [], exceptions: [] };
-  trmReloadHours(t.id);
-}
-
-// Новый специалист: человек с этим телефоном уже может быть в базе (например, клиент). Тогда специалистом
-// становится он: имя и фамилия подставляются в форму — их видно и можно исправить (сменилась фамилия).
-// Номера нет — будет создан новый человек. Уже специалист — сохранить нельзя.
-let trmFindSeq = 0;
-let trmFound = null;   // имя и фамилия, подставленные по номеру: при смене номера убираем их, если их не правили
-async function trmFindPerson() {
-  const inp = document.getElementById('trm-phone'), hint = document.getElementById('trm-phone-hint');
-  const save = document.getElementById('trm-save');
-  if (!inp || !hint) return;
-  const seq = ++trmFindSeq;
-  hint.textContent = ''; save.disabled = false;
-  const first = document.getElementById('trm-first'), last = document.getElementById('trm-last');
-  if (trmFound && first.value === trmFound.first && last.value === trmFound.last) { first.value = ''; last.value = ''; }
-  trmFound = null;
-  if (inp.value.replace(/\D+/g, '').length < 11) return;   // номер ещё не набран
-  let p;
-  try { p = await SpecialistsAPI.person(inp.value); } catch (e) { return; }
-  if (seq !== trmFindSeq || !document.getElementById('trm-phone-hint')) return;   // номер уже изменили или окно закрыли
-  if (!p) { hint.textContent = 'Этого номера нет в базе — будет добавлен новый человек'; return; }
-  if (p.specialist_id) {
-    hint.textContent = 'Специалист с этим номером уже есть: ' + p.name;
-    save.disabled = true;
-    return;
-  }
-  first.value = p.first_name;
-  last.value = p.last_name;
-  trmFound = { first: p.first_name, last: p.last_name };
-  hint.textContent = 'Этот номер уже есть в базе: ' + p.name + '. Специалистом станет этот человек. Имя и фамилия подставлены — если изменились, исправьте';
-}
-
-function trmSwitchTab(tab) {
-  document.querySelectorAll('#trainer-tmp-modal [data-trm-tab]').forEach(function (b) {
-    b.classList.toggle('active', b.getAttribute('data-trm-tab') === tab);
-  });
-  document.querySelectorAll('#trainer-tmp-modal [data-trm-pane]').forEach(function (p) {
-    p.style.display = p.getAttribute('data-trm-pane') === tab ? '' : 'none';
-  });
-  // У «Основного» свои кнопки Отмена/Сохранить; на остальных вкладках изменения сохраняются сразу
-  document.getElementById('trm-close-actions').style.display = tab === 'main' ? 'none' : '';
-}
-
-async function saveTrainer(id) {
-  const first = document.getElementById('trm-first').value.trim();
-  const last = document.getElementById('trm-last').value.trim();
-  const phone = document.getElementById('trm-phone').value.trim();
-  if (!first || !last) { showToast('Введите имя и фамилию', 'error'); return; }
-  if (!phone) { showToast('Введите телефон', 'error'); return; }
-  const types = msValues('trm-types');
-  if (!types.length) { showToast('Выберите специализацию', 'error'); return; }
-  const locIds = msValues('trm-locs').map(Number);
-  if (!locIds.length) { showToast('Выберите филиалы, в которых работает специалист', 'error'); return; }
-  const apiData = {
-    active: document.getElementById('trm-active').checked ? 1 : 0,
-    first_name: first,
-    last_name: last,
-    phone: phone,
-    types: types,
-    location_ids: locIds,
-    experience: parseInt(document.getElementById('trm-exp').value) || 0,
+    if (b.hasAttribute('data-exc-del')) deleteException(specId, +b.getAttribute('data-exc-del'));
   };
-  let newId = null;
-  try {
-    if (id) {
-      await SpecialistsAPI.update({ id, ...apiData });
-      showToast('Специалист обновлён', 'success');
-    } else {
-      const res = await SpecialistsAPI.create(apiData);
-      newId = res && res.id ? parseInt(res.id) : null;
-      showToast('Специалист добавлен. Задайте график работы', 'success');
-    }
-    var ttm = document.getElementById('trainer-tmp-modal'); if (ttm) ttm.remove();
-    await Promise.allSettled([loadSpecialists(), loadSpecialistsAll()]);
-    renderSpecialists();
-    // Новый специалист — сразу на вкладку графика
-    if (newId) openTrainerModal(newId, 'hours');
-  } catch (e) {
-    // сообщение сервера уже показано (apiRequest), форма остаётся открытой
-  }
+  trmHours = { schedules: [], exceptions: [] };
+  trmReloadHours(specId);
 }
 
 // ── Периоды и исключения в модалке ─────────────────────────────
@@ -343,11 +93,9 @@ async function trmReloadHours(specId) {
   trmRenderExceptions();
 }
 
-// После изменения графика: обновить списки в модалке и карточки специалистов
+// После изменения графика: обновить списки на вкладках
 async function trmHoursChanged(specId) {
   await trmReloadHours(specId);
-  await loadSpecialistsAll();
-  renderSpecialists();
 }
 
 function trmItemButtons(attr, id) {
@@ -389,16 +137,14 @@ function trmRenderSchedules() {
   }).join('');
 }
 
-// Вкладка исключений одного типа: off — «Отсутствия», custom — «Особые часы работы»
+// Содержимое вкладки исключений одного типа: off — «Отсутствия», custom — «Особые часы работы»
 function trmExcPaneHtml(type, hint, addLabel) {
-  return '<div class="tab-pane-body" data-trm-pane="' + type + '" style="display:none">' +
-    '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
+  return '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
     '<div class="u-text-small u-muted">' + hint + '</div>' +
     '<label class="u-flex u-items-center u-gap-6 u-text-small u-nowrap u-pointer"><input type="checkbox" id="trm-exc-past-' + type + '"> Прошедшие</label>' +
     '</div>' +
     '<div id="trm-exc-list-' + type + '"></div>' +
-    '<button type="button" class="btn-primary" id="trm-exc-add-' + type + '">' + addLabel + '</button>' +
-    '</div>';
+    '<button type="button" class="btn-primary" id="trm-exc-add-' + type + '">' + addLabel + '</button>';
 }
 
 function trmRenderExceptions() {

@@ -281,41 +281,6 @@ function specLocationBusy(PDO $db, int $specId, int $locId): ?string {
     return null;
 }
 
-// Задать роли специалиста (внутри транзакции): каждая роль из $roleIds — в каждом филиале из $locIds. Новые строки
-// user_roles добавляются, лишние закрываются (amnd_state = 'C'). Пустой $roleIds — снять все роли: специалист
-// больше не работает. Убрать филиал с будущими часами работы или занятиями нельзя — ошибка с причиной
-function saveSpecialistRoles(PDO $db, int $specId, array $roleIds, $locIds, ?int $userId): void {
-    $ids = array_values(array_unique(array_filter(array_map('intval', is_array($locIds) ? $locIds : []))));
-    if ($roleIds && !$ids) err('Укажите хотя бы один филиал, в котором работает специалист');
-    foreach ($ids as $locId) specLocation($db, $locId);   // филиал существует и действующий
-    $st = $db->prepare('SELECT user_id FROM specialists WHERE id = ?');
-    $st->execute([$specId]);
-    $personId = (int)$st->fetchColumn();
-
-    $have = specialistsRoles($db, [$specId], true)[$specId] ?? [];
-    if ($roleIds) {
-        foreach (array_unique(array_column($have, 'location_id')) as $locId) {
-            if (in_array($locId, $ids, true)) continue;
-            if ($why = specLocationBusy($db, $specId, $locId)) {
-                $loc = specLocationOrNull($db, $locId);
-                err('Нельзя убрать филиал «' . ($loc ? $loc['name'] : $locId) . '»: ' . $why);
-            }
-        }
-    }
-    $keep = [];
-    foreach ($have as $r) {
-        if (in_array($r['role_id'], $roleIds, true) && in_array($r['location_id'], $ids, true)) $keep[$r['role_id'] . ':' . $r['location_id']] = true;
-        else amndClose($db, 'user_roles', $r['id'], $userId);
-    }
-    foreach ($roleIds as $roleId) {
-        foreach ($ids as $locId) {
-            if (!isset($keep[$roleId . ':' . $locId])) {
-                amndInsert($db, 'user_roles', ['user_id' => $personId, 'role_id' => $roleId, 'location_id' => $locId], $userId);
-            }
-        }
-    }
-}
-
 // Специалист доступен этому администратору: работает хотя бы в одном из его филиалов (филиалы ролей специалиста).
 // Администратору системы доступны все. Иначе — ошибка 403
 function specialistGuard(PDO $db, array $user, int $specId): void {

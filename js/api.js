@@ -298,14 +298,6 @@ const ClientsAPI = {
 };
 
 // ── TRAINERS ───────────────────────────────────────────────
-const SpecialistsAPI = {
-  // Человек с этим телефоном (форма нового специалиста): { id, first_name, last_name, name, specialist_id } или null
-  async person(phone) { return apiRequest('/specialists.php?action=person', 'POST', { phone }, true); },
-  async create(data) { return apiRequest('/specialists.php?action=create', 'POST', data); },
-  async update(data) { return apiRequest('/specialists.php?action=update', 'PUT', data); },
-  async delete(id) { return apiRequest(`/specialists.php?action=delete&id=${id}`, 'DELETE'); },
-};
-
 // График работы специалиста: периоды (недельные шаблоны) и исключения (отсутствия, особые часы)
 const SpecialistHoursAPI = {
   async list(specialistId) { return apiRequest(`/specialist_hours.php?action=list&specialist_id=${specialistId}`); },

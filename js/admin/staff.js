@@ -78,6 +78,8 @@ function renderStaff() {
 // ═══ ОКНО СОТРУДНИКА ═════════════════════════════════════════════════
 // Вкладки: «Инфо» — имя, фамилия, телефон, опыт (у специалиста); «Роли» — галочка «Администратор системы» и строки
 // «филиал → роли». «Сохранить» общее: данные и набор ролей сохраняются одним запросом.
+// «График работы», «Отсутствия», «Особые часы работы» — у сохранённого специалиста (роль тренера, байкфиттера,
+// механика); их заполняет trmOpen (js/admin/specialists.js), изменения там сохраняются сразу.
 
 let stRows = [];        // строки вкладки «Роли»: [{location_id, roles: [коды]}]
 let stReadOnly = false; // окно открыто для чтения (администратор студии)
@@ -87,7 +89,8 @@ function stBranchRoles() {
   return STAFF_ROLES.filter(function (r) { return r.code !== 'system_admin'; });
 }
 
-function openStaffModal(id) {
+// tab — вкладка, на которой открыть окно (по умолчанию «Инфо»)
+function openStaffModal(id, tab) {
   const s = id ? STAFF.find(function (x) { return x.id === id; }) : null;
   if (id && !s) return;
   const modal = document.getElementById('staff-modal');
@@ -110,6 +113,7 @@ function openStaffModal(id) {
     row.roles.push(x.code);
   });
   if (!s && admBranchId) stRows.push({ location_id: admBranchId, roles: [] });
+  stSysStrip();
   stRolesRender();
 
   ['st-first-name', 'st-last-name', 'st-phone', 'st-exp', 'st-sys'].forEach(function (el) { document.getElementById(el).disabled = stReadOnly; });
@@ -118,17 +122,34 @@ function openStaffModal(id) {
   modal.querySelectorAll('[data-st-save]').forEach(function (b) { b.style.display = stReadOnly ? 'none' : ''; });
   modal.querySelectorAll('[data-st-cancel]').forEach(function (b) { b.textContent = stReadOnly ? 'Закрыть' : 'Отмена'; });
 
-  stSwitchTab('main');
+  // Вкладки графика — только у сохранённого специалиста; часы задаются в филиалах его ролей специалиста
+  const specLocs = [];
+  (s ? s.roles : []).forEach(function (x) {
+    if (SPEC_ROLES.indexOf(x.code) >= 0 && specLocs.indexOf(x.location_id) < 0) specLocs.push(x.location_id);
+  });
+  const hasHours = !!(s && s.specialist_id && specLocs.length);
+  modal.querySelectorAll('[data-st-tab="hours"], [data-st-tab="off"], [data-st-tab="custom"]').forEach(function (b) {
+    b.style.display = hasHours ? '' : 'none';
+  });
+  ['st-hours-body', 'st-off-body', 'st-custom-body'].forEach(function (el) { document.getElementById(el).innerHTML = ''; });
+  modal.onclick = null;
+  if (hasHours) trmOpen(s.specialist_id, specLocs);
+
+  stSwitchTab(hasHours && tab ? tab : 'main');
   modal.classList.add('show');
-  // Окно не меняет размер при переключении вкладок: высота — по вкладке «Инфо» с полем опыта;
-  // длинный список филиалов прокручивается внутри вкладки «Роли»
+  // Окно не меняет размер при переключении вкладок: высота всех вкладок — по «Инфо» с полем опыта; длинные списки
+  // прокручиваются внутри вкладки. У специалиста окно шире и выше: графику работы нужно место
+  const box = modal.querySelector('.admin-modal');
+  box.classList.toggle('u-max-w-560', !hasHours);
+  box.classList.toggle('u-max-w-760', hasHours);
   const main = modal.querySelector('[data-st-pane="main"]');
+  const curTab = modal.querySelector('[data-st-tab].active').getAttribute('data-st-tab');
+  stSwitchTab('main');
   document.getElementById('st-exp-box').style.display = '';
-  main.style.minHeight = '';
-  const h = main.offsetHeight;
-  main.style.minHeight = h + 'px';
+  modal.querySelectorAll('.tab-pane').forEach(function (p) { p.style.height = ''; });
+  const h = Math.max(main.offsetHeight, hasHours ? 460 : 0);
   modal.querySelectorAll('.tab-pane').forEach(function (p) { p.style.height = h + 'px'; });
-  stExpToggle();
+  stSwitchTab(curTab);
 }
 function closeStaffModal() { document.getElementById('staff-modal').classList.remove('show'); }
 
@@ -145,7 +166,7 @@ function stSwitchTab(tab) {
 
 // «Опыт (лет)» — только у специалиста: когда выбрана роль тренера, байкфиттера или механика
 function stIsSpecialist() {
-  return !stSys() && stRows.some(function (r) { return r.roles.some(function (c) { return SPEC_ROLES.indexOf(c) >= 0; }); });
+  return stRows.some(function (r) { return r.roles.some(function (c) { return SPEC_ROLES.indexOf(c) >= 0; }); });
 }
 function stExpToggle() {
   document.getElementById('st-exp-box').style.display = stIsSpecialist() ? '' : 'none';
@@ -153,11 +174,11 @@ function stExpToggle() {
 
 // Вкладка «Роли»: строка на каждый филиал, где человек работает; роли в строке — список с галочками.
 // Для чтения (администратор студии) — те же строки текстом.
-// Отмечен «Администратор системы» — он работает во всех филиалах: строк филиалов нет (и роли в филиалах снимаются)
+// Отмечен «Администратор системы» — роли «Администратор студии» в списках нет: он и так администратор во всех
+// филиалах; тренером, байкфиттером, механиком в филиале он быть может
 function stRolesRender() {
   const box = document.getElementById('st-roles');
-  if (stSys()) { box.innerHTML = ''; return; }
-  const opts = stBranchRoles().map(function (r) { return { value: r.code, label: r.name }; });
+  const opts = stBranchRoles().filter(function (r) { return !(stSys() && r.code === 'studio_admin'); }).map(function (r) { return { value: r.code, label: r.name }; });
   const rows = stRows.map(function (row, i) {
     const roles = stReadOnly
       ? '<div class="form-input form-view">' + escAttr(row.roles.map(staffRoleName).join(', ') || '—') + '</div>'
@@ -179,11 +200,21 @@ function stRolesRender() {
     rows + add;
 }
 function stSys() { return document.getElementById('st-sys').checked; }
-// Галочка «Администратор системы»: спрятать или вернуть строки филиалов
+// Галочка «Администратор системы»: роль «Администратор студии» ему не нужна — снять её; филиал, где других ролей
+// не было, убрать
 function stSysChanged() {
   stRolesRead();
+  stSysStrip();
   stRolesRender();
   stExpToggle();
+}
+function stSysStrip() {
+  if (!stSys()) return;
+  stRows = stRows.filter(function (r) {
+    const had = r.roles.indexOf('studio_admin') >= 0;
+    r.roles = r.roles.filter(function (c) { return c !== 'studio_admin'; });
+    return r.roles.length || !had;
+  });
 }
 // Запомнить отмеченное в списках ролей (перед перерисовкой, сменой вкладки и сохранением)
 function stRolesRead() {
@@ -233,7 +264,8 @@ async function saveStaff() {
   }
   stRolesRead();
   const sys = stSys();
-  const rows = sys ? [] : stRows;   // у администратора системы ролей в филиалах нет
+  stSysStrip();
+  const rows = stRows;
   const empty = rows.find(function (r) { return !r.roles.length; });
   if (empty) {
     stSwitchTab('roles');
@@ -258,7 +290,7 @@ async function saveStaff() {
     showToast(id ? 'Сотрудник сохранён' : 'Сотрудник добавлен', 'success');
     closeStaffModal();
     // специалисты — те же люди: обновить и их списки (расписание, формы занятий)
-    await Promise.allSettled([loadStaff(), loadSpecialists(), loadSpecialistsAll()]);
+    await Promise.allSettled([loadStaff(), loadSpecialists()]);
     renderStaff();
   } catch (e) {
     // Отказ сервера (занятый телефон, будущие занятия специалиста) или нет связи — сообщение уже показано (apiRequest)

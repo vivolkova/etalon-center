@@ -85,18 +85,8 @@ async function loadActivityCats() {
   } catch (e) { /* сервер недоступен */ }
 }
 
-// Специализации — роли специалистов из справочника user_role (тренер, байкфиттер, механик): [{ id, code, name }].
-// Значения по умолчанию — пока справочник не загрузился.
+// Роли специалистов в справочнике user_role (тренер, байкфиттер, механик); тот же список — на сервере (middleware/roles.php)
 const SPEC_ROLES = ['trainer', 'bikefitter', 'mechanic'];
-let SPEC_TYPES = [
-  { id: 0, code: 'trainer', name: 'Тренер' },
-  { id: 0, code: 'bikefitter', name: 'Байкфиттер' },
-  { id: 0, code: 'mechanic', name: 'Механик' },
-];
-function specTypeName(code) {
-  const t = SPEC_TYPES.find(function (x) { return x.code === code; });
-  return t ? t.name : (code || '—');
-}
 // Типы занятий (dictionaries.slot_type) — задаются в библиотеке у тренировок:
 // group — групповая с тренером, personal — персональная с тренером, free — самостоятельная, без тренера
 let SLOT_TYPES = [
@@ -115,7 +105,7 @@ function slotTypeName(code) {
   return t ? t.name : (code || '—');
 }
 
-// Значения справочника для форм: специализации и типы занятий (одним запросом)
+// Значения справочника для форм: типы занятий
 async function loadDictValues() {
   try {
     const res = await DictionariesAPI.list();
@@ -123,8 +113,7 @@ async function loadDictValues() {
       return (res || []).filter(function (d) { return d.group_code === group && d.active; })
         .map(function (d) { return { id: Number(d.id), code: d.code, name: d.name }; });
     };
-    const spec = pick('user_role').filter(function (d) { return SPEC_ROLES.indexOf(d.code) >= 0; }), slot = pick('slot_type');
-    if (spec.length) SPEC_TYPES = spec;
+    const slot = pick('slot_type');
     if (slot.length) SLOT_TYPES = slot;
   } catch (e) { /* сервер недоступен */ }
 }
