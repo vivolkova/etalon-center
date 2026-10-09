@@ -190,23 +190,39 @@ async function cpAccountLoad(id) {
   try { c = await ClientsAPI.get(id); } catch (e) { return; }
   if (cpAccountId !== id) return;
   cmBookingsRender(c);
+  cmConsentsRender(id, c.consents, Number(c.has_account) === 1);
+  accountCtx = { who: ACCOUNT_CLIENT, phone: c.phone, changed: cpAccountChanged };
+  accountBlockFill('cp-account', c, id);
+}
+
+// Блок «Личный кабинет» — один для окна клиента и окна сотрудника (js/admin/staff.js): есть ли кабинет, подтверждён ли
+// номер, последний вход; ссылка для создания кабинета, сброс пароля, подтверждение номера.
+// accountCtx — чей блок открыт: who — слова для текстов (клиент или сотрудник), phone — его номер,
+// changed(id) — что обновить после действия
+const ACCOUNT_CLIENT = { nom: 'клиент', gen: 'клиента', dat: 'клиенту', none: 'Кабинета нет — клиент записан администратором' };
+const ACCOUNT_STAFF = { nom: 'сотрудник', gen: 'сотрудника', dat: 'сотруднику', none: 'Кабинета нет' };
+let accountCtx = { who: ACCOUNT_CLIENT, phone: '', changed: function () { } };
+// c — ответ ClientsAPI.get; self — это сам вошедший администратор: свой пароль он меняет в «Профиле»
+function accountBlockFill(boxId, c, id) {
+  const who = accountCtx.who;
+  const self = !!currentUser && Number(currentUser.id) === Number(id);
   const has = Number(c.has_account) === 1;
-  cmConsentsRender(id, c.consents, has);
-  const reset = Number(c.password_reset) === 1;   // пароль сброшен администратором, новый клиент ещё не задал
+  const reset = Number(c.password_reset) === 1;   // пароль сброшен администратором, новый ещё не задан
   const line = function (text, btn) {
     return '<div class="u-flex u-items-center u-gap-10 u-wrap u-text-body u-mb-6"><span>' + text + '</span>' + (btn || '') + '</div>';
   };
   const verified = c.phone_verified_at
     ? 'Номер подтверждён ' + docDate(c.phone_verified_at) + (c.phone_verified_by_name ? ' — администратор ' + escAttr(c.phone_verified_by_name) : '')
     : 'Номер не подтверждён';
-  document.getElementById('cp-account').innerHTML = line(has ? 'Создан ' + (docDate(c.account_created_at) || '—') : 'Кабинета нет — клиент записан администратором')
+  document.getElementById(boxId).innerHTML = line(has ? 'Создан ' + (docDate(c.account_created_at) || '—') : who.none)
     + line(verified, c.phone_verified_at ? '' : '<button class="btn-ghost btn-sm" onclick="cpVerifyPhone(' + id + ')">Подтвердить номер</button>')
     + (has ? line(c.last_login_at ? 'Последний вход ' + cpDateTime(c.last_login_at) : 'Входов ещё не было') : '')
-    + (reset ? line('Пароль сброшен — клиент войдёт, когда задаст новый по ссылке') : '')
+    + (reset ? line('Пароль сброшен — ' + who.nom + ' войдёт, когда задаст новый по ссылке') : '')
     + '<div class="u-mt-10">'
     + (!has ? '<button class="btn-ghost btn-sm" onclick="cpIssueLink(' + id + ')">Ссылка для создания кабинета</button>'
       : reset ? '<button class="btn-ghost btn-sm" onclick="cpResetPassword(' + id + ',true)">Новая ссылка для пароля</button>'
-        : '<button class="btn-primary btn-sm" onclick="cpResetPassword(' + id + ')">Сбросить пароль</button>')
+        : self ? '<span class="u-text-body u-muted">Свой пароль меняйте в разделе «Профиль»</span>'
+          : '<button class="btn-primary btn-sm" onclick="cpResetPassword(' + id + ')">Сбросить пароль</button>')
     + '</div>';
 }
 
@@ -220,11 +236,12 @@ async function cpIssueLink(id) {
 // Сбросить пароль клиенту с кабинетом: пароль перестаёт работать сразу, клиент выходит на всех устройствах
 // и получает ссылку, по которой задаст новый. again — пароль уже сброшен, нужна только новая ссылка
 async function cpResetPassword(id, again) {
-  if (!again && !await uiConfirm('Сбросить пароль клиента?', 'Клиент выйдет на всех устройствах и не сможет войти, пока не задаст новый пароль по ссылке.')) return;
+  const who = accountCtx.who;
+  if (!again && !await uiConfirm('Сбросить пароль ' + who.gen + '?', who.nom.charAt(0).toUpperCase() + who.nom.slice(1) + ' выйдет на всех устройствах и не сможет войти, пока не задаст новый пароль по ссылке.')) return;
   let res;
   try { res = await ClientsAPI.resetPassword(id); } catch (e) { return; }
   cpLinkWindow(res);
-  cpAccountLoad(id);
+  accountCtx.changed(id);
 }
 
 // Окно со ссылкой. Каждая выдача отменяет прежнюю ссылку; секрет сервер отдаёт один раз — после закрытия окна
@@ -237,7 +254,7 @@ function cpLinkWindow(res) {
     + '<div class="admin-modal-title u-mb-12">' + (res.purpose === 'activate' ? 'Ссылка для создания кабинета' : 'Ссылка для нового пароля') + '</div>'
     + '<input class="form-input" id="cp-link-url" readonly>'
     + '<div class="u-mt-10"><button class="btn-ghost btn-sm" id="cp-link-copy">Скопировать</button></div>'
-    + '<div class="u-text-body u-muted u-mt-16">Отправьте ссылку клиенту только на номер ' + escAttr(res.phone) + '.<br>'
+    + '<div class="u-text-body u-muted u-mt-16">Отправьте ссылку ' + accountCtx.who.dat + ' только на номер ' + escAttr(res.phone) + '.<br>'
     + 'Действует ' + res.hours + ' ч., сработает один раз. Новая ссылка отменяет прежнюю.</div>'
     + '<div class="admin-modal-actions"><button class="btn-primary" id="cp-link-close">Закрыть</button></div></div>';
   document.body.appendChild(el);
@@ -314,12 +331,10 @@ async function cpAccountChanged(id) {
 }
 
 async function cpVerifyPhone(id) {
-  const c = CLIENTS.find(x => x.id === id);
-  if (!c) return;
-  if (!await uiConfirm('Вы позвонили на ' + c.phone + ' и клиент рядом принял звонок?')) return;
+  if (!await uiConfirm('Вы позвонили на ' + accountCtx.phone + ' и ' + accountCtx.who.nom + ' рядом принял звонок?')) return;
   try { await ClientsAPI.verifyPhone(id); } catch (e) { return; }
   showToast('Номер подтверждён', 'success');
-  cpAccountChanged(id);
+  accountCtx.changed(id);
 }
 
 async function adminCancel(id) {

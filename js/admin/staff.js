@@ -4,6 +4,7 @@
 // Администратор системы видит всех и меняет (право staff). Администратор студии видит только специалистов своих
 // филиалов (их присылает сервер) и ничего не меняет: окно открывается для чтения.
 
+let STAFF_FORMER = [];  // бывшие сотрудники (ролей нет, но были): те же поля и left_at — когда сняли последнюю роль
 let STAFF = [];         // сотрудники: {id, first_name, last_name, name, phone, has_account, phone_verified, specialist_id, experience, roles: [{code, location_id}]}
 let STAFF_ROLES = [];   // роли из справочника по порядку: [{code, name}]
 
@@ -11,6 +12,15 @@ async function loadStaff() {
   const res = await apiRequest('/staff.php?action=list');
   STAFF = res.staff || [];
   STAFF_ROLES = res.role_options || [];
+  STAFF_FORMER = staffFormer() ? (await apiRequest('/staff.php?action=list&former=1')).staff || [] : [];
+}
+// Отмечена галочка «Бывшие сотрудники» (её видит только администратор системы): список показывает уволенных
+function staffFormer() {
+  return canDo('staff') && document.getElementById('staff-former').checked;
+}
+async function staffFormerChanged() {
+  try { await loadStaff(); } catch (e) { return; }
+  renderStaff();
 }
 
 function staffRoleName(code) {
@@ -35,7 +45,11 @@ function staffRolesHtml(s) {
 // и администраторы системы; «Все филиалы» — все)
 function renderStaff() {
   document.getElementById('staff-add').style.display = canDo('staff') ? '' : 'none';
+  document.getElementById('staff-former-box').style.display = canDo('staff') ? '' : 'none';
+  const former = staffFormer();
+  document.getElementById('staff-col-roles').textContent = former ? 'Уволен' : 'Кем и где работает';
   const roleSel = document.getElementById('staff-role');
+  roleSel.style.display = former ? 'none' : '';
   const role = roleSel.value;
   roleSel.innerHTML = '<option value="">Все роли</option>' + STAFF_ROLES
     .filter(function (r) { return STAFF.some(function (s) { return s.roles.some(function (x) { return x.code === r.code; }); }); })
@@ -46,15 +60,16 @@ function renderStaff() {
   const q = document.getElementById('staff-search').value.trim();
   const lq = q.toLowerCase();
   const loc = admCurLoc();
-  const rows = STAFF.filter(function (s) {
-    if (roleSel.value && !s.roles.some(function (x) { return x.code === roleSel.value; })) return false;
-    if (loc && !s.roles.some(function (x) { return x.location_id === null || x.location_id === Number(loc.id); })) return false;
+  // у бывших ролей нет — ни роль, ни филиал из шапки их не отбирают
+  const rows = (former ? STAFF_FORMER : STAFF).filter(function (s) {
+    if (!former && roleSel.value && !s.roles.some(function (x) { return x.code === roleSel.value; })) return false;
+    if (!former && loc && !s.roles.some(function (x) { return x.location_id === null || x.location_id === Number(loc.id); })) return false;
     return !q || s.name.toLowerCase().includes(lq) || phoneMatches(s.phone, q);
   });
 
   const tbody = document.getElementById('staff-tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td class="empty-state" colspan="3">Сотрудников не найдено</td></tr>';
+    tbody.innerHTML = '<tr><td class="empty-state" colspan="3">' + (former ? 'Бывших сотрудников нет' : 'Сотрудников не найдено') + '</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(function (s) {
@@ -63,14 +78,14 @@ function renderStaff() {
     const marks = [];
     if (!s.has_account) marks.push('нет кабинета');
     if (!s.phone_verified) marks.push('номер не подтверждён');
-    return '<tr class="u-pointer" onclick="openStaffModal(' + s.id + ')">' +
+    return '<tr class="u-pointer" onclick="openStaffModal(' + s.id + (former ? ", 'history'" : '') + ')">' +
       '<td><div class="client-name-cell">' +
       '<div class="client-avatar" style="background:' + av + '20;color:' + av + '">' + escAttr(init) + '</div>' +
       '<div><div class="u-strong u-text-ui">' + escAttr(s.name) + '</div>' +
       '<div class="u-muted u-text-caption">' + marks.join(' · ') + '</div></div>' +
       '</div></td>' +
       '<td class="u-text-ui u-nowrap">' + escAttr(s.phone || '—') + '</td>' +
-      '<td class="u-text-ui">' + staffRolesHtml(s) + '</td>' +
+      '<td class="u-text-ui">' + (former ? docDate(s.left_at) : staffRolesHtml(s)) + '</td>' +
       '</tr>';
   }).join('');
 }
@@ -80,6 +95,9 @@ function renderStaff() {
 // «филиал → роли». «Сохранить» общее: данные и набор ролей сохраняются одним запросом.
 // «График работы», «Отсутствия», «Особые часы работы» — у сохранённого специалиста (роль тренера, байкфиттера,
 // механика); их заполняет trmOpen (js/admin/specialists.js), изменения там сохраняются сразу.
+// «Личный кабинет» (общий блок с окном клиента, accountBlockFill в js/admin/admin.js) и «История» (периоды работы) —
+// у сохранённого человека и только у администратора системы.
+// Бывший сотрудник открывается в том же окне: на вкладке «Роли» ему можно снова выдать роль — вернуть на работу.
 
 let stRows = [];        // строки вкладки «Роли»: [{location_id, roles: [коды]}]
 let stReadOnly = false; // окно открыто для чтения (администратор студии)
@@ -90,12 +108,15 @@ function stBranchRoles() {
 }
 
 // tab — вкладка, на которой открыть окно (по умолчанию «Инфо»)
+let stOpenId = null;   // чьё окно открыто: ответ на запрос по другому человеку не показываем
 function openStaffModal(id, tab) {
-  const s = id ? STAFF.find(function (x) { return x.id === id; }) : null;
+  const s = id ? STAFF.concat(STAFF_FORMER).find(function (x) { return x.id === id; }) : null;
   if (id && !s) return;
   const modal = document.getElementById('staff-modal');
   stReadOnly = !canDo('staff');
-  document.getElementById('staff-modal-title').textContent = s ? 'Сотрудник: ' + s.name : 'Добавить сотрудника';
+  const isFormer = !!s && !s.roles.length;
+  document.getElementById('staff-modal-title').textContent = s ? (isFormer ? 'Бывший сотрудник: ' : 'Сотрудник: ') + s.name : 'Добавить сотрудника';
+  stOpenId = s ? s.id : null;
   document.getElementById('st-id').value = s ? s.id : '';
   document.getElementById('st-first-name').value = s ? s.first_name : '';
   document.getElementById('st-last-name').value = s ? s.last_name : '';
@@ -135,23 +156,72 @@ function openStaffModal(id, tab) {
   modal.onclick = null;
   if (hasHours) trmOpen(s.specialist_id, specLocs);
 
-  stSwitchTab(hasHours && tab ? tab : 'main');
+  // «Личный кабинет» и «История» — у сохранённого человека, только администратору системы.
+  // У сотрудника с ролью администратора системы вкладки «Личный кабинет» нет (решение владельца 09.10.2026)
+  const hasAdminTabs = !!s && canDo('staff');
+  const hasAccountTab = hasAdminTabs && !s.roles.some(function (x) { return x.code === 'system_admin'; });
+  modal.querySelector('[data-st-tab="history"]').style.display = hasAdminTabs ? '' : 'none';
+  modal.querySelector('[data-st-tab="account"]').style.display = hasAccountTab ? '' : 'none';
+  document.getElementById('st-account').innerHTML = '';
+  document.getElementById('st-history').innerHTML = '';
+  if (hasAccountTab) stAccountLoad(s.id);
+  if (hasAdminTabs) stHistoryLoad(s.id);
+
+  // открыть на запрошенной вкладке, если она у этого человека есть
+  const tabBtn = tab ? modal.querySelector('[data-st-tab="' + tab + '"]') : null;
+  stSwitchTab(tabBtn && tabBtn.style.display !== 'none' ? tab : 'main');
   modal.classList.add('show');
   // Окно не меняет размер при переключении вкладок: высота всех вкладок — по «Инфо» с полем опыта; длинные списки
-  // прокручиваются внутри вкладки. У специалиста окно шире и выше: графику работы нужно место
+  // прокручиваются внутри вкладки. У сохранённого человека окно шире и выше: графику работы и истории нужно место
+  const big = !!s;
   const box = modal.querySelector('.admin-modal');
-  box.classList.toggle('u-max-w-560', !hasHours);
-  box.classList.toggle('u-max-w-760', hasHours);
+  box.classList.toggle('u-max-w-560', !big);
+  box.classList.toggle('u-max-w-760', big);
   const main = modal.querySelector('[data-st-pane="main"]');
   const curTab = modal.querySelector('[data-st-tab].active').getAttribute('data-st-tab');
   stSwitchTab('main');
   document.getElementById('st-exp-box').style.display = '';
   modal.querySelectorAll('.tab-pane').forEach(function (p) { p.style.height = ''; });
-  const h = Math.max(main.offsetHeight, hasHours ? 460 : 0);
+  const h = Math.max(main.offsetHeight, big ? 460 : 0);
   modal.querySelectorAll('.tab-pane').forEach(function (p) { p.style.height = h + 'px'; });
   stSwitchTab(curTab);
 }
 function closeStaffModal() { document.getElementById('staff-modal').classList.remove('show'); }
+
+// Вкладка «Личный кабинет»: свежие сведения с сервера при открытии окна и после каждого действия
+async function stAccountLoad(id) {
+  let c;
+  try { c = await ClientsAPI.get(id); } catch (e) { return; }
+  if (stOpenId !== id) return;
+  accountCtx = { who: ACCOUNT_STAFF, phone: c.phone, changed: stAccountChanged };
+  accountBlockFill('st-account', c, id);
+}
+// После действия с кабинетом: блок в окне и пометки в списке — заново
+async function stAccountChanged(id) {
+  stAccountLoad(id);
+  try { await loadStaff(); } catch (e) { return; }
+  renderStaff();
+}
+
+// Вкладка «История»: периоды работы человека — когда и кем выдана роль, когда и кем снята; новые сверху
+async function stHistoryLoad(id) {
+  let rows;
+  try { rows = await apiRequest('/staff.php?action=history&id=' + id); } catch (e) { return; }
+  if (stOpenId !== id) return;
+  const box = document.getElementById('st-history');
+  if (!rows.length) { box.innerHTML = '<div class="u-text-ui u-muted">Ролей не было</div>'; return; }
+  box.innerHTML = '<div class="admin-table"><table><thead><tr>' +
+    '<th>Роль</th><th>Филиал</th><th>С</th><th>По</th><th>Кто выдал / снял</th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      return '<tr' + (r.date_to ? ' class="u-muted"' : '') + '>' +
+        '<td class="u-text-ui">' + escAttr(r.name) + '</td>' +
+        '<td class="u-text-ui">' + (r.location_id !== null ? escAttr(staffLocName(r.location_id)) : 'все филиалы') + '</td>' +
+        '<td class="u-text-ui u-nowrap">' + docDate(r.date_from) + '</td>' +
+        '<td class="u-text-ui u-nowrap">' + (r.date_to ? docDate(r.date_to) : 'действует') + '</td>' +
+        '<td class="u-text-ui">' + escAttr(r.granted_by || '—') + (r.date_to ? ' / ' + escAttr(r.revoked_by || '—') : '') + '</td>' +
+        '</tr>';
+    }).join('') + '</tbody></table></div>';
+}
 
 function stSwitchTab(tab) {
   if (document.getElementById('st-roles')) stRolesRead();
@@ -182,7 +252,7 @@ function stRolesRender() {
   const rows = stRows.map(function (row, i) {
     const roles = stReadOnly
       ? '<div class="form-input form-view">' + escAttr(row.roles.map(staffRoleName).join(', ') || '—') + '</div>'
-      : msHtml('st-row-' + i, opts, row.roles, '— Выберите роли —', false, true);
+      : msHtml('st-row-' + i, opts, row.roles, '— Выберите роли —', false, !stSys());   // у администратора системы роли в филиале необязательны
     return '<div class="u-flex u-gap-8 u-items-center u-mb-8">' +
       '<div class="u-flex-1 u-min-w-0 u-text-ui u-strong">' + escAttr(staffLocName(row.location_id)) + '</div>' +
       '<div class="u-flex-1 u-min-w-0">' + roles + '</div>' +
@@ -265,7 +335,8 @@ async function saveStaff() {
   stRolesRead();
   const sys = stSys();
   stSysStrip();
-  const rows = stRows;
+  // у администратора системы роли в филиалах необязательны: филиал без ролей просто не сохраняется
+  const rows = sys ? stRows.filter(function (r) { return r.roles.length; }) : stRows;
   const empty = rows.find(function (r) { return !r.roles.length; });
   if (empty) {
     stSwitchTab('roles');

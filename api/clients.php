@@ -177,13 +177,14 @@ if ($method === 'PUT' && $action === 'update') {
     ok(null, 'Клиент обновлён');
 }
 
-// Клиент для действий с кабинетом и номером: действующий и не администратор (у сотрудников — свой раздел).
-// Кабинетом сотрудника (человека с ролью) управляет только администратор системы
+// Человек для действий с кабинетом и номером (окно клиента и окно сотрудника — одни и те же вызовы).
+// Кабинетом сотрудника (человека с ролью) управляет только администратор системы; администраторов в клиентской
+// базе нет, поэтому администратору студии они здесь недоступны вовсе
 function clientForAccount(PDO $db, int $id, array $admin): array {
     if (!$id) err('Не указан id');
     if (userRoles($db, $id) && !isSystemAdmin($admin)) err('Это сотрудник: его кабинетом управляет администратор системы', 403);
     $st = $db->prepare('SELECT u.id, u.phone, u.has_account, u.phone_verified_at, u.password IS NULL AS no_password FROM users u
-                        WHERE u.id = ? AND u.active = 1 AND ' . NOT_ADMIN_SQL . ' FOR UPDATE');
+                        WHERE u.id = ? AND u.active = 1 AND ' . (isSystemAdmin($admin) ? '1' : NOT_ADMIN_SQL) . ' FOR UPDATE');
     $st->execute([$id]);
     $c = $st->fetch();
     if (!$c) err('Клиент не найден', 404);
@@ -239,6 +240,8 @@ if ($method === 'POST' && $action === 'reset_password') {
     $db = getDB();
     $db->beginTransaction();
     $c = clientForAccount($db, (int)(input()['id'] ?? 0), $admin);
+    // свой пароль так не сбрасывают: администратор тут же вышел бы на всех устройствах
+    if ((int)$c['id'] === (int)$admin['id']) { $db->rollBack(); err('Свой пароль меняйте в разделе «Профиль»'); }
     if (!(int)$c['has_account']) { $db->rollBack(); err('У клиента нет личного кабинета'); }
     if (!(int)$c['no_password']) {
         $db->prepare('UPDATE users SET password = NULL WHERE id = ?')->execute([(int)$c['id']]);

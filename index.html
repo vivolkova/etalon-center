@@ -13,15 +13,15 @@
   <title>ETALON CENTER — Запись на тренировки</title>
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/fonts.css?v=20261008-036">
-  <link rel="stylesheet" href="css/base.css?v=20261008-036">
-  <link rel="stylesheet" href="css/site.css?v=20261008-036">
-  <link rel="stylesheet" href="css/panels.css?v=20261008-036">
-  <link rel="stylesheet" href="css/library.css?v=20261008-036">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261008-036">
-  <link rel="stylesheet" href="css/admin.css?v=20261008-036">
+  <link rel="stylesheet" href="css/fonts.css?v=20261009-004">
+  <link rel="stylesheet" href="css/base.css?v=20261009-004">
+  <link rel="stylesheet" href="css/site.css?v=20261009-004">
+  <link rel="stylesheet" href="css/panels.css?v=20261009-004">
+  <link rel="stylesheet" href="css/library.css?v=20261009-004">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261009-004">
+  <link rel="stylesheet" href="css/admin.css?v=20261009-004">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261008-036">
+  <link rel="stylesheet" href="css/kit.css?v=20261009-004">
 </head>
 
 <body>
@@ -546,6 +546,8 @@
             <input class="form-input u-flex-1 input-sm u-text-ui u-min-w-220" id="staff-search" placeholder="Поиск по имени, телефону..."
               oninput="renderStaff()">
             <select class="form-input u-w-220 input-sm u-text-ui" id="staff-role" onchange="renderStaff()"></select>
+            <!-- только администратору системы: вместо работающих — люди, у которых роли были раньше -->
+            <label class="u-flex u-items-center u-gap-6 u-text-ui u-nowrap u-pointer" id="staff-former-box"><input type="checkbox" id="staff-former" onchange="staffFormerChanged()"> Бывшие сотрудники</label>
           </div>
           <div class="admin-table">
             <table>
@@ -553,7 +555,7 @@
                 <tr>
                   <th>Сотрудник</th>
                   <th>Телефон</th>
-                  <th>Кем и где работает</th>
+                  <th id="staff-col-roles">Кем и где работает</th>
                 </tr>
               </thead>
               <tbody id="staff-tbody"></tbody>
@@ -761,33 +763,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261008-036"></script>
-  <script src="js/core.js?v=20261008-036"></script>
-  <script src="js/week-grid.js?v=20261008-036"></script>
-  <script src="js/auth.js?v=20261008-036"></script>
-  <script src="js/site/schedule.js?v=20261008-036"></script>
-  <script src="js/site/booking.js?v=20261008-036"></script>
-  <script src="js/site/individual.js?v=20261008-036"></script>
-  <script src="js/site/trainings.js?v=20261008-036"></script>
-  <script src="js/site/services-bookings.js?v=20261008-036"></script>
-  <script src="js/admin/admin.js?v=20261008-036"></script>
-  <script src="js/admin/schedule.js?v=20261008-036"></script>
-  <script src="js/admin/journal.js?v=20261008-036"></script>
-  <script src="js/admin/journal-book.js?v=20261008-036"></script>
-  <script src="js/client/panel.js?v=20261008-036"></script>
-  <script src="js/client/chat-profile.js?v=20261008-036"></script>
-  <script src="js/site/detail-modals.js?v=20261008-036"></script>
-  <script src="js/admin/library.js?v=20261008-036"></script>
-  <script src="js/admin/data-nav.js?v=20261008-036"></script>
-  <script src="js/admin/specialists.js?v=20261008-036"></script>
-  <script src="js/admin/staff.js?v=20261008-036"></script>
-  <script src="js/admin/settings.js?v=20261008-036"></script>
-  <script src="js/admin/stations.js?v=20261008-036"></script>
-  <script src="js/admin/dictionaries.js?v=20261008-036"></script>
-  <script src="js/docs.js?v=20261008-036"></script>
-  <script src="js/ui.js?v=20261008-036"></script>
-  <script src="js/loaders.js?v=20261008-036"></script>
-  <script src="js/init.js?v=20261008-036"></script>
+  <script src="js/api.js?v=20261009-004"></script>
+  <script src="js/core.js?v=20261009-004"></script>
+  <script src="js/week-grid.js?v=20261009-004"></script>
+  <script src="js/auth.js?v=20261009-004"></script>
+  <script src="js/site/schedule.js?v=20261009-004"></script>
+  <script src="js/site/booking.js?v=20261009-004"></script>
+  <script src="js/site/individual.js?v=20261009-004"></script>
+  <script src="js/site/trainings.js?v=20261009-004"></script>
+  <script src="js/site/services-bookings.js?v=20261009-004"></script>
+  <script src="js/admin/admin.js?v=20261009-004"></script>
+  <script src="js/admin/schedule.js?v=20261009-004"></script>
+  <script src="js/admin/journal.js?v=20261009-004"></script>
+  <script src="js/admin/journal-book.js?v=20261009-004"></script>
+  <script src="js/client/panel.js?v=20261009-004"></script>
+  <script src="js/client/chat-profile.js?v=20261009-004"></script>
+  <script src="js/site/detail-modals.js?v=20261009-004"></script>
+  <script src="js/admin/library.js?v=20261009-004"></script>
+  <script src="js/admin/data-nav.js?v=20261009-004"></script>
+  <script src="js/admin/specialists.js?v=20261009-004"></script>
+  <script src="js/admin/staff.js?v=20261009-004"></script>
+  <script src="js/admin/settings.js?v=20261009-004"></script>
+  <script src="js/admin/stations.js?v=20261009-004"></script>
+  <script src="js/admin/dictionaries.js?v=20261009-004"></script>
+  <script src="js/docs.js?v=20261009-004"></script>
+  <script src="js/ui.js?v=20261009-004"></script>
+  <script src="js/loaders.js?v=20261009-004"></script>
+  <script src="js/init.js?v=20261009-004"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1082,6 +1084,8 @@
         <button type="button" class="chip" data-st-tab="hours" onclick="stSwitchTab('hours')">График работы</button>
         <button type="button" class="chip" data-st-tab="off" onclick="stSwitchTab('off')">Отсутствия</button>
         <button type="button" class="chip" data-st-tab="custom" onclick="stSwitchTab('custom')">Особые часы работы</button>
+        <button type="button" class="chip" data-st-tab="account" onclick="stSwitchTab('account')">Личный кабинет</button>
+        <button type="button" class="chip" data-st-tab="history" onclick="stSwitchTab('history')">История</button>
       </div>
       <div class="tab-pane" data-st-pane="main">
         <div class="tab-pane-body">
@@ -1140,6 +1144,20 @@
       </div>
       <div class="tab-pane" data-st-pane="custom" style="display:none">
         <div class="tab-pane-body" id="st-custom-body"></div>
+        <div class="admin-modal-actions">
+          <button class="btn-ghost" onclick="closeStaffModal()">Закрыть</button>
+        </div>
+      </div>
+      <!-- Личный кабинет сотрудника — тот же блок, что у клиента (accountBlockFill); действия выполняются сразу -->
+      <div class="tab-pane" data-st-pane="account" style="display:none">
+        <div class="tab-pane-body" id="st-account"></div>
+        <div class="admin-modal-actions">
+          <button class="btn-ghost" onclick="closeStaffModal()">Закрыть</button>
+        </div>
+      </div>
+      <!-- История: периоды работы — когда и кем выдана и снята каждая роль (stHistoryLoad) -->
+      <div class="tab-pane" data-st-pane="history" style="display:none">
+        <div class="tab-pane-body" id="st-history"></div>
         <div class="admin-modal-actions">
           <button class="btn-ghost" onclick="closeStaffModal()">Закрыть</button>
         </div>
