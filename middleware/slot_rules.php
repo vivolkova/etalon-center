@@ -270,7 +270,9 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
     $roles = [];   // 'роль:филиал' => true
     foreach (specialistsRoles($db, [$specId])[$specId] ?? [] as $r) $roles[$r['role_id'] . ':' . $r['location_id']] = true;
 
-    $days = [];   // кеш часов работы по датам
+    // Часы работы специалиста — одним заходом на весь период занятий (а не запросом на каждую дату)
+    $days = [];
+    foreach (specialistAvailability($db, $specId, $slots[0]['slot_date'], $slots[count($slots) - 1]['slot_date']) as $d) $days[$d['date']] = $d;
     $out = [];
     foreach ($slots as $s) {
         $reason = null;
@@ -280,7 +282,7 @@ function specialistSlotConflicts(PDO $db, int $specId, ?string $from = null, ?st
             $reason = 'нет роли «' . $s['type_name'] . '» в филиале «' . slotLocName($db, (int)$s['location_id']) . '»';
         } else {
             $date = $s['slot_date'];
-            $day = $days[$date] ??= specialistAvailability($db, $specId, $date, $date)[0];
+            $day = $days[$date];
             $locId = (int)$s['location_id'];
             $start = specTimeToMin(substr($s['start_time'], 0, 5));
             $end   = $start + (int)$s['duration'];

@@ -195,6 +195,7 @@ input[type="checkbox"]:required:invalid {
 .u-min-w-0 { min-width: 0 !important; }
 .u-v-middle { vertical-align: middle !important; }
 .u-pointer { cursor: pointer !important; }
+.u-cursor-default { cursor: default !important; }   /* область, которая выглядит как нажимаемая, но сейчас не нажимается */
 
 .u-cols-2 { grid-template-columns: 1fr 1fr !important; }                                   /* две равные колонки */
 .u-cols-cards { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important; } /* карточки в ряд */

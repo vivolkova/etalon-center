@@ -238,7 +238,7 @@ async function admNav(name, el) {
 
   // Подгружаем свежие данные с сервера при переключении раздела
   const loaders = {
-    journal: async function () { await Promise.allSettled([jrLoad(), loadClients()]); },   // день филиала; клиенты — для записи по звонку
+    journal: async function () { await Promise.allSettled([jrLoad(), loadClients(), loadSpecialists()]); },   // день филиала; клиенты — для записи по звонку
     bookings: loadBookingsPanel,   // с фильтрами раздела (период, филиал)
     clients: loadClients,
     staff: async function () { await Promise.allSettled([loadStaff(), loadLocationsAll(), loadSpecialists()]); },

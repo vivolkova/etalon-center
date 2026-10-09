@@ -178,6 +178,10 @@ const JournalAPI = {
   async day(locId, date) {
     return apiRequest(`/journal.php?action=day&location_id=${locId}&date=${date}`);
   },
+  // несколько дней подряд одним запросом (не больше 63): [день, …] в том же виде, что day
+  async range(locId, from, days) {
+    return apiRequest(`/journal.php?action=range&location_id=${locId}&from=${from}&days=${days}`);
+  },
 };
 
 const BookingsAPI = {
@@ -220,8 +224,8 @@ const StationsAPI = {
   async move(id, pos_x, pos_y) { return apiRequest('/stations.php?action=move', 'PUT', { id, pos_x, pos_y }); },
   async delete(id) { return apiRequest(`/stations.php?action=delete&id=${id}`, 'DELETE'); },
   // Блокировка станка на занятие (slot_station_blocks)
-  async block(slot_id, station_id, reason) { return apiRequest('/stations.php?action=block', 'POST', { slot_id, station_id, reason }); },
-  async unblock(slotId, stationId) { return apiRequest(`/stations.php?action=unblock&slot_id=${slotId}&station_id=${stationId}`, 'DELETE'); },
+  // блокировки станков на занятие — одним запросом: block и unblock — id станков, reason — причина для новых блокировок
+  async setBlocks(slotId, block, unblock, reason) { return apiRequest('/stations.php?action=blocks', 'POST', { slot_id: slotId, block, unblock, reason }, true); },
   // Типы станков (общие для всех филиалов)
   async types() { return apiRequest('/stations.php?action=types'); },
   async typeCreate(data) { return apiRequest('/stations.php?action=type_create', 'POST', data); },

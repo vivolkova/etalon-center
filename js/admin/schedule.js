@@ -529,11 +529,9 @@ async function smApplyBlocks(slotId) {
   const d = smBlockDiff();
   if (!d.block.length && !d.unblock.length) return '';
   const reason = document.getElementById('sm-block-reason').value.trim() || null;
-  const results = await Promise.allSettled(
-    d.block.map(function (id) { return StationsAPI.block(slotId, id, reason); })
-      .concat(d.unblock.map(function (id) { return StationsAPI.unblock(slotId, id); }))
-  );
-  const failed = results.filter(function (r) { return r.status === 'rejected'; }).length;
+  // все изменения — одним запросом (сервер применяет их одной транзакцией): либо всё, либо ничего
+  let failed = 0;
+  try { await StationsAPI.setBlocks(slotId, d.block, d.unblock, reason); } catch (e) { failed = d.block.length + d.unblock.length; }
   // Число заблокированных станков у слота — для «свободно» в сетке без перезагрузки
   const slot = SLOTS.find(function (x) { return x.id === slotId; });
   if (slot && !failed) slot.blocked = smHallWant.size;

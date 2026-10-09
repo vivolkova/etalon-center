@@ -255,11 +255,16 @@ if ($method === 'GET' && $action === 'options') {
                         WHERE l.location_id = ? AND l.active = 1 ORDER BY dc.id, l.name');
     $st->execute([$locId]);
     $items = [];
+    // У занятий одной категории и одного вида ответ одинаковый — спрашиваем базу один раз на каждую такую пару,
+    // а не на каждое занятие библиотеки
+    $catOk = [];      // категория => доступна ли в филиале
+    $specsOf = [];    // категория + вид + роль => специалисты
     foreach ($st->fetchAll() as $lib) {
         if (!indBookable($lib['cat'], $lib['type'])) continue;
-        if (!dictAvailableAt($db, (int)$lib['activity_category_id'], $locId)) continue;
+        $catId = (int)$lib['activity_category_id'];
+        if (!($catOk[$catId] ??= dictAvailableAt($db, $catId, $locId))) continue;
         $needs = activityNeedsSpecialist($lib['cat'], $lib['type']);
-        $specs = indSpecialists($db, $lib);
+        $specs = $specsOf[$lib['cat'] . '|' . $lib['type'] . '|' . $lib['ref_id']] ??= indSpecialists($db, $lib);
         // Вести некому: тренировку не предлагаем; услугу показываем на странице «Услуги» без записи (bookable = false)
         if ($needs && !$specs && $lib['cat'] === 'training') continue;
         $items[] = [

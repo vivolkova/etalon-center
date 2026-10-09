@@ -257,38 +257,41 @@ if ($method === 'DELETE' && $action === 'delete') {
     ok(null, 'Станок удалён');
 }
 
-// POST ?action=block — заблокировать станок на слот (admin)
-if ($method === 'POST' && $action === 'block') {
+// POST ?action=blocks {slot_id, block: [id станка…], unblock: [id станка…], reason} — заблокировать и разблокировать
+// станки на занятие одним запросом и одной транзакцией (право blocks, занятие — своего филиала).
+// Станки — только из филиала занятия; уже заблокированный станок повторно не добавляется
+if ($method === 'POST' && $action === 'blocks') {
     $user = authCan('blocks');
     $d = input();
-    require_fields($d, ['slot_id', 'station_id']);
+    $slotId = (int)($d['slot_id'] ?? 0);
+    if (!$slotId) err('Не указано занятие');
+    $ids = fn($list) => array_values(array_unique(array_filter(array_map('intval', is_array($list) ? $list : []))));
+    $block = $ids($d['block'] ?? []);
+    $unblock = $ids($d['unblock'] ?? []);
     $db = getDB();
-    branchGuard($user, slotBranch($db, (int)$d['slot_id']));
-    // Станок и слот должны быть из одного филиала (филиал блокировки — через них, отдельно не хранится)
-    $chk = $db->prepare('SELECT 1 FROM slots sl JOIN stations st ON st.location_id = sl.location_id
-                         WHERE sl.id = ? AND st.id = ?');
-    $chk->execute([(int)$d['slot_id'], (int)$d['station_id']]);
-    if (!$chk->fetchColumn()) err('Станок и занятие — из разных филиалов');
-    try {
-        $stmt = $db->prepare('INSERT INTO slot_station_blocks (slot_id, station_id, reason) VALUES (?,?,?)');
-        $stmt->execute([(int)$d['slot_id'], (int)$d['station_id'], $d['reason'] ?? null]);
-        ok(['id' => (int)$db->lastInsertId()], 'Станок заблокирован на слот');
-    } catch (PDOException $e) {
-        err('Станок уже заблокирован на этот слот');
+    $locId = slotBranch($db, $slotId);
+    branchGuard($user, $locId);
+    $all = array_values(array_unique(array_merge($block, $unblock)));
+    if ($all) {
+        $in = implode(',', array_fill(0, count($all), '?'));
+        $st = $db->prepare('SELECT COUNT(*) FROM stations WHERE location_id = ? AND id IN (' . $in . ')');
+        $st->execute(array_merge([$locId], $all));
+        if ((int)$st->fetchColumn() !== count($all)) err('Станок и занятие — из разных филиалов');
     }
-}
-
-// DELETE ?action=unblock&slot_id=X&station_id=Y — снять блокировку (admin)
-if ($method === 'DELETE' && $action === 'unblock') {
-    $user = authCan('blocks');
-    $slotId    = (int)($_GET['slot_id'] ?? 0);
-    $stationId = (int)($_GET['station_id'] ?? 0);
-    if (!$slotId || !$stationId) err('Нужны slot_id и station_id');
-    $db = getDB();
-    branchGuard($user, slotBranch($db, $slotId));
-    $db->prepare('DELETE FROM slot_station_blocks WHERE slot_id = ? AND station_id = ?')
-       ->execute([$slotId, $stationId]);
-    ok(null, 'Блокировка снята');
+    $db->beginTransaction();
+    if ($unblock) {
+        $in = implode(',', array_fill(0, count($unblock), '?'));
+        $db->prepare('DELETE FROM slot_station_blocks WHERE slot_id = ? AND station_id IN (' . $in . ')')->execute(array_merge([$slotId], $unblock));
+    }
+    if ($block) {
+        $reason = isset($d['reason']) && $d['reason'] !== '' ? (string)$d['reason'] : null;
+        $rows = implode(',', array_fill(0, count($block), '(?,?,?)'));
+        $args = [];
+        foreach ($block as $stationId) array_push($args, $slotId, $stationId, $reason);
+        $db->prepare('INSERT IGNORE INTO slot_station_blocks (slot_id, station_id, reason) VALUES ' . $rows)->execute($args);
+    }
+    $db->commit();
+    ok(null, 'Блокировки сохранены');
 }
 
 err('Неизвестный endpoint', 404);
