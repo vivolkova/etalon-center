@@ -834,3 +834,137 @@
 .wg--site .wg-time-row {
   font-size: 11px;
 }
+
+/* ── Расписание клиента по дням (владелец 09.10.2026): семь колонок одинаковой ширины, занятия дня — карточками
+   подряд по времени начала, без сетки по часам и пустых строк. Разметка — js/site/trainings.js.
+   Цвет полосы слева — вид занятия (--cat, как у плитки в сетке); прошедшее и занятое — серым (.is-off);
+   своя запись — тёмная (--mine). На телефоне вместо колонок — список дня (.sch-list выше) ── */
+.sch-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.sch-day-hdr {
+  padding: 8px 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--ink-60);
+}
+
+.sch-day-hdr b {
+  color: var(--ink);
+}
+
+.sch-day.today .sch-day-hdr,
+.sch-day.today .sch-day-hdr b {
+  color: var(--green-dark);
+  border-bottom-color: var(--green);
+}
+
+.sch-day.past .sch-day-hdr,
+.sch-day.past .sch-day-hdr b {
+  color: var(--ink-40);
+}
+
+.sch-day-empty {
+  padding: 8px 4px;
+  font-size: 12px;
+  color: var(--ink-40);
+}
+
+.sch-card {
+  margin-bottom: 8px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--cat, #888);
+  background: var(--card);
+  cursor: pointer;
+  transition: box-shadow .15s;
+}
+
+.sch-card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .1);
+}
+
+.sch-card-time {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.sch-card-time span {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-60);
+}
+
+.sch-card-name {
+  margin: 2px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.sch-card-meta,
+.sch-card-state {
+  font-size: 12px;
+  color: var(--ink-60);
+  overflow-wrap: anywhere;
+}
+
+.sch-card-state {
+  margin-top: 6px;
+  font-weight: 700;
+}
+
+/* Прошедшее занятие и занятие без мест — серым */
+.sch-card.is-off {
+  background: var(--muted-bg);
+  border-color: transparent;
+  border-left-color: var(--muted-strong);
+}
+
+.sch-card.is-off .sch-card-time,
+.sch-card.is-off .sch-card-name {
+  color: var(--ink-60);
+}
+
+/* Своя запись */
+.sch-card--mine {
+  background: var(--mine);
+  border-color: transparent;
+  border-left: 4px solid var(--mine-edge);
+}
+
+.sch-card--mine .sch-card-time,
+.sch-card--mine .sch-card-time span,
+.sch-card--mine .sch-card-name,
+.sch-card--mine .sch-card-meta,
+.sch-card--mine .sch-card-state {
+  color: var(--mine-ink);
+}
+
+.sch-card--mine .sch-card-time span,
+.sch-card--mine .sch-card-meta {
+  opacity: .8;
+}
+
+.sch-card--mine.is-off {
+  background: var(--muted-bg);
+  border-left-color: var(--muted-strong);
+}
+
+.sch-card--mine.is-off .sch-card-time,
+.sch-card--mine.is-off .sch-card-time span,
+.sch-card--mine.is-off .sch-card-name,
+.sch-card--mine.is-off .sch-card-meta,
+.sch-card--mine.is-off .sch-card-state {
+  color: var(--ink-60);
+}

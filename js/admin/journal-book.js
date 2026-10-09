@@ -71,7 +71,7 @@ function jbBuildModal(loc) {
   const was = jb.move || jb.gmove;
   document.getElementById('jb-sub').textContent = was
     ? 'Сейчас: ' + day + ', ' + minToTime(was.from) + '–' + minToTime(was.to) + ' · ' + loc.name
-    : jb.self ? loc.name : day + ' · ' + loc.name;   // клиент выбирает день в самой форме
+    : jb.self ? '' : day + ' · ' + loc.name;   // клиент выбирает день в самой форме; филиал он выбрал в шапке сайта
 }
 function jbIsMove() { return !!(jb && (jb.move || jb.gmove)); }
 function jbSubmitLabel() { return jbIsMove() ? 'Перенести' : jb.self ? 'Записаться' : 'Записать'; }
@@ -410,9 +410,11 @@ function jbRenderBody() {
   }
   if (it.needs_specialist) {
     const specs = jb.fixedSpec ? it.specialists.filter(function (s) { return Number(s.id) === jb.fixedSpec; }) : it.specialists;
-    h += field(it.cat === 'training' ? 'Тренер' : 'Специалист', chips(specs.map(function (s) {
-      return indChip(escAttr(s.full_name || s.name), Number(s.id) === jb.spec, 'jbSelectSpec(' + s.id + ')');
-    })));
+    // тренер — выпадающим списком (владелец 09.10.2026); один возможный — показан как выбранный
+    h += field(it.cat === 'training' ? 'Тренер' : 'Специалист', '<select class="form-input" onchange="jbSelectSpec(this.value)">'
+      + specs.map(function (s) {
+        return '<option value="' + s.id + '"' + (Number(s.id) === jb.spec ? ' selected' : '') + '>' + escAttr(s.full_name || s.name) + '</option>';
+      }).join('') + '</select>');
   }
   if (it.durations.length > 1) {
     h += field('Длительность', chips(it.durations.map(function (m) { return indChip(fmtDurShort(m), m === jb.dur, 'jbSelectDur(' + m + ')'); })));

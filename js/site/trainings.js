@@ -1,5 +1,6 @@
 // Сайт: экран «Расписание» — неделя выбранного филиала: групповые тренировки из расписания и свои записи клиента
-// (тренировки и услуги) золотыми блоками. Групповая тренировка — кнопка «Записаться» в самом слоте.
+// (тренировки и услуги). Вид (владелец 09.10.2026): дни недели колонками, занятия дня — карточками подряд по времени,
+// без сетки по часам и пустых строк; прошедшее — серым. Групповая тренировка — кнопка «Записаться» в карточке.
 // Нажатие на свою запись открывает карточку с действиями «Перенести» и «Отменить запись».
 // Кнопка «Свободная запись» над сеткой открывает форму записи на индивидуальную тренировку (персональную или
 // самостоятельную): тренировка → тренер или длительность → день → свободное время → станок. Это та же форма, что
@@ -68,39 +69,26 @@ function renderTrainings() {
   document.getElementById('tr-hint').textContent = !currentUser ? 'Войдите, чтобы записаться и видеть свои записи.'
     : !items.length ? 'На этой неделе тренировок и записей нет.' : '';
 
-  const ROW_H = wgRowHeight(grid);
-  const hrRange = weekHourRange(items, [locId]);
-  // Пересекающиеся по времени занятия дня (своя запись на услугу и групповая тренировка) — рядом, колонками
-  const layouts = [];
-  for (let di = 0; di < 7; di++) layouts.push(wgLayoutDay(items.filter(function (x) { return x.di === di; })));
-
-  let h = '<div class="wg-corner"></div>';
+  // Дни колонками: заголовок дня и его занятия карточками подряд (по времени начала)
+  let h = '';
   const strip = [];
   for (let di = 0; di < 7; di++) {
     const d = new Date(trWeekStart); d.setDate(trWeekStart.getDate() + di);
     const isToday = d.getTime() === today.getTime(), isPast = d < today;
+    const dayItems = items.filter(function (x) { return x.di === di; })
+      .sort(function (a, b) { return timeToMin(a.time) - timeToMin(b.time); });
     // mark — в этот день у клиента есть записи (отметка в ленте дней на телефоне)
-    strip.push({ date: d, muted: isPast, mark: items.some(function (x) { return x.b && x.di === di; }) });
-    h += '<div class="wg-day-hdr' + (isToday ? ' today' : '') + (isPast ? ' past' : '') + '">'
-      + '<div class="wg-dow">' + DAYS_RU[di] + '</div>'
-      + '<div class="wg-date">' + d.getDate() + ' ' + MONTHS_RU[d.getMonth()] + '</div></div>';
-  }
-  for (let hr = hrRange.start; hr < hrRange.end; hr++) {
-    h += '<div class="wg-time-col"><div class="wg-time-row">' + String(hr).padStart(2, '0') + ':00</div></div>';
-    for (let di = 0; di < 7; di++) {
-      let cell = '<div class="wg-cell">';
-      items.forEach(function (x) {
-        if (x.di !== di || Math.floor(timeToMin(x.time) / 60) !== hr) return;
-        const pos = layouts[di].get(x.id);
-        cell += x.b ? trMineHtml(x.b, ROW_H, pos) : schSlotHtml(x.s, ROW_H, pos, false);
-      });
-      h += '<div class="wg-day-col' + (strip[di].date.getTime() === today.getTime() ? ' today-col' : '') + (strip[di].muted ? ' past-col' : '') + '" data-di="' + di + '">' + cell + '</div></div>';
-    }
+    strip.push({ date: d, muted: isPast, mark: dayItems.some(function (x) { return x.b; }) });
+    h += '<div class="sch-day' + (isToday ? ' today' : '') + (isPast ? ' past' : '') + '">'
+      + '<div class="sch-day-hdr"><b>' + DAYS_RU[di] + '</b> ' + d.getDate() + ' ' + MONTHS_RU[d.getMonth()] + '</div>'
+      + (dayItems.length
+        ? dayItems.map(function (x) { return x.b ? trMineCardHtml(x.b) : trSlotCardHtml(x.s); }).join('')
+        : '<div class="sch-day-empty">Занятий нет</div>')
+      + '</div>';
   }
   grid.innerHTML = h;
   if (trDayIdx === null) trDayIdx = wgDefaultDay(trWeekStart);
   wgRenderDayStrip('tr-days', grid, strip, trDayIdx, 'trSelectDay');
-  wcBindTip(grid);
   // На телефоне вместо сетки — список выбранного дня (css/week-grid.css: .sch-list, @media max-width 700px)
   document.getElementById('tr-day-list').innerHTML = trDayListHtml(trDayIdx, items);
 }
@@ -146,19 +134,31 @@ function trMineRowHtml(b) {
     + '<div class="sch-row-info"><div class="sch-row-name">✓ ' + escAttr(b.service) + '</div><div class="sch-row-meta">' + meta + '</div></div></div>';
 }
 
-// Своя запись в сетке — золотой блок (.wg-blk--mine)
-function trMineHtml(b, ROW_H, pos) {
-  const from = timeToMin(b.time);
-  const top = Math.round((from % 60) * ROW_H / 60);
-  const height = Math.max(Math.round(b.dur * ROW_H / 60) - 2, 20);
-  const time = b.time + '–' + minToTime(from + b.dur);
-  const who = [b.specialist, b.station].filter(Boolean).join(' · ');
-  return '<div class="wg-blk wg-blk--mine" style="top:' + top + 'px;height:' + height + 'px;' + wgLaneStyle(pos) + '"'
-    + ' onclick="trOpenBooking(' + b.id + ')" title="' + escAttr([time, b.service, who].filter(Boolean).join(' · ')) + '">'
-    + '<span>✓ ' + escAttr(b.service)
-    + (height >= 44 ? '<small>' + time + '</small>' : '')
-    + (height >= 72 && who ? '<small>' + escAttr(who) + '</small>' : '')
-    + '</span></div>';
+// Карточка групповой тренировки в колонке дня: время и длительность, название, тренер и цена, свободные места,
+// кнопка записи. Мест нет или занятие уже началось — серая, без кнопки; нажатие открывает описание занятия
+function trSlotCardHtml(s) {
+  const closed = slotStarted(s);
+  const off = closed || slotFree(s) <= 0;
+  const meta = [s.specialist, s.price > 0 ? s.price.toLocaleString('ru') + ' ₽' : ''].filter(Boolean).map(escAttr).join(' · ');
+  return '<div class="sch-card ' + colorClass(s.cat, s.type) + (off ? ' is-off' : '') + '" onclick="' + (off ? 'openSlotDetail(' : 'openBookingModal(') + s.id + ')">'
+    + '<div class="sch-card-time">' + s.time + '<span>' + fmtDurShort(s.dur) + '</span></div>'
+    + '<div class="sch-card-name">' + escAttr(s.name) + '</div>'
+    + (meta ? '<div class="sch-card-meta">' + meta + '</div>' : '')
+    + (off ? '<div class="sch-card-state">' + (closed ? SLOT_CLOSED : 'Мест нет') + '</div>'
+      : '<div class="sch-card-meta">' + slotFree(s) + ' из ' + slotCap(s) + ' мест</div>'
+        + '<button class="btn-primary btn-sm u-w-full u-mt-6" onclick="event.stopPropagation();openBookingModal(' + s.id + ')">Записаться</button>')
+    + '</div>';
+}
+
+// Своя запись в колонке дня — тёмная карточка (--mine); прошедшая — серая. Нажатие — карточка записи (перенос, отмена)
+function trMineCardHtml(b) {
+  const meta = [b.specialist, b.station, b.price.toLocaleString('ru') + ' ₽'].filter(Boolean).map(escAttr).join(' · ');
+  return '<div class="sch-card sch-card--mine' + (cpCanMove(b) ? '' : ' is-off') + '" onclick="trOpenBooking(' + b.id + ')">'
+    + '<div class="sch-card-time">' + b.time + '<span>' + fmtDurShort(b.dur) + '</span></div>'
+    + '<div class="sch-card-name">' + escAttr(b.service) + '</div>'
+    + (meta ? '<div class="sch-card-meta">' + meta + '</div>' : '')
+    + '<div class="sch-card-state">✓ Вы записаны</div>'
+    + '</div>';
 }
 
 // ═══ КАРТОЧКА СВОЕЙ ЗАПИСИ: что, когда, с кем, цена; перенос и отмена ═══
