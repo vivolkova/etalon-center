@@ -131,8 +131,8 @@ async function trOpenFree(itemId) {
 
 // Страница «Тренировки» — те же карточки, что у администратора в «Филиалы → Тренировки» (js/admin/library.js),
 // только для просмотра: действующие тренировки библиотеки выбранного филиала блоками по виду (групповые,
-// персональные, самостоятельные). Групповая — «В расписание» (на неё записываются в расписании), персональная
-// и самостоятельная — «Записаться» (форма «Свободная запись» с этой тренировкой)
+// персональные, самостоятельные). У каждой — «Записаться»: у групповой — выбор ближайшего занятия из расписания
+// (catalogBook), у персональной и самостоятельной — форма «Свободная запись» с этой тренировкой
 function renderCatalog() {
   renderSchLoc();
   const box = document.getElementById('catalog-grid');
@@ -169,15 +169,43 @@ function catalogCardHtml(it) {
     + '<div class="lib-card-footer">'
     + '<div class="lib-card-price">' + Number(it.price).toLocaleString('ru') + ' ₽</div>'
     + '<div class="lib-card-actions">'
-    + (group
-      ? '<button class="btn-primary btn-sm" onclick="catalogToSchedule()">В расписание</button>'
-      : '<button class="btn-primary btn-sm" onclick="trOpenFree(' + it.id + ')">Записаться</button>')
+    + '<button class="btn-primary btn-sm" onclick="' + (group ? 'catalogBook(' : 'trOpenFree(') + it.id + ')">Записаться</button>'
     + '</div></div></div>';
 }
-// «В расписание» у групповой тренировки: на неё записываются на конкретный день и время
-function catalogToSchedule() {
-  showPage('trainings');
-  setNavActive(document.querySelector('.nav-link[onclick*=trainings]'));
+// «Записаться» у групповой тренировки: окно с её ближайшими занятиями в выбранном филиале (из расписания, которое
+// страница уже загрузила, — на 60 дней вперёд); нажатие на занятие открывает обычное окно записи с выбором станка
+function catalogBook(libId) {
+  if (!currentUser) { openAuth('login'); showToast('Войдите, чтобы записаться'); return; }
+  const loc = schLoc();
+  const it = LIBRARY.trainings.find(function (x) { return x.id === libId; });
+  if (!loc || !it) return;
+  const list = SLOTS.filter(function (x) {
+    return Number(x.library_id) === libId && Number(x.location_id) === Number(loc.id) && !slotStarted(x);
+  }).sort(function (a, b) { return a.date - b.date || timeToMin(a.time) - timeToMin(b.time); });
+  catalogBookClose();
+  const el = document.createElement('div');
+  el.className = 'admin-modal-overlay show';
+  el.id = 'catalog-book';
+  const rows = list.map(function (x) {
+    const free = slotFree(x);
+    const when = DAYS_RU[x.dayOfWeek] + ', ' + x.date.getDate() + ' ' + MONTHS_RU[x.date.getMonth()] + ' · ' + x.time;
+    const info = [x.specialist, free > 0 ? free + ' из ' + slotCap(x) + ' мест' : 'мест нет'].filter(Boolean).map(escAttr).join(' · ');
+    return '<button type="button" class="jb-result"' + (free > 0 ? '' : ' disabled') + ' onclick="catalogBookPick(' + x.id + ')"><b>' + when + '</b><span>' + info + '</span></button>';
+  }).join('');
+  el.innerHTML = '<div class="admin-modal u-max-w-460">'
+    + '<div class="admin-modal-title u-mb-8">' + escAttr(it.name) + '</div>'
+    + (list.length
+      ? '<div class="u-text-body u-muted u-mb-10">Выберите день и время</div>' + rows
+      : '<div class="u-text-body u-muted">В ближайшие два месяца этой тренировки нет в расписании.</div>')
+    + '<div class="admin-modal-actions"><button class="btn-ghost" onclick="catalogBookClose()">Закрыть</button></div></div>';
+  document.body.appendChild(el);
+}
+function catalogBookClose() {
+  const el = document.getElementById('catalog-book'); if (el) el.remove();
+}
+function catalogBookPick(slotId) {
+  catalogBookClose();
+  openBookingModal(slotId);
 }
 
 // Своя запись строкой списка дня — золотая, как блок в сетке
