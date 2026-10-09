@@ -67,10 +67,10 @@ function renderLibrary() {
     const inactive = !Number(item.active);
     const delBadge = inactive ? '<span class="lib-meta-tag tag-muted">Удалена</span>' : '';
     const actionsHtml = inactive
-      ? '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>'
+      ? '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' title="Изменить" aria-label="Изменить" onclick="openLibItemModal(' + item.id + ')">' + ICO_EDIT + '</button>'
       : (libCanSchedule(item) ? '<button class="lib-add-slot-btn"' + needAttr('schedule') + ' onclick="addToScheduleFromLib(' + item.id + ')">+ В расписание</button>' : '') +
-        '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' onclick="openLibItemModal(' + item.id + ')">Ред.</button>' +
-        '<button class="action-btn cancel btn-sm"' + needAttr('library') + ' onclick="deleteLibItem(' + item.id + ')">Уд.</button>';
+        '<button class="action-btn confirm btn-sm"' + needAttr('library') + ' title="Изменить" aria-label="Изменить" onclick="openLibItemModal(' + item.id + ')">' + ICO_EDIT + '</button>' +
+        '<button class="action-btn cancel btn-sm"' + needAttr('library') + ' title="Удалить" aria-label="Удалить" onclick="deleteLibItem(' + item.id + ')">✕</button>';
     // Цвет плашки и точек — по категории и виду тренировки
     return '<div class="lib-card ' + colorClass(item.cat, item.type) + (inactive ? ' is-inactive' : '') + '">' +
       difficultyHtml +

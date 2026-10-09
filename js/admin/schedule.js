@@ -165,8 +165,8 @@ function renderAdminSchedule() {
         // Кнопки занятия — только у того, кто может менять расписание; остальным занятие открывается нажатием (блокировка станков)
         if (canEdit) {
           cellHtml += '<div class="wg-slot-btns">';
-          cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">Ред.</button>';
-          cellHtml += '<button class="wg-slot-btn" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">Уд.</button>';
+          cellHtml += '<button class="wg-slot-btn" title="Изменить" aria-label="Изменить" onclick="event.stopPropagation();openSlotModal(' + s.id + ')">' + ICO_EDIT_SM + '</button>';
+          cellHtml += '<button class="wg-slot-btn" title="Удалить" aria-label="Удалить" onclick="event.stopPropagation();deleteSlot(' + s.id + ')">✕</button>';
           cellHtml += '</div>';
         }
         cellHtml += '</div>';

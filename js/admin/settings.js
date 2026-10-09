@@ -386,6 +386,23 @@ function renderAdminBookings() {
   }
 }
 
+// «Перенести» в строке записи: та же форма переноса, что в «Записи из расписания» (js/admin/journal-book.js).
+// Форме нужны данные дня занятия в его филиале — берём их с сервера; после переноса обновляем список записей
+async function bookingMove(id) {
+  const b = bookings.find(function (x) { return x.id === id; });
+  const loc = b ? findLocation(b.location_id) : null;
+  if (!b || !loc) return;
+  let day;
+  try { day = await JournalAPI.day(loc.id, String(b.date).slice(0, 10)); } catch (e) { return; }
+  const slot = day.slots.find(function (x) { return x.id === Number(b.slotId); });
+  if (!slot || !slot.bookings.some(function (x) { return x.id === b.id; })) {
+    showToast('Запись уже изменилась — обновите список', 'error');
+    return;
+  }
+  const ctx = { loc: loc, day: day, after: async function () { await loadBookingsPanel(); renderAdminBookings(); } };
+  if (slot.individual) jbOpenMove(slot.id, ctx); else jbOpenGroupMove(slot.id, b.id, ctx);
+}
+
 function renderAdminBookingsFiltered(list) {
   const tbody = document.getElementById('admin-tbody');
   if (!tbody) return;
@@ -416,8 +433,8 @@ function renderAdminBookingsFiltered(list) {
       '<td class="u-strong u-nowrap">' + b.price.toLocaleString('ru') + ' ₽</td>' +
       '<td><span class="status-badge ' + statusMap[b.status] + '">' + statusLabel[b.status] + '</span></td>' +
       '<td class="u-flex u-gap-4 u-wrap">' +
-
-      (b.status !== 'cancelled' ? '<button class="action-btn cancel btn-sm" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
+      (b.status !== 'cancelled' ? '<button class="action-btn confirm btn-sm" title="Изменить" aria-label="Изменить" onclick="bookingMove(' + b.id + ')">' + ICO_EDIT + '</button>' : '') +
+      (b.status !== 'cancelled' ? '<button class="action-btn cancel btn-sm" title="Отменить запись" aria-label="Отменить запись" onclick="adminCancel(' + b.id + ')">✕</button>' : '') +
       '</td></tr>';
   }).join('');
 }

@@ -100,8 +100,8 @@ async function trmHoursChanged(specId) {
 
 function trmItemButtons(attr, id) {
   return '<div class="u-flex u-gap-4 u-shrink-0">' +
-    '<button type="button" class="action-btn confirm btn-sm" data-' + attr + '-edit="' + id + '">Ред.</button>' +
-    '<button type="button" class="action-btn cancel btn-sm" data-' + attr + '-del="' + id + '">✕</button></div>';
+    '<button type="button" class="action-btn confirm btn-sm" data-' + attr + '-edit="' + id + '" title="Изменить" aria-label="Изменить">' + ICO_EDIT + '</button>' +
+    '<button type="button" class="action-btn cancel btn-sm" data-' + attr + '-del="' + id + '" title="Удалить" aria-label="Удалить">✕</button></div>';
 }
 
 function trmRenderSchedules() {

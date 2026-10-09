@@ -98,6 +98,12 @@ function uiConfirm(title, note) {
 // Поля поиска по телефону сюда не относятся — в них номер вводят частично.
 const PHONE_TEMPLATE = '+7 (___) ___-__-__';
 
+// Значок «изменить» — карандаш (утверждён владельцем 09.10.2026): кнопка «изменить» во всей системе — без подписи,
+// значок и подсказка: <button title="Изменить" aria-label="Изменить">' + ICO_EDIT + '</button>.
+// Цвет — как у текста кнопки (currentColor). ICO_EDIT_SM — для мелких кнопок на плитке занятия в недельной сетке
+const ICO_EDIT = '<svg class="u-block" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+const ICO_EDIT_SM = '<svg class="u-block" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>';
+
 // Поиск по телефону — одно правило для всех полей поиска: сравниваются только цифры, скобки, пробелы и дефисы
 // не важны («666» находит +7 (951) 660-56-66). Цифры запроса ищем в номере без кода страны (последние 10 цифр);
 // номер, набранный с начала — «8 951…» или «+7 951…», — тот же, что «951…». Запрос без цифр или с буквами номеру не подходит

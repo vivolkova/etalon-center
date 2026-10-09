@@ -43,7 +43,7 @@ async function renderDictsTab() {
         (editable
           ? '<td>' + (d.active ? 'да' : '<span class="set-hint">нет</span>') + '</td>' +
             '<td>' + dictLocationsText(d) + '</td>' +
-            '<td><button class="action-btn confirm btn-sm"' + needAttr('system') + ' onclick="openDictModal(' + d.id + ')">Ред.</button></td>'
+            '<td><button class="action-btn confirm btn-sm"' + needAttr('system') + ' title="Изменить" aria-label="Изменить" onclick="openDictModal(' + d.id + ')">' + ICO_EDIT + '</button></td>'
           : '') +
         '</tr>';
     }).join('');

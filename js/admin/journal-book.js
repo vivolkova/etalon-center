@@ -79,14 +79,18 @@ function jbSubmitLabel() { return jbIsMove() ? 'Перенести' : jb.self ? 
 // Перенос записи на групповую тренировку из её карточки: та же форма. Клиент задан; выбираются день, тренировка
 // (любая групповая этого филиала в выбранный день) и станок на схеме зала выбранной тренировки.
 // Комментарий и отметка об оплате сохраняются
-async function jbOpenGroupMove(slotId, bookingId) {
-  const loc = jrLoc();
-  const slot = jrData && jrData.slots.find(function (x) { return x.id === slotId; });
+// ctx — перенос открыт не из журнала дня («Управление записями»): {loc — филиал, day — данные дня занятия (как jrData),
+// after — что обновить после переноса}; без ctx — филиал и день журнала
+async function jbOpenGroupMove(slotId, bookingId, ctx) {
+  const loc = ctx ? ctx.loc : jrLoc();
+  const day = ctx ? ctx.day : jrData;
+  const slot = day && day.slots.find(function (x) { return x.id === slotId; });
   const b = slot && slot.bookings.find(function (x) { return x.id === bookingId; });
   if (!loc || !slot || !b) return;
   jb = {
     gmove: { bookingId: b.id, slotId: slot.id, station: b.station_id, from: slot.from, to: slot.to, price: slot.price, paid: b.payment_status === 'paid' },
-    locId: Number(loc.id), date: jrData.date, items: [], item: null,
+    after: ctx ? ctx.after : null,
+    locId: Number(loc.id), date: day.date, items: [], item: null,
     client: { id: b.user_id, name: b.name, phone: b.phone }, isNew: false,
     slots: null, target: slot.id, station: b.station_id, hall: null,
   };
@@ -184,9 +188,10 @@ function jbRenderGroupMoveBody(field) {
 
 // Перенос индивидуальной записи из её карточки: та же форма с текущими значениями. Клиент и занятие заданы;
 // выбираются день, время, длительность, специалист, станок. Комментарий и отметка об оплате сохраняются
-async function jbOpenMove(slotId) {
-  const loc = jrLoc();
-  const slot = jrData && jrData.slots.find(function (x) { return x.id === slotId; });
+async function jbOpenMove(slotId, ctx) {
+  const loc = ctx ? ctx.loc : jrLoc();
+  const day = ctx ? ctx.day : jrData;
+  const slot = day && day.slots.find(function (x) { return x.id === slotId; });
   const b = slot && slot.bookings[0];
   if (!loc || !slot || !b) return;
   let opts;
@@ -195,7 +200,8 @@ async function jbOpenMove(slotId) {
   if (!item) { showToast('Это занятие больше недоступно для записи — отмените запись и создайте новую', 'error'); return; }
   jb = {
     move: { bookingId: b.id, slotId: slot.id, from: slot.from, to: slot.to, price: slot.price, paid: b.payment_status === 'paid' },
-    locId: Number(loc.id), date: jrData.date, items: [item], step: opts.step, fixedSpec: null,
+    after: ctx ? ctx.after : null,
+    locId: Number(loc.id), date: day.date, items: [item], step: opts.step, fixedSpec: null,
     item: item.id, spec: slot.specialist_id, dur: slot.to - slot.from,
     wantStart: slot.from, wantStation: b.station_id, start: null, station: null,
     client: { id: b.user_id, name: b.name, phone: b.phone }, isNew: false, times: null, message: '', hall: null,
@@ -565,6 +571,7 @@ async function jbSubmitMove() {
   jbClose();
   showToast((mine.self ? 'Запись перенесена на ' : mine.client.name + ': запись перенесена на ') + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(mine.start), 'success');
   if (mine.self) { await cpAfterMove(); return; }
+  if (mine.after) { await mine.after(); return; }   // перенос из «Управления записями» — обновить его список
   await jrLoad();
   renderJournal();
 }
@@ -588,6 +595,7 @@ async function jbSubmitGroupMove() {
     : 'запись перенесена на ' + d.getDate() + ' ' + MONTHS_FULL[d.getMonth()] + ', ' + minToTime(t.from) + ' · ' + t.name;
   showToast(mine.self ? what[0].toUpperCase() + what.slice(1) : mine.client.name + ': ' + what, 'success');
   if (mine.self) { await cpAfterMove(); return; }
+  if (mine.after) { await mine.after(); return; }   // перенос из «Управления записями» — обновить его список
   // Счётчики мест и недельное расписание берут данные из слотов — перечитываем и их
   await Promise.allSettled([jrLoad(), loadSlots(jrDate, jrDate)]);
   renderJournal();

@@ -188,8 +188,8 @@ async function renderStationTypesTab() {
       '<div class="lib-card-meta">' + (inactive ? '<span class="lib-meta-tag tag-muted">Выключен</span>' : '') +
       '<span class="lib-meta-tag">Станков: ' + (parseInt(t.stations_count) || 0) + '</span></div>' +
       '<div class="lib-card-footer"><div></div><div class="lib-card-actions">' +
-      '<button class="action-btn confirm btn-sm"' + needAttr('system') + ' onclick="openStationTypeModal(' + t.id + ')">Ред.</button>' +
-      '<button class="action-btn cancel btn-sm"' + needAttr('system') + ' onclick="deleteStationType(' + t.id + ')">Уд.</button>' +
+      '<button class="action-btn confirm btn-sm"' + needAttr('system') + ' title="Изменить" aria-label="Изменить" onclick="openStationTypeModal(' + t.id + ')">' + ICO_EDIT + '</button>' +
+      '<button class="action-btn cancel btn-sm"' + needAttr('system') + ' title="Удалить" aria-label="Удалить" onclick="deleteStationType(' + t.id + ')">✕</button>' +
       '</div></div></div>';
   }).join('');
 }
