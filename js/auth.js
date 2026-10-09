@@ -196,7 +196,7 @@ async function loginUser(user, quiet) {
   // Сайт (главная, запись на тренировки и услуги) администратору не нужен — он работает в панели и сразу попадает в неё
   document.querySelectorAll('.nav-client-only').forEach(function (l) { l.style.display = user.role === 'admin' ? 'none' : ''; });
   // …кроме страницы, открытой по ссылке на документ (#doc/…): её покажет js/init.js; переход в панель стёр бы адрес
-  if (user.role === 'admin' && !docFromHash()) admGroup('work');
+  if (user.role === 'admin' && !docFromHash()) admGroup('journal');
   admBootMark(user.role === 'admin');
   if (!quiet) showToast('Добро пожаловать, ' + user.name.split(' ')[0] + '!', 'success');
   // Загружаем записи с сервера; слоты — заново (свежие счётчики мест)

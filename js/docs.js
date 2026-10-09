@@ -100,8 +100,10 @@ function docShowVersion() {
   ta.value = v ? v.body : '';
   ta.readOnly = !canEdit;
   const save = document.querySelector('#doc-modal [data-act="save"]');
+  // нет права — кнопки нет; прежняя редакция — кнопка есть, но недоступна
+  save.style.display = canDo('system') ? '' : 'none';
   save.disabled = !canEdit;
-  save.title = canEdit ? '' : (isCurrent ? NEED_TITLE : 'Прежняя редакция — только для чтения');
+  save.title = canEdit ? '' : 'Прежняя редакция — только для чтения';
   document.getElementById('doc-hint').textContent = canEdit
     ? 'Пустая строка разделяет абзацы, строка с «# » в начале — заголовок. Опубликованную редакцию изменить нельзя — правка публикуется новой редакцией'
     : (isCurrent ? '' : 'Прежняя редакция — только для чтения');

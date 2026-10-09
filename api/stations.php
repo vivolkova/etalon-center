@@ -32,7 +32,7 @@ function checkStationLimit(PDO $db, int $locId, int $exceptId = 0): void {
 if ($method === 'GET' && $action === 'list') {
     $locationId = (int)($_GET['location_id'] ?? 1);
     $all = !empty($_GET['all']);
-    if ($all) branchGuard(authAdmin(), $locationId);   // зал своего филиала администратор видит; менять — право hall
+    if ($all) authAdmin();   // зал любого филиала администратор видит (и администратор студии — чужой); менять — право hall в своём филиале
     $db = getDB();
     $stmt = $db->prepare('
         SELECT s.id, s.location_id, s.label, s.pos_x, s.pos_y, s.sort_order, s.active,

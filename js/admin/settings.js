@@ -2,7 +2,13 @@
 
 // ═══ SETTINGS ════════════════════════════════════════════════════════
 
-// Вкладки раздела «Настройки»: Филиалы / Станки и зал / Типы станков / Справочники / Параметры / Документы
+// Пункты меню группы «Настройки», которые показывает панель adm-settings: каждый — своя часть панели (.set-tab).
+// Какой открыт — задаёт admNav('set_<код>') в js/admin/data-nav.js
+const SETTINGS_TABS = { locations: 'Филиалы', types: 'Типы станков', dicts: 'Справочники', params: 'Параметры', docs: 'Документы' };
+// Страница филиала — внутри пункта «Филиалы»: нажатие на карточку филиала открывает его вкладки. Здесь всё, что
+// у каждого филиала своё: данные, тренировки и услуги (библиотека) и зал. Обзора «все филиалы сразу» нет (решение владельца 09.10.2026)
+const BRANCH_TABS = { branch_info: 'О филиале', trainings: 'Тренировки', services: 'Услуги', stations: 'Станки и зал' };
+let branchPageId = null;   // открытый филиал
 let settingsTab = 'locations';
 
 function renderSettings() {
@@ -10,15 +16,39 @@ function renderSettings() {
 }
 
 function switchSettingsTab(tab) {
+  const branch = BRANCH_TABS[tab] ? LOCATIONS_ALL.find(function (l) { return Number(l.id) === branchPageId; }) : null;
+  if (BRANCH_TABS[tab] && !branch) tab = 'locations';   // филиал не выбран или его больше нет — к списку
   settingsTab = tab;
-  document.querySelectorAll('[data-set-tab]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-set-tab') === tab); });
-  document.querySelectorAll('#adm-settings .set-tab').forEach(function (el) { el.style.display = el.id === 'set-tab-' + tab ? '' : 'none'; });
+  document.getElementById('adm-settings-title').textContent = branch ? branch.name : (SETTINGS_TABS[tab] || '');
+  document.getElementById('branch-back').style.display = branch ? '' : 'none';
+  document.getElementById('branch-tabs').style.display = branch ? '' : 'none';
+  document.querySelectorAll('[data-branch-tab]').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-branch-tab') === tab); });
+  // «Тренировки» и «Услуги» — одна часть панели (библиотека филиала), разный вид занятий
+  const isLib = tab === 'trainings' || tab === 'services';
+  const part = isLib ? 'library' : tab;
+  document.querySelectorAll('#adm-settings .set-tab').forEach(function (el) { el.style.display = el.id === 'set-tab-' + part ? '' : 'none'; });
   if (tab === 'locations') renderLocations();
+  if (tab === 'branch_info') renderBranchInfo();
+  if (isLib) {
+    libOpen(tab);   // сразу — из того, что уже загружено; затем свежие данные с сервера
+    Promise.allSettled([loadLibraryAll(), loadActivityCats(), loadDictAvailability(), loadDictValues()]).then(function () {
+      if (settingsTab === tab) renderLibrary();
+    });
+  }
   if (tab === 'stations') renderStationsTab();
   if (tab === 'types') renderStationTypesTab();
   if (tab === 'dicts') renderDictsTab();
   if (tab === 'params') renderParamsTab();
   if (tab === 'docs') renderDocsTab();
+}
+
+// Открыть страницу филиала (нажатие на карточку в списке) и вернуться к списку
+function openBranchPage(id, tab) {
+  branchPageId = Number(id);
+  switchSettingsTab(tab || 'branch_info');
+}
+function branchPageClose() {
+  switchSettingsTab('locations');
 }
 
 // ── Параметры студии (таблица settings): одна кнопка «Сохранить», сервер сохраняет блок целиком ──
@@ -30,9 +60,9 @@ async function renderParamsTab() {
   if (!list.length) { box.innerHTML = '<div class="set-hint">Параметров нет</div>'; return; }
   box.innerHTML = list.map(function (p) {
     const input = p.type === 'int'
-      ? '<input class="form-input u-w-120" type="number" required' + needAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
+      ? '<input class="form-input u-w-120" type="number" required' + needFieldAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '"' +
         (p.min !== null ? ' min="' + p.min + '"' : '') + (p.max !== null ? ' max="' + p.max + '"' : '') + '>'
-      : '<input class="form-input u-w-260" required' + needAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
+      : '<input class="form-input u-w-260" required' + needFieldAttr('system') + ' data-param="' + p.code + '" value="' + escAttr(p.value) + '">';
     return '<div class="form-field u-flex u-items-center u-gap-12 u-wrap">' +
       '<label class="form-label u-m-0 u-max-w-full u-w-380">' + escAttr(p.name) + '</label>' + input + '</div>';
   }).join('');
@@ -47,10 +77,10 @@ async function saveParamsBlock() {
   renderParamsTab();
 }
 
-// Филиал вкладок «по филиалу» — текущий филиал панели (переключатель в шапке); null — выбраны «Все филиалы»
+// Филиал вкладки «Станки и зал» — открытый филиал (страница филиала)
 let settingsLocId = null;
 function fillSettingsLocSelect() {
-  settingsLocId = admBranchId;
+  settingsLocId = branchPageId;
   return settingsLocId;
 }
 
@@ -184,21 +214,18 @@ function renderLocations() {
     return;
   }
   const infoLine = 'font-size:13px;color:var(--ink-60);line-height:1.6';
-  el.innerHTML = admLocs(true).map(function (l) {
+  el.innerHTML = LOCATIONS_ALL.map(function (l) {
     const inactive = !Number(l.active);
     const cardBg = inactive ? ';background:#f3f4f6' : '';
     const statusBadge = inactive
       ? '<span class="lib-meta-tag tag-muted">Недействующий</span>'
       : '<span class="lib-meta-tag u-brand-dark u-bg-brand-light">Действующий</span>';
-    return '<div class="lib-card" style="margin-bottom:0;padding:14px' + cardBg + '">' +
-      '<div class="u-flex u-justify-between u-items-start u-gap-8">' +
+    return '<div class="lib-card u-pointer" style="margin-bottom:0;padding:14px' + cardBg + '" onclick="openBranchPage(' + l.id + ')">' +
       '<div class="u-min-w-0">' +
       '<div class="u-strong u-text-body u-lh-relaxed">' + l.name + '</div>' +
       (l.address ? '<div style="' + infoLine + '">' + l.address + '</div>' : '') +
       (l.phone ? '<div style="' + infoLine + '">Тел.: ' + l.phone + '</div>' : '') +
       (l.email ? '<div style="' + infoLine + '">Email: ' + l.email + '</div>' : '') +
-      '</div>' +
-      '<button class="action-btn confirm btn-sm u-nowrap"' + needAttr('system') + ' onclick="openLocationModal(' + l.id + ')">Ред.</button>' +
       '</div>' +
       '<div class="u-flex u-gap-6 u-wrap u-mt-8">' +
       statusBadge +
@@ -208,6 +235,26 @@ function renderLocations() {
       locHoursSummary(l.work_hours) +
       '</div>';
   }).join('');
+}
+
+// Вкладка «О филиале»: данные открытого филиала; «Изменить» — окно филиала (только у кого есть право system)
+function renderBranchInfo() {
+  const l = LOCATIONS_ALL.find(function (x) { return Number(x.id) === branchPageId; });
+  const el = document.getElementById('branch-info');
+  if (!l || !el) return;
+  const row = function (label, value) {
+    return value ? '<div class="u-text-body u-mb-6"><span class="u-muted">' + label + ':</span> ' + escAttr(String(value)) + '</div>' : '';
+  };
+  el.innerHTML = '<div class="u-flex u-justify-between u-items-start u-gap-12 u-mb-10">' +
+    '<div class="u-flex u-gap-6 u-wrap">' +
+    (Number(l.active) ? '<span class="lib-meta-tag u-brand-dark u-bg-brand-light">Действующий</span>' : '<span class="lib-meta-tag tag-muted">Недействующий</span>') +
+    '<span class="lib-meta-tag">Зал ' + l.hall_cols + '×' + l.hall_rows + '</span>' +
+    '<span class="lib-meta-tag">Вместимость: ' + l.max_people + '</span>' +
+    '</div>' +
+    '<button class="btn-primary"' + needAttr('system') + ' onclick="openLocationModal(' + l.id + ')">Изменить</button>' +
+    '</div>' +
+    row('Адрес', l.address) + row('Телефон', l.phone) + row('Email', l.email) +
+    locHoursSummary(l.work_hours);
 }
 
 function openLocationModal(id) {
@@ -288,7 +335,7 @@ async function saveLocation() {
     await Promise.allSettled([loadLocations(), loadLocationsAll()]);
   } catch (e) { return; }
   closeLocationModal();
-  renderLocations();
+  renderSettings();
 }
 
 // Совместимость: filterBookingsSearch

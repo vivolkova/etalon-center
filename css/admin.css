@@ -34,6 +34,15 @@
   min-height: calc(100vh - 60px);
 }
 
+/* Группа из одного раздела (js/admin/data-nav.js admGroupOpen): меню слева нет, раздел — на всю ширину */
+.adm-layout--solo {
+  grid-template-columns: 1fr;
+}
+
+.adm-layout--solo .adm-sidebar {
+  display: none;
+}
+
 .adm-sidebar {
   background: #fff;
   color: var(--ink);
@@ -967,4 +976,21 @@
 
 .jb-picked .jb-link {
   margin-top: 0;
+}
+
+/* ── Шапка у администратора: пунктов меню больше, чем у клиента, — поля и отступы уже, чтобы всё помещалось
+   в одну строку и кнопка «Выйти» не уходила за край (класс ставит admMenuApply в js/admin/data-nav.js) ── */
+@media (min-width: 769px) {
+  .nav--admin {
+    padding: 0 24px;
+    gap: 1rem;
+  }
+
+  .nav--admin .nav-links {
+    gap: 2px;
+  }
+
+  .nav--admin .nav-link {
+    padding: 6px 10px;
+  }
 }

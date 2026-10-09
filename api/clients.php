@@ -155,7 +155,7 @@ if ($method === 'PUT' && $action === 'update') {
         $cur = $st->fetch();
         if ($cur && ($cur['first_name'] !== $f[0] || $cur['last_name'] !== $f[1] || $cur['phone'] !== $phone)) {
             $db->rollBack();
-            err('Это сотрудник: его имя, фамилию и телефон меняет администратор системы', 403);
+            err('Это сотрудник: его имя, фамилию и телефон меняет главный управляющий', 403);
         }
     }
     if ($codes || $revoke) {
@@ -182,7 +182,7 @@ if ($method === 'PUT' && $action === 'update') {
 // базе нет, поэтому администратору студии они здесь недоступны вовсе
 function clientForAccount(PDO $db, int $id, array $admin): array {
     if (!$id) err('Не указан id');
-    if (userRoles($db, $id) && !isSystemAdmin($admin)) err('Это сотрудник: его кабинетом управляет администратор системы', 403);
+    if (userRoles($db, $id) && !isSystemAdmin($admin)) err('Это сотрудник: его кабинетом управляет главный управляющий', 403);
     $st = $db->prepare('SELECT u.id, u.phone, u.has_account, u.phone_verified_at, u.password IS NULL AS no_password FROM users u
                         WHERE u.id = ? AND u.active = 1 AND ' . (isSystemAdmin($admin) ? '1' : NOT_ADMIN_SQL) . ' FOR UPDATE');
     $st->execute([$id]);

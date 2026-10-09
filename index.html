@@ -13,15 +13,15 @@
   <title>ETALON CENTER — Запись на тренировки</title>
   <!-- Стили — css/, порядок подключения важен (каскад). ?v=… — версия против кэша браузера
        (.htaccess кэширует css/js на 7 дней): при выкладке изменённых css/js сменить во ВСЕХ ссылках css и js. -->
-  <link rel="stylesheet" href="css/fonts.css?v=20261009-004">
-  <link rel="stylesheet" href="css/base.css?v=20261009-004">
-  <link rel="stylesheet" href="css/site.css?v=20261009-004">
-  <link rel="stylesheet" href="css/panels.css?v=20261009-004">
-  <link rel="stylesheet" href="css/library.css?v=20261009-004">
-  <link rel="stylesheet" href="css/week-grid.css?v=20261009-004">
-  <link rel="stylesheet" href="css/admin.css?v=20261009-004">
+  <link rel="stylesheet" href="css/fonts.css?v=20261009-031">
+  <link rel="stylesheet" href="css/base.css?v=20261009-031">
+  <link rel="stylesheet" href="css/site.css?v=20261009-031">
+  <link rel="stylesheet" href="css/panels.css?v=20261009-031">
+  <link rel="stylesheet" href="css/library.css?v=20261009-031">
+  <link rel="stylesheet" href="css/week-grid.css?v=20261009-031">
+  <link rel="stylesheet" href="css/admin.css?v=20261009-031">
   <!-- Набор готовых классов — последним: его классы сильнее остальных -->
-  <link rel="stylesheet" href="css/kit.css?v=20261009-004">
+  <link rel="stylesheet" href="css/kit.css?v=20261009-031">
 </head>
 
 <body>
@@ -44,16 +44,20 @@
       <a class="nav-link" href="#" onclick="showPage('client');setNavActive(this)" id="nav-client"
         style="display:none">Кабинет</a>
       <!-- Администратору: группы разделов панели (js/admin/data-nav.js admGroup); разделы группы — в меню слева -->
-      <a class="nav-link nav-admin-only" href="#" data-adm-group="work" onclick="admGroup('work')" style="display:none">Работа</a>
-      <a class="nav-link nav-admin-only" href="#" data-adm-group="plan" onclick="admGroup('plan')" style="display:none">Планирование</a>
-      <a class="nav-link nav-admin-only" href="#" data-adm-group="system" onclick="admGroup('system')" style="display:none">Филиал</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="journal" onclick="admGroup('journal')" style="display:none">Запись из расписания</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="clients" onclick="admGroup('clients')" style="display:none">Клиенты</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="work" onclick="admGroup('work')" style="display:none">Управление записями</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="plan" onclick="admGroup('plan')" style="display:none">Управление расписанием</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="branches" onclick="admGroup('branches')" style="display:none">Филиалы</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="staff" onclick="admGroup('staff')" style="display:none">Сотрудники</a>
+      <a class="nav-link nav-admin-only" href="#" data-adm-group="system" onclick="admGroup('system')" style="display:none">Настройки</a>
     </div>
     <!-- Выбор филиала (js/site/schedule.js renderSchLoc); филиал один — блока нет; администратору не показывается -->
     <div class="ms nav-client-only" id="nav-loc" hidden></div>
     <div class="nav-auth">
       <button class="btn-ghost" id="btn-login" onclick="openAuth('login')">Войти</button>
       <button class="btn-primary" id="btn-signup" onclick="openAuth('register')">Регистрация</button>
-      <!-- Текущий филиал администратора — один на всю панель; вид тот же, что у выбора филиала на сайте (js/admin/data-nav.js admBranchRender) -->
+      <!-- Текущий филиал администратора студии (у главного управляющего выбор — на экранах, [data-adm-branch]) — один на всю панель; вид тот же, что у выбора филиала на сайте (js/admin/data-nav.js admBranchRender) -->
       <div class="ms" id="adm-branch" hidden></div>
       <button class="btn-ghost u-nowrap" id="btn-logout" onclick="logout()" style="display:none">Выйти</button>
     </div>
@@ -277,31 +281,25 @@
             <rect x="14" y="14" width="7" height="7" />
             <rect x="3" y="14" width="7" height="7" />
           </svg>
-          <span class="adm-sidebar-title" id="adm-group-title">Работа</span>
-          <span class="adm-sidebar-current" id="adm-current">Расписание</span>
+          <span class="adm-sidebar-title" id="adm-group-title">Запись из расписания</span>
+          <span class="adm-sidebar-current" id="adm-current">Запись из расписания</span>
           <svg class="adm-sidebar-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
             stroke-linecap="round" stroke-linejoin="round">
             <polyline points="6 9 12 15 18 9" />
           </svg>
         </div>
         <nav class="adm-nav">
-          <div class="adm-nav-group active" data-group="work">
+          <div class="adm-nav-group active" data-group="journal">
           <div class="adm-nav-item active" onclick="admNav('journal',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
             </svg>
-            Расписание
+            Запись из расписания
           </div>
-          <div class="adm-nav-item" onclick="admNav('bookings',this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-            </svg>
-            Управление записями
           </div>
+          <div class="adm-nav-group" data-group="clients">
           <div class="adm-nav-item" onclick="admNav('clients',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -313,6 +311,16 @@
             Клиенты
           </div>
           </div>
+          <div class="adm-nav-group" data-group="work">
+          <div class="adm-nav-item" onclick="admNav('bookings',this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+            </svg>
+            Управление записями
+          </div>
+          </div>
           <div class="adm-nav-group" data-group="plan">
           <div class="adm-nav-item" onclick="admNav('schedule',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -320,18 +328,21 @@
               <rect x="3" y="4" width="18" height="18" rx="2" />
               <path d="M16 2v4M8 2v4M3 10h18" />
             </svg>
-            Конфигуратор
+            Управление расписанием
           </div>
-          <div class="adm-nav-item" onclick="admNav('library',this)">
+          </div>
+          <div class="adm-nav-group" data-group="branches">
+          <div class="adm-nav-item" onclick="admNav('set_locations',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 016.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
-            Библиотека
+            Филиалы
           </div>
           </div>
-          <div class="adm-nav-group" data-group="system">
+          <div class="adm-nav-group" data-group="staff">
           <div class="adm-nav-item" onclick="admNav('staff',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -342,14 +353,43 @@
             </svg>
             Сотрудники
           </div>
-          <div class="adm-nav-item" onclick="admNav('settings',this)">
+          </div>
+          <div class="adm-nav-group" data-group="system">
+          <div class="adm-nav-item" onclick="admNav('set_types',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="3" />
               <path
                 d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
             </svg>
-            Настройки
+            Типы станков
+          </div>
+          <div class="adm-nav-item" onclick="admNav('set_dicts',this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+            Справочники
+          </div>
+          <div class="adm-nav-item" onclick="admNav('set_params',this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+            Параметры
+          </div>
+          <div class="adm-nav-item" onclick="admNav('set_docs',this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+            Документы
           </div>
           <div class="adm-nav-item" onclick="admNav('profile',this)">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -370,7 +410,10 @@
         <!-- ЖУРНАЛ ЗАПИСИ: день филиала по станкам и специалистам (js/admin/journal.js) -->
         <div class="adm-panel active" id="adm-journal">
           <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Расписание</h2>
+            <div class="u-flex u-items-center u-gap-12 u-wrap">
+              <h2 class="adm-panel-title">Запись из расписания</h2>
+              <div class="ms" data-adm-branch="one" hidden></div>
+            </div>
           </div>
           <div class="wg-toolbar">
             <div class="wg-nav">
@@ -401,7 +444,10 @@
 
         <div class="adm-panel" id="adm-schedule">
           <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Конфигуратор</h2>
+            <div class="u-flex u-items-center u-gap-12 u-wrap">
+              <h2 class="adm-panel-title">Управление расписанием</h2>
+              <div class="ms" data-adm-branch="all" hidden></div>
+            </div>
             <button class="btn-primary" data-need="schedule" onclick="openSlotModal(null)">+ Добавить
               слот</button>
           </div>
@@ -433,37 +479,13 @@
         </div>
 
         <!-- БИБЛИОТЕКА -->
-        <div class="adm-panel" id="adm-library">
-          <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Библиотека тренировок</h2>
-            <div class="u-flex u-gap-8">
-              <div class="u-flex u-gap-6">
-                <button class="chip active" id="lib-tab-trainings"
-                  onclick="switchLibTab('trainings',this)">Тренировки</button>
-                <button class="chip amber" id="lib-tab-services" onclick="switchLibTab('services',this)">Услуги</button>
-              </div>
-              <button class="btn-primary" data-need="library" onclick="openLibItemModal(null,'trainings')">+
-                Тренировка</button>
-              <button class="btn-primary" data-need="library" onclick="openLibItemModal(null,'services')">+
-                Услуга</button>
-            </div>
-          </div>
-          <div class="u-flex u-gap-8 u-wrap u-mb-16">
-            <input class="form-input input-sm u-text-ui u-max-w-280" id="lib-search" placeholder="Поиск..."
-              oninput="renderLibrary()">
-            <select class="form-input u-max-w-200 input-sm u-text-ui" id="lib-cat-filter" style="display:none" onchange="renderLibrary()"></select>
-            <select class="form-input u-max-w-200 input-sm u-text-ui" id="lib-active-filter" onchange="renderLibrary()">
-              <option value="all">Все</option>
-              <option value="active">Только действующие</option>
-            </select>
-          </div>
-          <div class="lib-blocks" id="lib-grid"></div>
-        </div>
-
         <!-- ЗАПИСИ -->
         <div class="adm-panel" id="adm-bookings">
           <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Управление записями</h2>
+            <div class="u-flex u-items-center u-gap-12 u-wrap">
+              <h2 class="adm-panel-title">Управление записями</h2>
+              <div class="ms" data-adm-branch="all" hidden></div>
+            </div>
           </div>
           <!-- Период (по дате занятия: по умолчанию от сегодня и без конца) и филиал — запрос к серверу;
                статус (по умолчанию «Активные») и поиск — по загруженному списку -->
@@ -546,6 +568,7 @@
             <input class="form-input u-flex-1 input-sm u-text-ui u-min-w-220" id="staff-search" placeholder="Поиск по имени, телефону..."
               oninput="renderStaff()">
             <select class="form-input u-w-220 input-sm u-text-ui" id="staff-role" onchange="renderStaff()"></select>
+            <select class="form-input u-w-220 input-sm u-text-ui" id="staff-loc" onchange="renderStaff()"></select>
             <!-- только администратору системы: вместо работающих — люди, у которых роли были раньше -->
             <label class="u-flex u-items-center u-gap-6 u-text-ui u-nowrap u-pointer" id="staff-former-box"><input type="checkbox" id="staff-former" onchange="staffFormerChanged()"> Бывшие сотрудники</label>
           </div>
@@ -571,30 +594,64 @@
           <div class="profile-card" id="adm-pass-card"></div>
         </div>
 
-        <!-- НАСТРОЙКИ -->
+        <!-- НАСТРОЙКИ: одна панель на пункты меню «Филиалы», «Типы станков», «Справочники», «Параметры», «Документы»
+             (admNav('set_…') в js/admin/data-nav.js, switchSettingsTab в js/admin/settings.js). Внутри «Филиалов» —
+             страница филиала с вкладками «О филиале», «Тренировки», «Услуги», «Станки и зал» -->
         <div class="adm-panel" id="adm-settings">
           <div class="adm-panel-header">
-            <h2 class="adm-panel-title">Настройки студии</h2>
-            <div class="u-flex u-gap-6 u-wrap">
-              <button class="chip active" data-set-tab="locations" onclick="switchSettingsTab('locations')">Филиалы</button>
-              <button class="chip" data-set-tab="stations" onclick="switchSettingsTab('stations')">Станки и зал</button>
-              <button class="chip" data-set-tab="types" onclick="switchSettingsTab('types')">Типы станков</button>
-              <button class="chip" data-set-tab="dicts" onclick="switchSettingsTab('dicts')">Справочники</button>
-              <button class="chip" data-set-tab="params" onclick="switchSettingsTab('params')">Параметры</button>
-              <button class="chip" data-set-tab="docs" onclick="switchSettingsTab('docs')">Документы</button>
+            <div class="u-flex u-items-center u-gap-12 u-wrap">
+              <!-- страница филиала: назад к списку; заголовок — название филиала -->
+              <button class="btn-ghost btn-sm" id="branch-back" onclick="branchPageClose()" style="display:none">← Филиалы</button>
+              <h2 class="adm-panel-title" id="adm-settings-title">Филиалы</h2>
             </div>
+          </div>
+          <!-- Вкладки страницы филиала (openBranchPage в js/admin/settings.js): всё, что у филиала своё -->
+          <div class="filter-chips u-mb-16" id="branch-tabs" style="display:none">
+            <button class="chip" data-branch-tab="branch_info" onclick="switchSettingsTab('branch_info')">О филиале</button>
+            <button class="chip" data-branch-tab="trainings" onclick="switchSettingsTab('trainings')">Тренировки</button>
+            <button class="chip" data-branch-tab="services" onclick="switchSettingsTab('services')">Услуги</button>
+            <button class="chip" data-branch-tab="stations" onclick="switchSettingsTab('stations')">Станки и зал</button>
           </div>
 
           <!-- Филиалы -->
           <div class="adm-card set-tab" id="set-tab-locations">
             <div class="u-flex u-justify-between u-items-center u-mb-16">
-              <div class="adm-card-title">Филиалы</div>
+              <div></div>
               <button class="btn-primary" data-need="system" onclick="openLocationModal(null)">+ Добавить филиал</button>
             </div>
             <div class="u-grid u-cols-cards u-gap-16" id="settings-locations"></div>
           </div>
 
-          <!-- Станки и схема зала (по филиалу) -->
+          <!-- О филиале: адрес, телефон, режим работы, размер зала (renderBranchInfo) -->
+          <div class="adm-card set-tab" id="set-tab-branch_info" style="display:none">
+            <div id="branch-info"></div>
+          </div>
+
+          <!-- Тренировки и услуги филиала (библиотека, js/admin/library.js): одна часть панели на две вкладки страницы
+               филиала — «Тренировки» и «Услуги»; у каждой своя кнопка добавления -->
+          <div class="set-tab" id="set-tab-library" style="display:none">
+          <div class="adm-panel-header">
+            <div></div>
+            <div class="u-flex u-gap-8">
+              <button class="btn-primary" id="lib-add-trainings" data-need="library" onclick="openLibItemModal(null,'trainings')">+
+                Тренировка</button>
+              <button class="btn-primary" id="lib-add-services" data-need="library" onclick="openLibItemModal(null,'services')">+
+                Услуга</button>
+            </div>
+          </div>
+          <div class="u-flex u-gap-8 u-wrap u-mb-16">
+            <input class="form-input input-sm u-text-ui u-max-w-280" id="lib-search" placeholder="Поиск..."
+              oninput="renderLibrary()">
+            <select class="form-input u-max-w-200 input-sm u-text-ui" id="lib-cat-filter" style="display:none" onchange="renderLibrary()"></select>
+            <select class="form-input u-max-w-200 input-sm u-text-ui" id="lib-active-filter" onchange="renderLibrary()">
+              <option value="all">Все</option>
+              <option value="active">Только действующие</option>
+            </select>
+          </div>
+          <div class="lib-blocks" id="lib-grid"></div>
+          </div>
+
+          <!-- Станки и схема зала филиала -->
           <div class="adm-card set-tab" id="set-tab-stations" style="display:none">
             <div class="set-bar">
               <span class="set-hint" id="st-hint"></span>
@@ -763,33 +820,33 @@
   </footer>
 
 <!-- Скрипты вынесены в js/ — обычные (не модули), общий глобальный scope; порядок подключения важен -->
-  <script src="js/api.js?v=20261009-004"></script>
-  <script src="js/core.js?v=20261009-004"></script>
-  <script src="js/week-grid.js?v=20261009-004"></script>
-  <script src="js/auth.js?v=20261009-004"></script>
-  <script src="js/site/schedule.js?v=20261009-004"></script>
-  <script src="js/site/booking.js?v=20261009-004"></script>
-  <script src="js/site/individual.js?v=20261009-004"></script>
-  <script src="js/site/trainings.js?v=20261009-004"></script>
-  <script src="js/site/services-bookings.js?v=20261009-004"></script>
-  <script src="js/admin/admin.js?v=20261009-004"></script>
-  <script src="js/admin/schedule.js?v=20261009-004"></script>
-  <script src="js/admin/journal.js?v=20261009-004"></script>
-  <script src="js/admin/journal-book.js?v=20261009-004"></script>
-  <script src="js/client/panel.js?v=20261009-004"></script>
-  <script src="js/client/chat-profile.js?v=20261009-004"></script>
-  <script src="js/site/detail-modals.js?v=20261009-004"></script>
-  <script src="js/admin/library.js?v=20261009-004"></script>
-  <script src="js/admin/data-nav.js?v=20261009-004"></script>
-  <script src="js/admin/specialists.js?v=20261009-004"></script>
-  <script src="js/admin/staff.js?v=20261009-004"></script>
-  <script src="js/admin/settings.js?v=20261009-004"></script>
-  <script src="js/admin/stations.js?v=20261009-004"></script>
-  <script src="js/admin/dictionaries.js?v=20261009-004"></script>
-  <script src="js/docs.js?v=20261009-004"></script>
-  <script src="js/ui.js?v=20261009-004"></script>
-  <script src="js/loaders.js?v=20261009-004"></script>
-  <script src="js/init.js?v=20261009-004"></script>
+  <script src="js/api.js?v=20261009-031"></script>
+  <script src="js/core.js?v=20261009-031"></script>
+  <script src="js/week-grid.js?v=20261009-031"></script>
+  <script src="js/auth.js?v=20261009-031"></script>
+  <script src="js/site/schedule.js?v=20261009-031"></script>
+  <script src="js/site/booking.js?v=20261009-031"></script>
+  <script src="js/site/individual.js?v=20261009-031"></script>
+  <script src="js/site/trainings.js?v=20261009-031"></script>
+  <script src="js/site/services-bookings.js?v=20261009-031"></script>
+  <script src="js/admin/admin.js?v=20261009-031"></script>
+  <script src="js/admin/schedule.js?v=20261009-031"></script>
+  <script src="js/admin/journal.js?v=20261009-031"></script>
+  <script src="js/admin/journal-book.js?v=20261009-031"></script>
+  <script src="js/client/panel.js?v=20261009-031"></script>
+  <script src="js/client/chat-profile.js?v=20261009-031"></script>
+  <script src="js/site/detail-modals.js?v=20261009-031"></script>
+  <script src="js/admin/library.js?v=20261009-031"></script>
+  <script src="js/admin/data-nav.js?v=20261009-031"></script>
+  <script src="js/admin/specialists.js?v=20261009-031"></script>
+  <script src="js/admin/staff.js?v=20261009-031"></script>
+  <script src="js/admin/settings.js?v=20261009-031"></script>
+  <script src="js/admin/stations.js?v=20261009-031"></script>
+  <script src="js/admin/dictionaries.js?v=20261009-031"></script>
+  <script src="js/docs.js?v=20261009-031"></script>
+  <script src="js/ui.js?v=20261009-031"></script>
+  <script src="js/loaders.js?v=20261009-031"></script>
+  <script src="js/init.js?v=20261009-031"></script>
 
   <!-- MODAL: EDIT SLOT -->
   <div class="admin-modal-overlay" id="slot-modal">
@@ -1119,7 +1176,7 @@
       <div class="tab-pane" data-st-pane="roles" style="display:none">
         <div class="tab-pane-body">
           <div class="form-field" id="st-sys-box">
-            <label class="check-label"><input type="checkbox" id="st-sys" onchange="stSysChanged()"> Администратор системы (во всех филиалах)</label>
+            <label class="check-label"><input type="checkbox" id="st-sys" onchange="stSysChanged()"> Главный управляющий (во всех филиалах)</label>
           </div>
           <div id="st-roles"></div>
         </div>

@@ -1,4 +1,4 @@
-// Админка → Филиал → Сотрудники: люди с ролями (api/staff.php) и окно сотрудника.
+// Админка → Сотрудники (пункт шапки): люди с ролями (api/staff.php) и окно сотрудника.
 // Кем и где человек работает — его роли: у администратора системы роль без филиала, остальные роли (администратор
 // студии, тренер, байкфиттер, механик) выдаются в конкретном филиале.
 // Администратор системы видит всех и меняет (право staff). Администратор студии видит только специалистов своих
@@ -41,8 +41,14 @@ function staffRolesHtml(s) {
   }).join('');
 }
 
-// Список: поиск по имени и телефону, выбор роли; филиал — из переключателя в шапке (выбран — те, кто в нём работает,
-// и администраторы системы; «Все филиалы» — все)
+// Раздел открыт (из меню или после смены филиала в шапке): фильтр по филиалу встаёт на филиал из шапки
+function staffOpen() {
+  fillLocSelect('staff-loc', { empty: 'Все филиалы', value: admBranchId || '' });
+  renderStaff();
+}
+
+// Список: поиск по имени и телефону, выбор роли и филиала (выбран филиал — те, кто в нём работает, и администраторы
+// системы; «Все филиалы» — все)
 function renderStaff() {
   document.getElementById('staff-add').style.display = canDo('staff') ? '' : 'none';
   document.getElementById('staff-former-box').style.display = canDo('staff') ? '' : 'none';
@@ -50,6 +56,9 @@ function renderStaff() {
   document.getElementById('staff-col-roles').textContent = former ? 'Уволен' : 'Кем и где работает';
   const roleSel = document.getElementById('staff-role');
   roleSel.style.display = former ? 'none' : '';
+  const locSel = document.getElementById('staff-loc');
+  locSel.style.display = former ? 'none' : '';
+  fillLocSelect(locSel, { empty: 'Все филиалы' });   // список филиалов мог измениться — выбор остаётся прежним
   const role = roleSel.value;
   roleSel.innerHTML = '<option value="">Все роли</option>' + STAFF_ROLES
     .filter(function (r) { return STAFF.some(function (s) { return s.roles.some(function (x) { return x.code === r.code; }); }); })
@@ -59,11 +68,11 @@ function renderStaff() {
 
   const q = document.getElementById('staff-search').value.trim();
   const lq = q.toLowerCase();
-  const loc = admCurLoc();
+  const locId = Number(locSel.value) || 0;
   // у бывших ролей нет — ни роль, ни филиал из шапки их не отбирают
   const rows = (former ? STAFF_FORMER : STAFF).filter(function (s) {
     if (!former && roleSel.value && !s.roles.some(function (x) { return x.code === roleSel.value; })) return false;
-    if (!former && loc && !s.roles.some(function (x) { return x.location_id === null || x.location_id === Number(loc.id); })) return false;
+    if (!former && locId && !s.roles.some(function (x) { return x.location_id === null || x.location_id === locId; })) return false;
     return !q || s.name.toLowerCase().includes(lq) || phoneMatches(s.phone, q);
   });
 

@@ -173,11 +173,11 @@ if ($method === 'POST' && $action === 'save') {
     // Администратор системы: с себя и с последнего роль не снимается
     $sysKey = $roleId['system_admin'] . ':0';
     if (isset($have[$sysKey]) && !isset($want[$sysKey])) {
-        if ($id === (int)$admin['id']) err('Снять с себя роль администратора системы нельзя');
+        if ($id === (int)$admin['id']) err('Снять с себя роль главного управляющего нельзя');
         $st = $db->prepare("SELECT COUNT(*) FROM user_roles ur JOIN users u ON u.id = ur.user_id AND u.active = 1
                             WHERE ur.role_id = ? AND ur.amnd_state = 'A' AND ur.user_id <> ?");
         $st->execute([$roleId['system_admin'], $id]);
-        if (!(int)$st->fetchColumn()) err('Это последний администратор системы — снять с него роль нельзя');
+        if (!(int)$st->fetchColumn()) err('Это последний главный управляющий — снять с него роль нельзя');
     }
 
     // Карточка специалиста: создаётся при первой роли тренера, байкфиттера или механика; строка блокируется до конца

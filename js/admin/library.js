@@ -1,22 +1,29 @@
-// Админка: библиотека тренировок/услуг, «В расписание»
+// Админка: библиотека тренировок/услуг филиала — вкладки «Тренировки» и «Услуги» страницы филиала (js/admin/settings.js), «В расписание»
 
 // ═══ LIBRARY ════════════════════════════════════════════════════════
 
 let libCurrentType = 'trainings';
 
-// Вкладки «Тренировки» / «Услуги»: фильтр по activity_category (training / всё остальное)
-function switchLibTab(type, btn) {
+// Открыта вкладка страницы филиала: type — 'trainings' («Тренировки») или 'services' («Услуги», всё, кроме training).
+// У каждой — своя кнопка добавления; выбор категории — только у услуг
+function libOpen(type) {
+  if (type !== libCurrentType) {
+    const catSel = document.getElementById('lib-cat-filter');
+    if (catSel) catSel.value = '';
+  }
   libCurrentType = type;
-  document.querySelectorAll('#adm-library .chip').forEach(c => c.classList.remove('active'));
-  (btn || document.getElementById('lib-tab-' + type)).classList.add('active');
-  const catSel = document.getElementById('lib-cat-filter');
-  if (catSel) { catSel.value = ''; catSel.style.display = type === 'services' ? '' : 'none'; }
+  ['trainings', 'services'].forEach(function (t) {
+    const btn = document.getElementById('lib-add-' + t);
+    if (btn) btn.style.display = t === type && canDo('library') ? '' : 'none';   // без права кнопок нет вовсе
+  });
+  const cat = document.getElementById('lib-cat-filter');
+  if (cat) cat.style.display = type === 'services' ? '' : 'none';
   renderLibrary();
 }
 
 function renderLibrary() {
   const q = (document.getElementById('lib-search') ? document.getElementById('lib-search').value : '').toLowerCase();
-  const locFilter = admBranchId;   // текущий филиал панели; null — все доступные
+  const locFilter = branchPageId;   // открытый филиал (страница филиала)
   const actSel = document.getElementById('lib-active-filter');
   const activeOnly = actSel && actSel.value === 'active';
   // Категории услуг (всё, кроме training) — из справочника activity_category
@@ -40,7 +47,7 @@ function renderLibrary() {
   const grid = document.getElementById('lib-grid');
   if (!grid) return;
   if (!items.length) {
-    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary" onclick="openLibItemModal(null,\'' + libCurrentType + '\')">' +
+    grid.innerHTML = '<div class="lib-empty"><div class="u-text-ui u-strong u-mb-8">Ничего не найдено</div><button class="btn-primary"' + needAttr('library') + ' onclick="openLibItemModal(null,\'' + libCurrentType + '\')">' +
       (libCurrentType === 'trainings' ? 'Добавить тренировку' : 'Добавить услугу') + '</button></div>';
     return;
   }
@@ -354,7 +361,7 @@ function openLibItemModal(id, kind) {
   } else {
     document.getElementById('lib-modal-title').textContent = isTraining ? 'Новая тренировка' : 'Новая услуга';
     document.getElementById('lm-id').value = '';
-    if (locSel) locSel.value = admBranchId || (admLocs().length === 1 ? admLocs()[0].id : '');   // новая запись — в текущем филиале
+    if (locSel) locSel.value = branchPageId || '';   // новая запись — в открытом филиале
     document.getElementById('lm-name').value = '';
     document.getElementById('lm-dur').value = 60;
     document.getElementById('lm-price').value = isTraining ? 1200 : 3000;
@@ -400,7 +407,7 @@ async function saveLibItem() {
   const cat = type === 'trainings' ? 'training' : document.getElementById('lm-cat').value;
   if (type === 'services' && (!cat || cat === 'training')) { showToast('Выберите категорию услуги', 'error'); return; }
   if (!idVal && !catsAt(location_id).some(function (c) { return c.code === cat; })) {
-    showToast('«' + catName(cat) + '» отключена в этом филиале (Настройки → Справочники)', 'error'); return;
+    showToast('«' + catName(cat) + '» отключена в этом филиале (Настройки → Филиалы → Справочники)', 'error'); return;
   }
 
   const data = {
@@ -430,7 +437,7 @@ async function saveLibItem() {
   }
   closeLibModal();
   // Показываем вкладку, куда попала запись (тренировки / услуги)
-  if (type !== libCurrentType) switchLibTab(type);
+  if (type !== libCurrentType) switchSettingsTab(type);   // сохранили занятие другого вида — открыть его вкладку
   else renderLibrary();
 }
 

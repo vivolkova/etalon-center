@@ -443,8 +443,7 @@ function openSlotModal(slotId) {
   });
   if (!canEdit) document.getElementById('slot-modal-title').textContent = 'Блокировка станков';
   const save = document.getElementById('sm-save');
-  save.disabled = !canEdit && !smHallSlotId;
-  save.title = save.disabled ? NEED_TITLE : '';
+  save.style.display = !canEdit && !smHallSlotId ? 'none' : '';   // сохранять нечего — кнопки нет
   modal.classList.add('show');
 }
 function closeSlotModal() { document.getElementById('slot-modal').classList.remove('show'); }

@@ -14,17 +14,20 @@ let SPECIALISTS_DATA = [];   // работающие специалисты (д�
 function canDo(right) {
   return !!(currentUser && (currentUser.rights || []).indexOf(right) >= 0);
 }
-const NEED_TITLE = 'Изменять может администратор системы';
-// Атрибуты кнопки, на действие которой у вошедшего нет права: кнопка видна, но недоступна (для шаблонов в JS)
+const NEED_TITLE = 'Изменять может главный управляющий';
+// Кнопки, на действие которых у вошедшего нет права, на экране нет вовсе (решение владельца 09.10.2026; раньше они
+// были серыми). needAttr — атрибут такой кнопки для шаблонов в JS
 function needAttr(right) {
+  return canDo(right) ? '' : ' style="display:none"';
+}
+// Поле, которое вошедший видит, но менять не может (значение ему нужно): остаётся на экране недоступным
+function needFieldAttr(right) {
   return canDo(right) ? '' : ' disabled title="' + NEED_TITLE + '"';
 }
 // То же для кнопок в index.html: data-need="право"
 function admApplyNeeds() {
   document.querySelectorAll('[data-need]').forEach(function (el) {
-    const ok = canDo(el.getAttribute('data-need'));
-    el.disabled = !ok;
-    el.title = ok ? '' : NEED_TITLE;
+    el.style.display = canDo(el.getAttribute('data-need')) ? '' : 'none';
   });
 }
 
@@ -69,8 +72,12 @@ function admSpecialists() {
 }
 
 // ═══ ТЕКУЩИЙ ФИЛИАЛ ══════════════════════════════════════════════════
-// Один переключатель в шапке (#adm-branch) на всю панель: журнал записи, записи, расписание, библиотека и зал
-// показывают выбранный филиал; отдельных списков филиалов на этих экранах нет.
+// Текущий филиал один на всю панель: журнал записи, записи, расписание, библиотека и зал показывают выбранный филиал.
+// Где он выбирается (решение владельца 09.10.2026):
+//   • у администратора студии — переключатель в шапке (#adm-branch): он в одно время работает в одном филиале;
+//   • у главного управляющего шапка без переключателя — выбор стоит рядом с заголовком экранов, которым нужен
+//     филиал (блоки [data-adm-branch] в index.html: one — экран одного филиала, all — есть «Все филиалы»).
+// Выбор общий: выбрали филиал на одном экране — он же на остальных.
 // «Все филиалы» (admBranchId = null) есть, когда у администратора их несколько: сводные экраны показывают все,
 // а экраны одного филиала (журнал, зал) просят выбрать филиал.
 // Выбор запоминается в браузере отдельно для каждого пользователя.
@@ -82,7 +89,7 @@ function admBranchInit() {
   const box = document.getElementById('adm-branch');
   if (!box) return;
   const isAdmin = !!currentUser && currentUser.role === 'admin';
-  box.hidden = !isAdmin;
+  box.hidden = !isAdmin || !admBranchInHeader();
   admBranchId = null;
   if (!isAdmin) { box.innerHTML = ''; return; }
   const locs = admLocs();
@@ -93,12 +100,25 @@ function admBranchInit() {
   admBranchId = Number(value) || null;
   admBranchRender();
 }
-// Переключатель в шапке — того же вида, что выбор филиала на сайте (locPickerHtml в js/site/schedule.js).
-// «Все филиалы» — когда у администратора их несколько
+// Выбор филиала в шапке — у администратора студии; у главного управляющего (филиалы — все) — на экранах
+function admBranchInHeader() {
+  return !!currentUser && currentUser.branches !== null && currentUser.branches !== undefined;
+}
+// Переключатель — того же вида, что выбор филиала на сайте (locPickerHtml в js/site/schedule.js).
+// «Все филиалы» — когда у администратора их несколько. На экранах: блок one — без «Все филиалы» (экран одного
+// филиала; пока филиал не выбран — «Выберите филиал»); филиал всего один — выбирать не из чего, блока нет
 function admBranchRender() {
   const box = document.getElementById('adm-branch');
   const locs = admLocs(), cur = admCurLoc();
-  box.innerHTML = locPickerHtml(locs, cur ? cur.id : null, cur ? cur.name : 'Все филиалы', 'admBranchSet', locs.length > 1 ? 'Все филиалы' : '');
+  const inHeader = admBranchInHeader();
+  box.innerHTML = inHeader ? locPickerHtml(locs, cur ? cur.id : null, cur ? cur.name : 'Все филиалы', 'admBranchSet', locs.length > 1 ? 'Все филиалы' : '') : '';
+  const isAdmin = !!currentUser && currentUser.role === 'admin';
+  document.querySelectorAll('[data-adm-branch]').forEach(function (el) {
+    const all = el.getAttribute('data-adm-branch') === 'all';
+    const show = isAdmin && !inHeader && locs.length > 1;
+    el.hidden = !show;
+    el.innerHTML = show ? locPickerHtml(locs, cur ? cur.id : null, cur ? cur.name : (all ? 'Все филиалы' : 'Выберите филиал'), 'admBranchSet', all ? 'Все филиалы' : '') : '';
+  });
 }
 
 // Администратор выбрал филиал: запомнить и перерисовать открытый раздел панели
@@ -106,7 +126,7 @@ function admBranchSet(value) {
   admBranchId = Number(value) || null;
   try { localStorage.setItem(admBranchKey(), admBranchId ? String(admBranchId) : ''); } catch (e) { /* выбор действует до перезагрузки */ }
   admBranchRender();
-  document.getElementById('adm-branch').classList.remove('open');
+  document.querySelectorAll('.ms.open').forEach(function (x) { x.classList.remove('open'); });
   navToggle(false);   // на телефоне переключатель — в выпадающем меню шапки
   const cur = document.querySelector('.adm-nav-item.active');
   if (cur && currentPage === 'admin') admNav(admNavName(cur), cur);
@@ -122,7 +142,7 @@ function admCurLocs() {
   return loc ? [loc] : admLocs();
 }
 // Подсказка на экранах одного филиала, когда выбраны «Все филиалы»
-const ADM_PICK_BRANCH = 'Выберите филиал в шапке — этот раздел показывает один филиал';
+const ADM_PICK_BRANCH = 'Выберите филиал — этот раздел показывает один филиал';
 
 // Разделы меню, которые требуют права (остальные видит любой администратор)
 const ADM_NAV_RIGHT = { journal: 'journal', bookings: 'bookings', clients: 'clients', schedule: 'blocks' };
@@ -130,6 +150,7 @@ const ADM_NAV_RIGHT = { journal: 'journal', bookings: 'bookings', clients: 'clie
 // Вызывается при входе и выходе: без администратора пунктов групп в шапке нет
 function admMenuApply() {
   const isAdmin = !!currentUser && currentUser.role === 'admin';
+  document.querySelector('.nav').classList.toggle('nav--admin', isAdmin);   // у администратора шапка плотнее (css/admin.css)
   document.querySelectorAll('.adm-nav-group').forEach(function (group) {
     let shown = 0;
     group.querySelectorAll('.adm-nav-item').forEach(function (el) {
@@ -149,10 +170,10 @@ function admNavName(el) {
 }
 
 // ═══ ГРУППЫ РАЗДЕЛОВ ═════════════════════════════════════════════════
-// Группы панели («Работа», «Планирование», «Система») — пункты шапки (index.html, data-adm-group);
+// Группы панели («Запись из расписания», «Клиенты», «Управление записями», «Управление расписанием», «Филиалы», «Сотрудники», «Настройки») — пункты шапки (index.html, data-adm-group);
 // в меню слева — разделы выбранной группы (.adm-nav-group). Экран один для администратора системы
 // и администратора студии: что видно и доступно, решают права (admMenuApply, needAttr)
-let admGroupCur = 'work';
+let admGroupCur = 'journal';
 function admGroupLink(name) {
   return document.querySelector('.nav-link[data-adm-group="' + name + '"]');
 }
@@ -173,7 +194,10 @@ function admGroupOpen() {
   const link = admGroupLink(admGroupCur);
   setNavActive(link);
   document.getElementById('adm-group-title').textContent = link.textContent;
-  const first = Array.from(group.querySelectorAll('.adm-nav-item')).find(visible);
+  const items = Array.from(group.querySelectorAll('.adm-nav-item')).filter(visible);
+  // в группе один раздел — меню слева не нужно (css/admin.css, .adm-layout--solo)
+  document.querySelector('.adm-layout').classList.toggle('adm-layout--solo', items.length < 2);
+  const first = items[0];
   admNav(admNavName(first), first);
 }
 
@@ -206,6 +230,9 @@ async function admNav(name, el) {
   document.querySelectorAll('.adm-panel').forEach(p => p.classList.remove('active'));
   if (el) el.classList.add('active');
   admMenuCurrent(el);
+  // Пункты «Филиалы», «Типы станков», «Справочники», «Параметры», «Документы» (set_<код>) —
+  // одна панель adm-settings, каждый показывает свою её часть (settingsTab, js/admin/settings.js)
+  if (name.indexOf('set_') === 0) { settingsTab = name.slice(4); name = 'settings'; }
   const panel = document.getElementById('adm-' + name);
   if (panel) panel.classList.add('active');
 
@@ -215,7 +242,6 @@ async function admNav(name, el) {
     bookings: loadBookingsPanel,   // с фильтрами раздела (период, филиал)
     clients: loadClients,
     staff: async function () { await Promise.allSettled([loadStaff(), loadLocationsAll(), loadSpecialists()]); },
-    library: async function () { await Promise.allSettled([loadLibraryAll(), loadActivityCats(), loadDictAvailability(), loadDictValues()]); },
     settings: loadLocationsAll,
   };
   if (loaders[name]) await loaders[name]().catch(function () { });
@@ -223,10 +249,9 @@ async function admNav(name, el) {
   const renders = {
     journal: renderJournal,
     schedule: renderAdminSchedule,
-    library: renderLibrary,
     bookings: renderAdminBookings,
     clients: renderAdminClients,
-    staff: renderStaff,
+    staff: staffOpen,
     settings: renderSettings,
     profile: renderAdmProfile,
   };

@@ -70,7 +70,8 @@ if ($method === 'GET' && $action === 'list') {
     $db  = getDB();
     $all = !empty($_GET['all']);
     // all=1 — для экрана «Библиотека»: вместе с удалёнными; любой администратор видит библиотеку своих филиалов
-    $bf  = $all ? branchFilter(authAdmin(), 'l.location_id') : ['sql' => '', 'params' => []];
+    if ($all) authAdmin();   // администратор студии видит услуги и чужих филиалов (страница филиала); менять — право library
+    $bf  = ['sql' => '', 'params' => []];
     $sql = $LIST_SQL . ($all ? ' WHERE 1' : ' WHERE l.active = 1') . $bf['sql'];
     $kind = $_GET['kind'] ?? '';
     if ($kind === 'training') $sql .= " AND dc.code = 'training'";

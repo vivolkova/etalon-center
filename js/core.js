@@ -206,7 +206,7 @@ function showPage(name) {
 
 // Логотип: клиенту и гостю — главная страница сайта, администратору — панель (сайт ему не показывается)
 function goHome() {
-  if (currentUser && currentUser.role === 'admin') { admGroup('work'); return; }
+  if (currentUser && currentUser.role === 'admin') { admGroup('journal'); return; }
   showPage('home');
   setNavActive(document.querySelector('.nav-link'));
 }

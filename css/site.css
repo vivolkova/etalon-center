@@ -272,34 +272,7 @@
   gap: 6px;
 }
 
-.chip {
-  padding: 6px 14px;
-  border-radius: var(--r-md);
-  border: 1px solid var(--border);
-  background: transparent;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all .15s;
-  color: var(--ink-60);
-}
-
-.chip:hover {
-  border-color: var(--green);
-  color: var(--green-dark);
-}
-
-.chip.active {
-  background: var(--green);
-  border-color: var(--green);
-  color: #fff;
-}
-
-.chip.amber.active {
-  background: var(--amber);
-  border-color: var(--amber);
-}
+/* Плашка-переключатель (.chip) — css/kit.css */
 
 /* ─── SERVICES ─── */
 .services-grid {

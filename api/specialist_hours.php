@@ -40,7 +40,7 @@ function specStored(?array $row): array {
 }
 function specForeignGuard(array $old, array $new, bool $datesChanged): void {
     if ($old !== $new) err('Часы работы в других филиалах менять нельзя — только в своём', 403);
-    if ($old && $datesChanged) err('Здесь есть часы работы в других филиалах — даты меняет администратор системы', 403);
+    if ($old && $datesChanged) err('Здесь есть часы работы в других филиалах — даты меняет главный управляющий', 403);
 }
 
 function specExists(PDO $db, int $specId): void {
@@ -170,7 +170,7 @@ if ($method === 'DELETE' && $action === 'schedule_delete') {
     $db = getDB();
     $row = specActiveRow($db, 'specialist_schedules', (int)($_GET['id'] ?? 0), 'Период графика не найден');
     specialistGuard($db, $user, (int)$row['specialist_id']);
-    if (specForeign($user, specWeekByDay(specStored($row)))) err('В этом периоде есть часы работы в других филиалах — удаляет администратор системы', 403);
+    if (specForeign($user, specWeekByDay(specStored($row)))) err('В этом периоде есть часы работы в других филиалах — удаляет главный управляющий', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
     $db->prepare('UPDATE specialist_schedules SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);
@@ -258,7 +258,7 @@ if ($method === 'DELETE' && $action === 'exception_delete') {
     $db = getDB();
     $row = specActiveRow($db, 'specialist_exceptions', (int)($_GET['id'] ?? 0), 'Исключение не найдено');
     specialistGuard($db, $user, (int)$row['specialist_id']);
-    if (specForeign($user, ['' => specStored($row)])) err('Здесь есть часы работы в других филиалах — удаляет администратор системы', 403);
+    if (specForeign($user, ['' => specStored($row)])) err('Здесь есть часы работы в других филиалах — удаляет главный управляющий', 403);
     $db->beginTransaction();
     lockSpecialist($db, (int)$row['specialist_id']);
     $db->prepare('UPDATE specialist_exceptions SET active = 0 WHERE id = ?')->execute([(int)$row['id']]);

@@ -303,7 +303,7 @@ input[type="checkbox"]:required:invalid {
 /* ── Единый вид кнопок действий во всей системе (владелец 08.10.2026): белый фон, зелёный текст, зелёная рамка;
    при наведении кнопка заливается зелёным. Размер, шрифт и отступы у каждого вида остаются свои (css/site.css,
    css/library.css, css/week-grid.css) — здесь только цвета, поэтому новый вид кнопки достаточно добавить в список.
-   Не кнопки действий и сюда не входят: вкладки и фильтры (.chip), стрелки недели, «×» окна, плитки станков,
+   Не кнопки действий и сюда не входят: плашки-переключатели (.chip — их стиль ниже), стрелки недели, «×» окна, плитки станков,
    «Записаться» на плитке занятия у клиента; «✓ Вы записаны» остаётся золотой — это отметка, а не действие ── */
 .btn-primary,
 .btn-ghost,
@@ -360,4 +360,32 @@ button:disabled:not(.station):hover {
   transform: none !important;
   opacity: 1 !important;
   cursor: not-allowed;
+}
+
+/* ── Плашка-переключатель (.chip): вкладки окон, фильтры, выбор из нескольких значений — один вид на всю систему,
+   для всех пользователей (владелец 09.10.2026). Не выбрана — зелёный текст на белом фоне, зелёная рамка;
+   выбрана (.active) — белый текст на зелёном фоне. Других цветов и вариантов у плашки нет.
+   Ряд плашек — .filter-chips (css/site.css). Недоступная плашка — как любая недоступная кнопка (button:disabled выше) ── */
+.chip {
+  padding: 6px 14px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--green);
+  background: #fff;
+  color: var(--green-dark);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.chip:hover {
+  background: var(--green-light);
+}
+
+.chip.active,
+.chip.active:hover {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
 }

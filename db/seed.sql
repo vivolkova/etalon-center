@@ -10,7 +10,7 @@ SET NAMES utf8mb4;
 
 -- Справочники (коды латиницей, подписи русские). id не фиксируем — логика по кодам.
 INSERT INTO dictionaries (group_code, code, name) VALUES
-('user_role', 'system_admin', 'Администратор системы'),
+('user_role', 'system_admin', 'Главный управляющий'),
 ('user_role', 'studio_admin', 'Администратор студии'),
 ('user_role', 'trainer', 'Тренер'),
 ('user_role', 'bikefitter', 'Байкфиттер'),
