@@ -227,27 +227,53 @@ function jbClose() {
 
 function jbItem() { return jb.items.find(function (i) { return i.id === jb.item; }); }
 
-// ── Клиент: поиск в базе по телефону или новый ──
+// ── Клиент: два переключателя — «Поиск по телефону» (клиент из базы) и «Новый клиент» ──
+// Переключаться можно в любой момент: набранное в поиске и начатые данные нового клиента не теряются, пока форма
+// открыта (jb.searchQ, jb.draft). В телефон нового клиента номер из поиска подставляется, только если он набран целиком и клиента с ним нет.
+// При переносе записи клиент известен — переключателей нет
 function jbRenderClient() {
   const box = document.getElementById('jb-client');
   if (!box) return;   // клиент переносит свою запись — блока «Клиент» нет
-  if (jb.client) {
-    box.innerHTML = '<div class="jb-picked"><div><b>' + escAttr(jb.client.name) + '</b><span>' + escAttr(jb.client.phone || '') + '</span></div>'
-      + (jbIsMove() ? '' : '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button>') + '</div>';
-  } else if (jb.isNew) {
-    box.innerHTML = '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required></div>'
-      + '<div><label class="form-label">Фамилия</label><input class="form-input" id="jb-new-last" required></div>'
-      + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required></div></div>'
-      + '<div id="jb-new-consents"></div>'
-      + '<button class="btn-ghost jb-link" onclick="jbSetNew(false)">Найти по телефону</button>';
+  if (jbIsMove()) {
+    box.innerHTML = '<div class="jb-picked"><div><b>' + escAttr(jb.client.name) + '</b><span>' + escAttr(jb.client.phone || '') + '</span></div></div>';
+    jbUpdateSubmit();
+    return;
+  }
+  const d = jb.draft || (jb.draft = { first: '', last: '', phone: '', consents: [] });
+  const sw = '<div class="filter-chips u-mb-10">'
+    + '<button type="button" class="chip' + (jb.isNew ? '' : ' active') + '" onclick="jbSetNew(false)">Поиск по телефону</button>'
+    + '<button type="button" class="chip' + (jb.isNew ? ' active' : '') + '" onclick="jbSetNew(true)">Новый клиент</button></div>';
+  if (jb.isNew) {
+    box.innerHTML = sw
+      + '<div class="jb-new"><div><label class="form-label">Имя</label><input class="form-input" id="jb-new-name" required value="' + escAttr(d.first) + '"></div>'
+      + '<div><label class="form-label">Фамилия</label><input class="form-input" id="jb-new-last" required value="' + escAttr(d.last) + '"></div>'
+      + '<div><label class="form-label">Телефон</label><input class="form-input phone-input" id="jb-new-phone" required value="' + escAttr(d.phone) + '"></div></div>'
+      + '<div id="jb-new-consents"></div>';
     jbConsentsFill();
+  } else if (jb.client) {
+    box.innerHTML = sw
+      + '<div class="jb-picked"><div><b>' + escAttr(jb.client.name) + '</b><span>' + escAttr(jb.client.phone || '') + '</span></div>'
+      + '<button class="btn-ghost jb-link" onclick="jbClearClient()">Изменить</button></div>';
   } else {
-    box.innerHTML = '<input class="form-input" id="jb-search" inputmode="tel" oninput="jbSearch(this.value)" autocomplete="off">'
+    box.innerHTML = sw
+      + '<input class="form-input" id="jb-search" inputmode="tel" oninput="jbSearch(this.value)" autocomplete="off" value="' + escAttr(jb.searchQ || '') + '">'
       + '<div class="set-hint">Номер телефона — от трёх цифр, можно любую часть номера</div>'
-      + '<div id="jb-results"></div>'
-      + '<button class="btn-ghost jb-link" onclick="jbSetNew(true)">Новый клиент</button>';
+      + '<div id="jb-results"></div>';
+    jbSearch(jb.searchQ || '');
   }
   jbUpdateSubmit();
+}
+// Запомнить набранное в блоке «Клиент» перед тем, как его перерисовать
+function jbClientRemember() {
+  const v = function (id) { const el = document.getElementById(id); return el ? el.value : null; };
+  const q = v('jb-search');
+  if (q !== null) jb.searchQ = q.trim();
+  if (v('jb-new-name') !== null) {
+    jb.draft = {
+      first: v('jb-new-name').trim(), last: v('jb-new-last').trim(), phone: v('jb-new-phone').trim(),
+      consents: Array.from(document.querySelectorAll('#jb-new-consents [data-jb-consent]:checked')).map(function (el) { return el.getAttribute('data-jb-consent'); }),
+    };
+  }
 }
 
 // Согласия нового клиента: он пришёл в студию без записи и подписал документы — администратор отмечает подписанные,
@@ -264,13 +290,15 @@ async function jbConsentsFill() {
   box.innerHTML = '<label class="form-label u-mt-12">Согласия</label>'
     + '<div class="set-hint">Отметьте документы, которые клиент подписал. Необязательно — можно отметить позже в карточке клиента</div>'
     + jbDocs.map(function (d) {
-      return '<label class="check-label check-label--text u-mt-10"><input type="checkbox" data-jb-consent="' + d.code + '">'
+      return '<label class="check-label check-label--text u-mt-10"><input type="checkbox" data-jb-consent="' + d.code + '"' + (jb.draft && jb.draft.consents.indexOf(d.code) >= 0 ? ' checked' : '') + '>'
         + '<span><a class="u-brand" href="#doc/' + d.code + '" target="_blank" rel="noopener">' + escAttr(d.name) + '</a></span></label>';
     }).join('');
 }
 
+// Поиск идёт по списку клиентов, загруженному при открытии экрана (CLIENTS), — запросов к серверу при вводе нет
 function jbSearch(q) {
   const box = document.getElementById('jb-results');
+  jb.searchQ = q.trim();
   // Ищем только по номеру (поиск по имени пока не делаем), от трёх цифр; правило сравнения — phoneMatches (js/ui.js)
   if (q.replace(/\D+/g, '').length < 3) { box.innerHTML = ''; return; }
   const found = CLIENTS.filter(function (c) { return phoneMatches(c.phone, q); }).slice(0, 6);
@@ -278,7 +306,7 @@ function jbSearch(q) {
     ? found.map(function (c) {
       return '<button type="button" class="jb-result" onclick="jbSelectClient(' + c.id + ')"><b>' + escAttr(c.name) + '</b><span>' + escAttr(c.phone || '') + '</span></button>';
     }).join('')
-    : '<div class="set-hint">Не найден — добавьте нового клиента</div>';
+    : '<div class="set-hint">Не найден — переключитесь на «Новый клиент»</div>';
 }
 
 function jbSelectClient(id) {
@@ -289,13 +317,21 @@ function jbSelectClient(id) {
 }
 function jbClearClient() { jb.client = null; jbRenderClient(); jbLoadTimes(); }
 
-// Новый клиент: номер, набранный в поиске, переносим в поле телефона
+// Переключатель: on — «Новый клиент», иначе «Поиск по телефону». Выбранный клиент при переходе к новому сбрасывается;
+// номер из поиска подставляется в телефон нового клиента, только если набран целиком и не найден (см. ниже)
 function jbSetNew(on) {
-  const s = document.getElementById('jb-search');
-  const q = s ? s.value.trim() : '';
-  jb.isNew = on; jb.client = null;
+  if (on === jb.isNew) return;
+  jbClientRemember();
+  jb.isNew = on;
+  if (on) {
+    jb.client = null;
+    const d = jb.draft || (jb.draft = { first: '', last: '', phone: '', consents: [] });
+    // Поиск идёт по любой части номера, поэтому набранные цифры — ещё не телефон. Подставляем их, только если
+    // номер набран целиком (10–11 цифр) и клиента с ним нет: тогда это и есть номер нового клиента
+    const digits = (jb.searchQ || '').replace(/\D+/g, '');
+    if (!d.phone && digits.length >= 10 && !CLIENTS.some(function (c) { return phoneMatches(c.phone, jb.searchQ); })) d.phone = maskPhone(jb.searchQ);
+  }
   jbRenderClient();
-  if (on && q) document.getElementById('jb-new-phone').value = maskPhone(q);   // маска +7 (XXX) XXX-XX-XX — как у телефона филиала
   jbLoadTimes();
 }
 
