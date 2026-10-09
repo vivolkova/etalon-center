@@ -60,6 +60,7 @@ function selectSchLoc(id) {
 function renderSitePages() {
   renderSchLoc();
   if (currentPage === 'trainings') renderTrainings();
+  if (currentPage === 'catalog') renderCatalog();
   if (currentPage === 'services') renderServices();
 }
 

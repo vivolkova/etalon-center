@@ -198,6 +198,7 @@ function showPage(name) {
   document.getElementById('page-' + name).classList.add('active');
   currentPage = name;
   if (name === 'trainings') renderTrainings();
+  if (name === 'catalog') renderCatalog();
   if (name === 'services') renderServices();
   if (name === 'client') renderClientPanel();
   if (name === 'admin') admGroupOpen();   // текущая группа разделов панели и её первый раздел

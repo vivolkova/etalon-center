@@ -106,7 +106,8 @@ function trDayListHtml(di, items) {
 
 // Форма записи клиента — та же, что в журнале администратора (js/admin/journal-book.js), в режиме jb.self:
 // клиент — сам вошедший, день выбирается в форме в пределах окна записи. Свободное время и станки считает сервер
-async function trOpenFree() {
+// itemId — тренировка, выбранная заранее (страница «Тренировки»); без него — первая в списке
+async function trOpenFree(itemId) {
   if (!currentUser) { openAuth('login'); showToast('Войдите, чтобы записаться'); return; }
   const loc = schLoc();
   if (!loc) return;
@@ -123,7 +124,60 @@ async function trOpenFree() {
     client: { id: currentUser.id, name: currentUser.name }, isNew: false, times: null, message: '', hall: null,
   };
   jbBuildModal(loc);
-  jbPick(items[0].id);
+  jbPick(items.some(function (i) { return i.id === itemId; }) ? itemId : items[0].id);
+}
+
+// ═══ ТРЕНИРОВКИ: какие тренировки есть в выбранном филиале ═══
+
+// Страница «Тренировки» — те же карточки, что у администратора в «Филиалы → Тренировки» (js/admin/library.js),
+// только для просмотра: действующие тренировки библиотеки выбранного филиала блоками по виду (групповые,
+// персональные, самостоятельные). Групповая — «В расписание» (на неё записываются в расписании), персональная
+// и самостоятельная — «Записаться» (форма «Свободная запись» с этой тренировкой)
+function renderCatalog() {
+  renderSchLoc();
+  const box = document.getElementById('catalog-grid');
+  const loc = schLoc();
+  if (!box || !loc) return;
+  const items = LIBRARY.trainings.filter(function (it) { return Number(it.location_id) === Number(loc.id) && Number(it.active); });
+  if (!items.length) { box.innerHTML = '<div class="indp-empty">В этом филиале пока нет тренировок.</div>'; return; }
+  const keys = SLOT_TYPES.map(function (x) { return x.code; });
+  items.forEach(function (it) { if (keys.indexOf(it.type || '') < 0) keys.push(it.type || ''); });
+  box.innerHTML = keys.map(function (key) {
+    const block = items.filter(function (it) { return (it.type || '') === key; });
+    if (!block.length) return '';
+    return '<div class="svc-section ' + colorClass('training', key) + '">'
+      + '<h3 class="svc-section-title"><span class="svc-dot"></span>' + escAttr(LIB_TYPE_TITLES[key] || slotTypeName(key)) + '</h3>'
+      + '<div class="lib-grid">' + block.map(catalogCardHtml).join('') + '</div></div>';
+  }).join('');
+}
+
+function catalogCardHtml(it) {
+  const feats = (it.features || []).slice(0, 3);
+  const group = it.type === 'group';
+  return '<div class="lib-card ' + colorClass(it.cat, it.type) + '">'
+    + (it.difficulty ? '<div class="lib-difficulty">' + escAttr(DIFFICULTY_LABEL[it.difficulty] || it.difficulty) + '</div>' : '')
+    + '<div class="lib-card-header"><div>'
+    + '<div class="lib-card-cat">' + escAttr(slotTypeName(it.type)) + '</div>'
+    + '<div class="lib-card-title">' + escAttr(it.name) + '</div>'
+    + '</div></div>'
+    + '<div class="lib-card-desc">' + escAttr(it.desc || '') + '</div>'
+    + (feats.length ? '<div class="lib-card-features">' + feats.map(function (x) {
+      return '<div class="lib-card-feature"><div class="lib-card-feature-dot"></div><span>' + escAttr(String(x)) + '</span></div>';
+    }).join('') + '</div>' : '')
+    + '<div class="lib-card-meta"><span class="lib-meta-tag">' + fmtDurShort(it.dur) + '</span>'
+    + (group && it.max ? '<span class="lib-meta-tag">до ' + it.max + ' чел.</span>' : '') + '</div>'
+    + '<div class="lib-card-footer">'
+    + '<div class="lib-card-price">' + Number(it.price).toLocaleString('ru') + ' ₽</div>'
+    + '<div class="lib-card-actions">'
+    + (group
+      ? '<button class="btn-primary btn-sm" onclick="catalogToSchedule()">В расписание</button>'
+      : '<button class="btn-primary btn-sm" onclick="trOpenFree(' + it.id + ')">Записаться</button>')
+    + '</div></div></div>';
+}
+// «В расписание» у групповой тренировки: на неё записываются на конкретный день и время
+function catalogToSchedule() {
+  showPage('trainings');
+  setNavActive(document.querySelector('.nav-link[onclick*=trainings]'));
 }
 
 // Своя запись строкой списка дня — золотая, как блок в сетке
